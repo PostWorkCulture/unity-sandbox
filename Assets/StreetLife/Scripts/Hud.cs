@@ -78,7 +78,7 @@ namespace StreetLife
             if (showHelp)
                 GUI.Label(R(W / 2 - 330, H - 46, 660, 40),
                     "Click to lock the mouse, Esc frees it.  WASD move, Space jump (again in the air: double jump), right mouse aim, C crouch, walk into a ladder to climb.\n" +
-                    "F1 hides this.  F2 shows the bot's secret style.  Until weapons arrive: F3 shoots at the crosshair, F4 sets off a blast there.", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
+                    "F1 hides this.  F2 shows the bot's secret style.  F3 picks characters.  Until weapons arrive: F6 shoots at the crosshair, F7 sets off a blast there.", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
         }
 
         // ------------------------------------------------------------------ vitals

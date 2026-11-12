@@ -532,12 +532,12 @@ namespace StreetLife
             }
         }
 
-        // Until the weapons arrive: F3 shoots whatever is under the crosshair (40 damage), F4 sets off a blast there.
+        // Until the weapons arrive: F6 shoots whatever is under the crosshair (40 damage), F7 sets off a blast there (F3 is the character picker).
         void DebugKeys()
         {
             var kb = UnityEngine.InputSystem.Keyboard.current; var cam = Camera.main;
             if (kb == null || !cam) return;
-            bool shoot = kb.f3Key.wasPressedThisFrame, boom = kb.f4Key.wasPressedThisFrame;
+            bool shoot = kb.f6Key.wasPressedThisFrame, boom = kb.f7Key.wasPressedThisFrame;
             if (!shoot && !boom) return;
             var o = cam.transform.position; var d = cam.transform.forward;
             float t = BoxWorld.Ray(o, d, 120, out int bi); if (t < 0) return;

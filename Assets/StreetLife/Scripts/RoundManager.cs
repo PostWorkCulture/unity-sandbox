@@ -109,7 +109,7 @@ namespace StreetLife
             lastStyle = style;
             botBrain.difficulty = difficulty;
             botBrain.ResetForRound(style);
-            bot.displayName = "Bot";
+            bot.displayName = string.IsNullOrEmpty(bot.characterName) ? "Bot" : bot.characterName;   // the bot goes by its character
             timer = roundTime; lastWinner = -1;
             SetFrozen(true);
             state = round == 1 ? State.Intro : State.Countdown;
