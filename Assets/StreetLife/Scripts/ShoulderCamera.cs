@@ -9,7 +9,6 @@ namespace StreetLife
     {
         public Fighter target;
         public CharacterRig rig;
-        public Arsenal arsenal;
         [Tooltip("Aim-down-sights field of view (the M4's zoom in the web game)")]
         public float adsFov = 33f;
         public float adsZoomTime = .26f;
@@ -29,15 +28,6 @@ namespace StreetLife
             var f = target;
             Vector3 dir = f.Aim, right = f.Right, up = Vector3.up;
             Vector3 head = f.VisualHead;
-
-            // sniper scopes look from the eye, as in the web game
-            if (arsenal && arsenal.Scoped)
-            {
-                transform.position = head; transform.rotation = Quaternion.LookRotation(dir);
-                if (rig) rig.SetVisible(false);
-                var gs = arsenal.Info; cam.fieldOfView = Damp(cam.fieldOfView, gs != null && gs.zoom > 0 ? gs.zoom : 20, 12, dt);
-                camUse = float.NaN; return;
-            }
 
             bool ceiling = BoxWorld.Ray(head, up, 3.2f) >= 0;
             indoor = Damp(indoor, ceiling ? 1 : 0, 6, dt);
@@ -64,11 +54,8 @@ namespace StreetLife
             transform.LookAt(head + right * sh + dir * 60f);
             if (rig) rig.SetVisible(camUse > 1.0f);
 
-            // each gun zooms by its own amount (the web game's zoom), raised in its own time
-            var g = arsenal ? arsenal.Info : null;
-            float zoom = g != null && g.zoom > 0 ? g.zoom : adsFov, zt = g != null && g.ads > 0 ? g.ads : adsZoomTime;
-            float fov = f.ads ? zoom : 70 + 8 * ind;
-            cam.fieldOfView = Damp(cam.fieldOfView, fov, f.ads ? 3.2f / zt : 10, dt);
+            float fov = f.ads ? adsFov : 70 + 8 * ind;
+            cam.fieldOfView = Damp(cam.fieldOfView, fov, f.ads ? 3.2f / adsZoomTime : 10, dt);
         }
     }
 }

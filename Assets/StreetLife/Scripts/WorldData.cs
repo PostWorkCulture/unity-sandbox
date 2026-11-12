@@ -21,53 +21,31 @@ namespace StreetLife
         public WBox[] boxes; public WLadder[] ladders; public WSpawn[] spawns; public WBounds bounds;
     }
 
-    [Serializable] public class WTex { public int id, w, h; public string wrapS, wrapT; public bool point; }
+    [Serializable] public class WTex { public int id, w, h; public string wrapS, wrapT; public bool point, normal, linear; }
     [Serializable]
     public class WMat
     {
         public int id; public string kind, color, emissive; public int map, emissiveMap, alphaMap;
         public float opacity, alphaTest, roughness, metalness, emissiveIntensity, transmission;
         public bool transparent, doubleSided, backSide, toneMapped, depthWrite;
+        public int normalMap = -1, msMap = -1;   // guns only: normal map and metallic (R) / smoothness (A) map
     }
     [Serializable] public class MatJson { public WTex[] textures; public WMat[] materials; }
 
+    /// Something that moves or breaks: props, glass, drums, chips, trees, play frames, cars, loose items, ambient animation.
+    [Serializable]
+    public class WDyn
+    {
+        public int id; public string kind, prop, snd, color, carKind;
+        public float[] pos, rot, scl; public int[] boxes, meshes;
+        public float hp, treeH, kw, kh, kd, brk, heavy, hz;
+        public bool shove, boom, wood, ball;
+        public float[] keys, ppos, prot, pscl, wheels;
+    }
+    [Serializable] public class DynJson { public WDyn[] entities; public WMesh[] meshes; public float period; }
+
     [Serializable] public class WNode { public string name; public int parent; public float[] pos, rot, scl; public int[] meshes; }
-    // arm lengths for the two-bone IK: shoulder to elbow (up), elbow to the hand point (fore), and where the hand sits on the forearm (web game space)
-    [Serializable] public class WArm { public float up, fore; public float[] hand; }
-    [Serializable] public class WArms { public WArm L, R; public bool elbows; }
-    [Serializable] public class CharJson { public WNode[] nodes; public WMesh[] meshes; public float handY, scale; public WArms arms; }
-
-    // ---- weapons: one model per gun, exported in its own space (Unity axes) ----
-    // held: the detailed two-handed model the web game poses with holdGun (grip r, handguard l, scale s, muzzle, twin pistols, nf = no flash, sh = on the shoulder)
-    [Serializable] public class WHold { public float[] r, l; public float s, muzY, muzZ, dx; public bool twin, nf, sh; }
-    // hand / thrown: the model hangs off a node of the character (aR.p) at a fixed offset
-    [Serializable] public class WLow { public string parent; public float[] pos, rot; }
-    [Serializable] public class WeaponJson { public string id, mode; public WMesh[] meshes; public float[] min, max; public WHold hold; public WLow low; public float scale; }
-
-    // ---- catalog: names, abilities and stats straight from the web game's CHARS and GUNS tables ----
-    [Serializable]
-    public class CharInfo
-    {
-        public string id, name, desc, ability, color; public float cooldown, hp, speed; public string[] killFx; public bool hasModel;
-        public Color Colour => Hex.ToColor(color);
-    }
-    [Serializable]
-    public class WeaponInfo
-    {
-        public string id, slot, cls, name, note, type, color;
-        public float dmg, direct, head, rate, mag, reload, swap, spread, adsSpread, ads, pb, zoom, kick, bloom;
-        public int pellets, burst;
-        public bool noReload, auto;
-        public float[] fall;
-        public float radius, speed, maxSpeed, accel, grav, fuse, landFuse, burstGap, range, reach, arc, lunge;
-        public bool Infinite => mag < 0;
-        public bool HasFall => fall != null && fall.Length >= 2;
-        public bool Sniper => id == "sniper" || id == "scout";
-        public bool Shotgun => pellets > 1;
-        public Color Colour => Hex.ToColor(color);
-    }
-    [Serializable] public class CatalogOrder { public string[] primaries, secondaries, lethals; }
-    [Serializable] public class CatalogJson { public string source, exported; public CharInfo[] characters; public WeaponInfo[] weapons; public CatalogOrder order; }
+    [Serializable] public class CharJson { public WNode[] nodes; public WMesh[] meshes; public float handY, scale; }
 
     public static class Hex
     {

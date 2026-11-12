@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace StreetLife
 {
-    public class Fighter : MonoBehaviour
+    public partial class Fighter : MonoBehaviour
     {
         // ---- constants straight from the web game ----
         public const float R = .45f, HH = 2.25f, GRAV = 36f, JUMP = 12f, STEP = .55f, AIR_STEP = .3f, SC = .8f;
@@ -13,13 +13,8 @@ namespace StreetLife
         public const float DJ_COST = 15f, STAM_MAX = 100f, STAM_DRAIN = 20f, STAM_REGEN = 40f, STAM_DELAY = .5f, STAM_MIN = 25f;
         public const float MOVE_MUL = 1.125f, REGEN_DELAY = 3f, REGEN_RATE = 10f, LADDER_SPEED = 4.6f;
 
-        public static readonly System.Collections.Generic.List<Fighter> All = new System.Collections.Generic.List<Fighter>();
-
         [Header("Character")]
-        public string characterId = "wednesday";
         public string characterName = "Wednesday";
-        public int team;                  // 0 = you; practice dummies are 1
-        public bool alive = true;
         public float charSpeed = 1.1f;   // Wednesday: fastest runner
         public float charJump = 1f;
         public float hpMax = 100f;
@@ -33,7 +28,6 @@ namespace StreetLife
         public bool stamLock;
         public Ladder onLadder;
         public float lastHurt = -99f, simTime;
-        public float stunT;               // stun grenade: 25% speed while it lasts
 
         // input for the next sim steps
         [System.NonSerialized] public float inFwd, inSide;
@@ -49,36 +43,8 @@ namespace StreetLife
         public System.Action<float> onLand;              // fall speed when landing hard
         public System.Action onJump, onDoubleJump;
 
-        void OnEnable() { if (!All.Contains(this)) All.Add(this); }
-        void OnDisable() { All.Remove(this); }
-
-        /// Speed, health and name from the web game's CHARS table.
-        public void ApplyCharacter(CharInfo c)
-        {
-            if (c == null) return;
-            characterId = c.id; characterName = c.name;
-            charSpeed = c.speed > 0 ? c.speed : 1f;
-            float frac = hpMax > 0 ? hp / hpMax : 1; hpMax = c.hp > 0 ? c.hp : 100f; hp = hpMax * frac;
-        }
-
-        public System.Action<float, bool, Fighter> onHurt;   // damage, headshot, from
-        public System.Action<Fighter> onDown;
-
-        /// Damage as the web game applies it: armour soaks first, regen waits 3 s; at 0 the fighter is out.
-        public bool TakeDamage(float dmg, bool head, Fighter from)
-        {
-            if (!alive || dmg <= 0) return false;
-            lastHurt = simTime;
-            if (armor > 0) { float a = Mathf.Min(armor, dmg); armor -= a; dmg -= a; }
-            hp -= dmg;
-            onHurt?.Invoke(dmg, head, from);
-            if (hp <= 0) { hp = 0; alive = false; onDown?.Invoke(from); return true; }
-            return false;
-        }
-
         public void Place(Vector3 p, float yawRad)
         {
-            alive = true;
             pos = prevPos = p; vel = Vector3.zero; yaw = yawRad; pitch = 0; grounded = true; onLadder = null;
             stam = STAM_MAX; stamLock = false; hp = hpMax; cv = 0; crouchOn = false; acc = 0;
         }
@@ -98,16 +64,17 @@ namespace StreetLife
         void Step(float dt)
         {
             simTime += dt;
-            float fi = inFwd, si = inSide;
+            float fi = Frozen ? 0 : inFwd, si = Frozen ? 0 : inSide;
+            if (Frozen) { inJump = false; inJumpPress = false; ads = false; }
             float s = Mathf.Sin(yaw), c = Mathf.Cos(yaw);
             float wx = s * fi + c * si, wz = c * fi - s * si;   // forward (sin, cos), right (cos, -sin)
             float wl = Mathf.Sqrt(wx * wx + wz * wz); if (wl > 1) { wx /= wl; wz /= wl; }
             if (onLadder != null) ads = false;
             UpdCrouch(crouchOn, dt);
             float spd = (ads ? 5.6f : 11.25f) * MOVE_MUL;
-            if (stunT > 0) { stunT -= dt; spd *= .25f; }
             Physics(dt, wx, wz, inJump, spd, inJumpPress);
             TickStam(dt);
+            TickCombat(dt);
         }
 
         // ---------------------------------------------------------------- physics
@@ -271,6 +238,7 @@ namespace StreetLife
         // ---------------------------------------------------------------- stamina and regen
         void TickStam(float dt)
         {
+            if (Frozen) return;
             bool walking = HorizontalSpeed > 1.5f;
             if (walking || ads)
             {

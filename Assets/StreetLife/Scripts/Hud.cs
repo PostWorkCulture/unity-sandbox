@@ -1,7 +1,7 @@
-// HUD: vitals panel (health, armour, stamina) bottom left like the web game, the weapon panel bottom right,
-// a crosshair that opens with the spread and turns red over an enemy in range, hit markers, damage numbers,
-// name tags, the flash-bang white-out, and the loadout picker (Tab): every character and weapon from the web game.
-using System.Collections.Generic;
+// The match HUD, laid out like the web game: vitals bottom left (health green, armour blue, stamina purple),
+// leaderboard top left, a minimap top right that turns with you (enemies only show as a red dot when they fire,
+// a red X where someone went down), score and round timer top centre with the kill feed under it, a hit-direction
+// arc round the crosshair, the countdown, a slim round-result bar and the end-of-match screen.
 using UnityEngine;
 
 namespace StreetLife
@@ -9,23 +9,13 @@ namespace StreetLife
     public class Hud : MonoBehaviour
     {
         public Fighter fighter;
-        public Arsenal arsenal;
-        public CharacterRig rig;
-        public Armory armory;
-        public PracticeRange range;
         public bool showHelp = true;
+        public bool drawCrosshair = true;   // the weapon HUD draws its own
+        bool showBot;
         float fps, fpsT; int frames;
-        Texture2D white;
-        GUIStyle label, small, big, btn, btnOn, head, wrap;
-
-        public static bool PickerOpen;
-        static float hitT, hitBig, flashA;
-        struct Num { public Vector3 pos; public int dmg; public bool head; public float t; }
-        static readonly List<Num> nums = new List<Num>();
-
-        public static void DamageNumber(Vector3 at, int dmg, bool head) { if (dmg > 0) nums.Add(new Num { pos = at, dmg = dmg, head = head, t = 0 }); if (nums.Count > 30) nums.RemoveAt(0); }
-        public static void HitMarker(bool big) { hitT = .18f; hitBig = big ? 1 : 0; }
-        public static void Flash(float secs) { flashA = Mathf.Max(flashA, secs); }
+        Texture2D white, mapTex;
+        GUIStyle label, small, big, huge, center, feedStyle;
+        float s;   // UI scale
 
         void Update()
         {
@@ -33,274 +23,248 @@ namespace StreetLife
             if (fpsT >= .5f) { fps = frames / fpsT; frames = 0; fpsT = 0; }
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.f1Key.wasPressedThisFrame) showHelp = !showHelp;
-            if (kb != null && kb.tabKey.wasPressedThisFrame) SetPicker(!PickerOpen);
-            if (PickerOpen && kb != null && kb.escapeKey.wasPressedThisFrame) SetPicker(false);
-            hitT -= Time.deltaTime; flashA = Mathf.Max(0, flashA - Time.deltaTime);
-            for (int i = nums.Count - 1; i >= 0; i--) { var n = nums[i]; n.t += Time.deltaTime; n.pos += Vector3.up * Time.deltaTime * .8f; nums[i] = n; if (n.t > .9f) nums.RemoveAt(i); }
+            if (kb != null && kb.f2Key.wasPressedThisFrame) showBot = !showBot;
         }
 
-        void SetPicker(bool on)
-        {
-            PickerOpen = on;
-            Cursor.lockState = on ? CursorLockMode.None : Cursor.lockState; Cursor.visible = on || Cursor.lockState != CursorLockMode.Locked;
-        }
+        Rect R(float x, float y, float w, float h) => new Rect(x * s, y * s, w * s, h * s);
+
+        void Fill(Rect r, Color c) { GUI.color = c; GUI.DrawTexture(r, white); GUI.color = Color.white; }
 
         void Bar(float x, float y, float w, float h, float v, Color c)
         {
-            GUI.color = new Color(0, 0, 0, .55f); GUI.DrawTexture(new Rect(x, y, w, h), white);
-            GUI.color = c; GUI.DrawTexture(new Rect(x + 2, y + 2, (w - 4) * Mathf.Clamp01(v), h - 4), white);
-            GUI.color = Color.white;
+            Fill(R(x, y, w, h), new Color(0, 0, 0, .55f));
+            Fill(R(x + 2, y + 2, (w - 4) * Mathf.Clamp01(v), h - 4), c);
         }
-        void Box(Rect r, Color c) { GUI.color = c; GUI.DrawTexture(r, white); GUI.color = Color.white; }
 
         void Styles()
         {
             if (!white) { white = new Texture2D(1, 1); white.SetPixel(0, 0, Color.white); white.Apply(); }
-            if (label != null) return;
-            label = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
-            small = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            wrap = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
-            big = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
-            head = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1, .82f, .3f) } };
-            btn = new GUIStyle(GUI.skin.button) { fontSize = 12, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(8, 4, 3, 3) };
-            btnOn = new GUIStyle(btn) { fontStyle = FontStyle.Bold, normal = { textColor = Color.black, background = white }, hover = { textColor = Color.black, background = white } };
+            int fs(float px) => Mathf.Max(8, Mathf.RoundToInt(px * s));
+            label = new GUIStyle(GUI.skin.label) { fontSize = fs(14), fontStyle = FontStyle.Bold };
+            small = new GUIStyle(GUI.skin.label) { fontSize = fs(12) };
+            center = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter };
+            big = new GUIStyle(center) { fontSize = fs(30) };
+            huge = new GUIStyle(center) { fontSize = fs(72) };
+            feedStyle = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+        }
+
+        void Shadowed(Rect r, string t, GUIStyle st, Color c)
+        {
+            var o = st.normal.textColor;
+            st.normal.textColor = new Color(0, 0, 0, c.a * .8f); GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), t, st);
+            st.normal.textColor = c; GUI.Label(r, t, st);
+            st.normal.textColor = o;
         }
 
         void OnGUI()
         {
             if (!fighter) return;
+            s = Screen.height / 1080f * 1.4f;
             Styles();
-            float s = Screen.height / 1080f * 1.4f; var m = GUI.matrix; GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
             float W = Screen.width / s, H = Screen.height / s;
-            var cam = Camera.main;
+            var rm = RoundManager.Instance;
 
-            // name tags over the dummies (name in the character's colour, health underneath while practising)
-            if (cam)
-                foreach (var o in Fighter.All)
-                {
-                    if (o == fighter || !o.alive) continue;
-                    var sp = cam.WorldToScreenPoint(o.VisualPos + Vector3.up * 2.35f);
-                    if (sp.z <= 0 || sp.z > 60) continue;
-                    var ci = armory ? armory.Char(o.characterId) : null;
-                    var st = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter, normal = { textColor = ci != null ? ci.Colour : Color.white } };
-                    float x = sp.x / s, y = (Screen.height - sp.y) / s;
-                    GUI.Label(new Rect(x - 80, y - 22, 160, 20), o.characterName, st);
-                    Bar(x - 30, y - 2, 60, 6, o.hp / o.hpMax, new Color(.27f, .85f, .38f));
-                }
-
-            // damage numbers
-            if (cam)
-                foreach (var n in nums)
-                {
-                    var sp = cam.WorldToScreenPoint(n.pos); if (sp.z <= 0) continue;
-                    var st = new GUIStyle(label) { fontSize = n.head ? 20 : 16, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(n.head ? 1 : 1, n.head ? .25f : .95f, n.head ? .2f : .85f, 1 - n.t / .9f) } };
-                    GUI.Label(new Rect(sp.x / s - 40, (Screen.height - sp.y) / s - 12, 80, 24), n.dmg.ToString(), st);
-                }
-
-            // vitals: health (green), armour (blue), stamina (purple)
-            float x0 = 18, y0 = H - 78;
-            Bar(x0, y0, 230, 18, fighter.hp / fighter.hpMax, new Color(.27f, .85f, .38f));
-            Bar(x0, y0 + 22, 230, 12, fighter.armor / 100f, new Color(.25f, .6f, 1f));
-            Bar(x0, y0 + 38, 230, 12, fighter.stam / Fighter.STAM_MAX, fighter.stamLock ? new Color(.45f, .3f, .55f) : new Color(.62f, .38f, 1f));
-            GUI.Label(new Rect(x0, y0 - 22, 300, 20), fighter.characterName + "  " + Mathf.CeilToInt(fighter.hp), label);
-
-            // weapon panel
-            if (arsenal && armory)
+            Vitals(H);
+            if (fighter.alive) { if (drawCrosshair) Crosshair(W, H); HitArc(W, H); }
+            Minimap(W);
+            if (rm && rm.player && rm.bot)
             {
-                var g = arsenal.Info;
-                if (g != null)
-                {
-                    float wx = W - 290, wy = H - 92;
-                    Box(new Rect(wx, wy, 272, 78), new Color(0, 0, 0, .45f));
-                    GUI.Label(new Rect(wx + 10, wy + 4, 180, 20), g.name, label);
-                    GUI.Label(new Rect(wx + 190, wy + 6, 72, 18), g.cls, new GUIStyle(small) { alignment = TextAnchor.UpperRight });
-                    int a = arsenal.Ammo(arsenal.Current);
-                    GUI.Label(new Rect(wx + 10, wy + 22, 252, 30), a < 0 ? "∞" : a + " / " + Mathf.RoundToInt(g.mag), big);
-                    if (arsenal.reloadT > 0) Bar(wx + 10, wy + 54, 252, 8, 1 - arsenal.reloadT / arsenal.reloadMax, new Color(1, .82f, .3f));
-                    var p = armory.Weapon(arsenal.primary); var sc = armory.Weapon(arsenal.secondary); var l = armory.Weapon(arsenal.lethal);
-                    GUI.Label(new Rect(wx + 10, wy + 58, 260, 18),
-                        (arsenal.slot == 0 ? "[1 " : " 1 ") + (p != null ? p.name : "-") + (arsenal.slot == 0 ? "]" : " ") + "   " +
-                        (arsenal.slot == 1 ? "[2 " : " 2 ") + (sc != null ? sc.name : "-") + (arsenal.slot == 1 ? "]" : " ") +
-                        (l != null ? "   G " + l.name + " x" + arsenal.lethalLeft : ""), small);
-                }
+                ScoreAndFeed(rm, W);
+                Leaderboard(rm);
+                Banners(rm, W, H);
+                if (showBot && rm.botBrain) GUI.Label(R(18, 120, 520, 60), $"Bot: {rm.botBrain.Style.name} ({rm.botBrain.Dif.name}), {rm.botBrain.Mode}", small);
             }
+            GUI.Label(R(W - 90, H - 28, 80, 20), Mathf.RoundToInt(fps) + " fps", small);
+            if (showHelp)
+                GUI.Label(R(W / 2 - 330, H - 46, 660, 40),
+                    "Click to lock the mouse, Esc frees it.  WASD move, Space jump (again in the air: double jump), right mouse aim, C crouch, walk into a ladder to climb.\n" +
+                    "F1 hides this.  F2 shows the bot's secret style.  Until weapons arrive: F3 shoots at the crosshair, F4 sets off a blast there.", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
+        }
 
-            // crosshair: opens with the spread, red over an enemy within the gun's reach
-            float cx = W / 2, cy = H / 2;
-            if (!(arsenal && arsenal.Scoped))
-            {
-                float gap = 3 + (arsenal ? Mathf.Min(40, arsenal.SpreadNow * 4.5f) : 0);
-                bool onT = OnTarget(cam);
-                GUI.color = onT ? new Color(1, .25f, .2f, .95f) : new Color(1, 1, 1, .9f);
-                GUI.DrawTexture(new Rect(cx - 1, cy - gap - 6, 2, 6), white); GUI.DrawTexture(new Rect(cx - 1, cy + gap, 2, 6), white);
-                GUI.DrawTexture(new Rect(cx - gap - 6, cy - 1, 6, 2), white); GUI.DrawTexture(new Rect(cx + gap, cy - 1, 6, 2), white);
-            }
-            else
-            {
-                // sniper scope: dark surround, thin cross and a red centre dot
-                float R = H * .42f;
-                GUI.color = new Color(0, 0, 0, .85f);
-                GUI.DrawTexture(new Rect(0, 0, cx - R, H), white); GUI.DrawTexture(new Rect(cx + R, 0, W - cx - R, H), white);
-                GUI.DrawTexture(new Rect(cx - R, 0, 2 * R, cy - R), white); GUI.DrawTexture(new Rect(cx - R, cy + R, 2 * R, H - cy - R), white);
-                GUI.color = new Color(0, 0, 0, .9f); GUI.DrawTexture(new Rect(cx - R, cy - .5f, 2 * R, 1), white); GUI.DrawTexture(new Rect(cx - .5f, cy - R, 1, 2 * R), white);
-                GUI.color = new Color(1, .15f, .1f); GUI.DrawTexture(new Rect(cx - 2, cy - 2, 4, 4), white);
-            }
-            if (hitT > 0)
-            {
-                // an X of four short diagonal strokes (red for a headshot or a down)
-                GUI.color = hitBig > 0 ? new Color(1, .2f, .15f) : Color.white; float d = 6 + hitBig * 3;
-                for (int k = 0; k < 6; k++)
-                    foreach (var sg in new[] { new Vector2(1, 1), new Vector2(-1, 1), new Vector2(1, -1), new Vector2(-1, -1) })
-                        GUI.DrawTexture(new Rect(cx + sg.x * (d + k) - 1, cy + sg.y * (d + k) - 1, 2, 2), white);
-            }
-            GUI.color = Color.white;
+        // ------------------------------------------------------------------ vitals
+        void Vitals(float H)
+        {
+            float x = 18, y = H - 84;
+            Bar(x, y, 230, 18, fighter.hp / fighter.hpMax, new Color(.27f, .85f, .38f));
+            Bar(x, y + 22, 230, 12, fighter.armor / 100f, new Color(.25f, .6f, 1f));
+            Bar(x, y + 38, 230, 12, fighter.stam / Fighter.STAM_MAX, fighter.stamLock ? new Color(.45f, .3f, .55f) : new Color(.62f, .38f, 1f));
+            Shadowed(R(x, y - 22, 300, 20), fighter.characterName + "   " + Mathf.CeilToInt(fighter.hp), label, Color.white);
+        }
 
-            GUI.Label(new Rect(W - 110, 10, 100, 20), Mathf.RoundToInt(fps) + " fps", label);
-            if (showHelp && !PickerOpen)
-                GUI.Label(new Rect(18, 14, 640, 140),
-                    "Street Life (Unity)  -  click to lock the mouse, Esc to free it\n" +
-                    "WASD move   Mouse look   Space jump (again in the air: double jump)   C crouch   Walk into a ladder to climb\n" +
-                    "Left mouse fire (snipers: hold to scope, let go to fire)   Right mouse aim   R reload   1 / 2 / wheel switch   G lethal\n" +
-                    "Tab characters and weapons   T dummies strafe   Backspace new spawn   F1 hide this", small);
+        void Crosshair(float W, float H)
+        {
+            float cx = W / 2, cy = H / 2; var c = new Color(1, 1, 1, .9f);
+            Fill(R(cx - 1, cy - 9, 2, 6), c); Fill(R(cx - 1, cy + 3, 2, 6), c);
+            Fill(R(cx - 9, cy - 1, 6, 2), c); Fill(R(cx + 3, cy - 1, 6, 2), c);
+        }
 
-            if (flashA > 0) { GUI.color = new Color(1, 1, 1, Mathf.Clamp01(flashA / .4f)); GUI.DrawTexture(new Rect(0, 0, W, H), white); GUI.color = Color.white; }
-            if (PickerOpen) Picker(W, H);
+        /// A short red arc round the crosshair pointing at whoever just hit you, turning as you turn.
+        void HitArc(float W, float H)
+        {
+            float age = Time.time - fighter.lastHitTime;
+            if (age > .8f || fighter.lastBy == null) return;
+            var d = fighter.lastHitFrom - fighter.pos; d.y = 0;
+            if (d.sqrMagnitude < .01f) return;
+            float ang = Vector3.SignedAngle(fighter.Forward, d.normalized, Vector3.up);
+            var m = GUI.matrix;
+            var pivot = new Vector2(W / 2 * s, H / 2 * s);
+            float a = 1 - age / .8f;
+            for (int i = -2; i <= 2; i++)
+            {
+                GUI.matrix = m;
+                GUIUtility.RotateAroundPivot(ang + i * 6, pivot);
+                Fill(new Rect(pivot.x - 7 * s, pivot.y - 58 * s, 14 * s, 4 * s), new Color(1, .15f, .1f, a * (1 - Mathf.Abs(i) * .18f)));
+            }
             GUI.matrix = m;
         }
 
-        bool OnTarget(Camera cam)
+        // ------------------------------------------------------------------ minimap
+        void BuildMap()
         {
-            if (!cam || !arsenal || arsenal.Info == null) return false;
-            var g = arsenal.Info; var o = cam.transform.position; var d = cam.transform.forward;
-            float reach = g.type == "melee" ? g.reach + .6f : g.id == "rocket" ? 60 : g.id == "swarm" ? 45 : g.id == "crossbow" ? 65 : g.type == "proj" ? 30 : g.type == "flame" ? 13 : g.HasFall ? g.fall[1] : 160;
-            if (!Combat.RayFoes(o, d, fighter, out var h)) return false;
-            float wall = BoxWorld.Ray(o, d, h.t); if (wall >= 0) return false;
-            return Vector3.Distance(Combat.Eye(fighter), o + d * h.t) <= reach;
+            var bd = BoxWorld.Bounds; const float k = 4f;
+            int w = Mathf.CeilToInt((bd.x1 - bd.x0) * k), h = Mathf.CeilToInt((bd.z1 - bd.z0) * k);
+            mapTex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[w * h];
+            var ground = new Color32(46, 84, 44, 215);
+            for (int i = 0; i < px.Length; i++) px[i] = ground;
+            var boxes = new System.Collections.Generic.List<Box>(BoxWorld.Boxes);
+            boxes.Sort((a, b) => a.y1.CompareTo(b.y1));
+            foreach (var b in boxes)
+            {
+                if (b.y1 < .15f) continue;
+                Color c = b.glass ? new Color(.6f, .82f, .95f) : b.prop ? new Color(.62f, .6f, .56f) : Color.Lerp(new Color(.42f, .43f, .46f), new Color(.92f, .92f, .9f), Mathf.Clamp01(b.y1 / 14f));
+                int x0 = Mathf.Clamp(Mathf.FloorToInt((b.x0 - bd.x0) * k), 0, w - 1), x1 = Mathf.Clamp(Mathf.CeilToInt((b.x1 - bd.x0) * k), 0, w - 1);
+                int z0 = Mathf.Clamp(Mathf.FloorToInt((b.z0 - bd.z0) * k), 0, h - 1), z1 = Mathf.Clamp(Mathf.CeilToInt((b.z1 - bd.z0) * k), 0, h - 1);
+                var c32 = (Color32)new Color(c.r, c.g, c.b, .95f);
+                for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) px[x + z * w] = c32;
+            }
+            foreach (var L in BoxWorld.Ladders)
+            {
+                int x0 = Mathf.Clamp(Mathf.FloorToInt((L.x0 - bd.x0) * k), 0, w - 1), x1 = Mathf.Clamp(Mathf.CeilToInt((L.x1 - bd.x0) * k), 0, w - 1);
+                int z0 = Mathf.Clamp(Mathf.FloorToInt((L.z0 - bd.z0) * k), 0, h - 1), z1 = Mathf.Clamp(Mathf.CeilToInt((L.z1 - bd.z0) * k), 0, h - 1);
+                for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) px[x + z * w] = new Color32(255, 214, 64, 255);
+            }
+            mapTex.SetPixels32(px); mapTex.Apply();
         }
 
-        // ------------------------------------------------------------------ loadout picker
-        Vector2 scrollL, scrollR; string hoverW;
-        void Picker(float W, float H)
+        void Minimap(float W)
         {
-            Box(new Rect(0, 0, W, H), new Color(0, 0, 0, .72f));
-            float pw = Mathf.Min(W - 40, 1180), ph = H - 60, px = (W - pw) / 2, py = 30;
-            Box(new Rect(px, py, pw, ph), new Color(.08f, .09f, .11f, .96f));
-            GUI.Label(new Rect(px + 16, py + 10, 600, 24), "Characters and weapons from imok 1v1  (Tab to close)", new GUIStyle(label) { fontSize = 16 });
-
-            // characters
-            float cw = pw * .46f;
-            GUILayout.BeginArea(new Rect(px + 16, py + 42, cw - 24, ph - 54));
-            GUILayout.Label("CHARACTER", head);
-            var cat = armory ? armory.Catalog : null;
-            if (cat != null && cat.characters != null)
+            if (!BoxWorld.Loaded) return;
+            if (!mapTex) BuildMap();
+            var bd = BoxWorld.Bounds; const float k = 2.4f;   // UI px per metre
+            float size = 190;
+            var area = R(W - size - 14, 14, size, size);
+            Fill(area, new Color(0, 0, 0, .45f));
+            GUI.BeginGroup(area);
+            var m = GUI.matrix;
+            var c = new Vector2(area.width / 2, area.height / 2);
+            var me = fighter.VisualPos;
+            Vector2 ToMap(Vector3 p) => new Vector2(c.x + (p.x - me.x) * k * s, c.y - (p.z - me.z) * k * s);
+            GUIUtility.RotateAroundPivot(-fighter.yaw * Mathf.Rad2Deg, c);
+            var tl = ToMap(new Vector3(bd.x0, 0, bd.z1));
+            GUI.DrawTexture(new Rect(tl.x, tl.y, (bd.x1 - bd.x0) * k * s, (bd.z1 - bd.z0) * k * s), mapTex);
+            var rm = RoundManager.Instance;
+            if (rm)
             {
-                int cols = 3, i = 0;
-                GUILayout.BeginVertical();
-                while (i < cat.characters.Length)
+                // enemies only show where they fired from (fading over two seconds)
+                foreach (var f in new[] { rm.player, rm.bot })
                 {
-                    GUILayout.BeginHorizontal();
-                    for (int c = 0; c < cols && i < cat.characters.Length; c++, i++)
+                    if (!f || f == fighter || f.team == fighter.team) continue;
+                    float age = Time.time - f.lastShotTime;
+                    if (age < 2f) { var p = ToMap(f.lastShotPos); Fill(new Rect(p.x - 3 * s, p.y - 3 * s, 6 * s, 6 * s), new Color(1, .2f, .15f, 1 - age / 2)); }
+                }
+                foreach (var (p, t) in rm.deathMarks)
+                {
+                    var q = ToMap(p); var mm = GUI.matrix;
+                    GUIUtility.RotateAroundPivot(45, q); Fill(new Rect(q.x - 6 * s, q.y - 1.5f * s, 12 * s, 3 * s), new Color(1, .1f, .1f, .9f));
+                    GUIUtility.RotateAroundPivot(90, q); Fill(new Rect(q.x - 6 * s, q.y - 1.5f * s, 12 * s, 3 * s), new Color(1, .1f, .1f, .9f));
+                    GUI.matrix = mm;
+                }
+            }
+            GUI.matrix = m;
+            // you: an arrow in the middle pointing up
+            Fill(new Rect(c.x - 3 * s, c.y - 7 * s, 6 * s, 12 * s), new Color(.3f, .75f, 1f));
+            Fill(new Rect(c.x - 6 * s, c.y - 2 * s, 12 * s, 4 * s), new Color(.3f, .75f, 1f));
+            GUI.EndGroup();
+        }
+
+        // ------------------------------------------------------------------ score, feed, leaderboard
+        void ScoreAndFeed(RoundManager rm, float W)
+        {
+            int me = fighter.team, them = 1 - me;
+            string t = rm.state == RoundManager.State.Fight || rm.state == RoundManager.State.RoundEnd ? $"{Mathf.FloorToInt(Mathf.Max(0, rm.timer) / 60)}:{Mathf.FloorToInt(Mathf.Max(0, rm.timer) % 60):00}" : "";
+            Fill(R(W / 2 - 120, 10, 240, 46), new Color(0, 0, 0, .45f));
+            Shadowed(R(W / 2 - 120, 8, 240, 30), $"YOU  {rm.score[me]}  :  {rm.score[them]}  BOT", big, Color.white);
+            Shadowed(R(W / 2 - 120, 36, 240, 18), $"{t}   First to {rm.toWin}", center, new Color(1, 1, 1, .85f));
+            float y = 62;
+            foreach (var it in rm.feed)
+            {
+                float a = Mathf.Clamp01(6 - (Time.time - it.t)) * .65f;
+                Fill(R(W / 2 - 170, y, 340, 20), new Color(0, 0, 0, .4f * a / .65f));
+                Shadowed(R(W / 2 - 170, y, 340, 20), it.text, feedStyle, it.mine ? new Color(1, .85f, .3f, a / .65f) : new Color(1, 1, 1, a / .65f));
+                y += 22;
+            }
+        }
+
+        void Leaderboard(RoundManager rm)
+        {
+            float x = 18, y = 16;
+            Fill(R(x - 6, y - 4, 230, 66), new Color(0, 0, 0, .35f));
+            GUI.Label(R(x, y, 120, 18), "Player", small); GUI.Label(R(x + 130, y, 90, 18), "K   A   D", small);
+            y += 20;
+            foreach (var f in new[] { rm.player, rm.bot })
+            {
+                var col = f.alive ? (f.team == fighter.team ? new Color(.55f, .85f, 1f) : new Color(1f, .55f, .5f)) : new Color(.6f, .6f, .6f);
+                Shadowed(R(x, y, 120, 18), f.displayName, label, col);
+                Shadowed(R(x + 130, y, 120, 18), $"{f.kills}   {f.assists}   {f.deaths}", label, col);
+                y += 20;
+            }
+        }
+
+        // ------------------------------------------------------------------ countdown, round result, match end
+        void Banners(RoundManager rm, float W, float H)
+        {
+            switch (rm.state)
+            {
+                case RoundManager.State.Intro:
+                    Fill(R(0, H / 2 - 90, W, 180), new Color(0, 0, 0, .55f));
+                    Shadowed(R(0, H / 2 - 70, W, 90), "Street Life", huge, Color.white);
+                    Shadowed(R(0, H / 2 + 20, W, 40), $"Round 1   ·   1v1   ·   First to {rm.toWin}", big, new Color(1, 1, 1, .85f));
+                    break;
+                case RoundManager.State.Countdown:
+                    Shadowed(R(0, H / 2 - 120, W, 100), Mathf.CeilToInt(rm.stateT).ToString(), huge, Color.white);
+                    Shadowed(R(0, H / 2 - 30, W, 40), "Round " + rm.round, big, new Color(1, 1, 1, .9f));
+                    break;
+                case RoundManager.State.RoundEnd:
                     {
-                        var ch = cat.characters[i]; bool on = fighter.characterId == ch.id;
-                        var st = on ? btnOn : btn;
-                        GUI.backgroundColor = on ? ch.Colour : Color.Lerp(ch.Colour, Color.gray, .55f);
-                        if (GUILayout.Button(ch.name, st, GUILayout.Height(26), GUILayout.Width((cw - 40) / cols)) && !on && rig) { rig.Build(ch.id); }
-                        GUI.backgroundColor = Color.white;
+                        string msg = rm.lastWinner < 0 ? (rm.timer <= 0 ? "Draw: time ran out" : "Draw") : rm.lastWinner == fighter.team ? "Round to you" : "Round to the bot";
+                        if (rm.timer <= 0 && rm.lastWinner >= 0) msg += " (more health left)";
+                        if (rm.matchOver) msg = rm.lastWinner == fighter.team ? "Match point won!" : "Match lost";
+                        Fill(R(0, 118, W, 44), new Color(0, 0, 0, .55f));
+                        Shadowed(R(0, 118, W, 44), msg, big, rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : rm.lastWinner < 0 ? Color.white : new Color(1f, .5f, .45f));
                     }
-                    GUILayout.EndHorizontal();
-                }
-                GUILayout.EndVertical();
-                var cur = armory.Char(fighter.characterId);
-                if (cur != null)
-                {
-                    GUILayout.Space(10);
-                    GUILayout.Label(cur.name, new GUIStyle(label) { fontSize = 18, normal = { textColor = cur.Colour } });
-                    GUILayout.Label(cur.desc, wrap);
-                    GUILayout.Label("Ability (E): " + cur.ability + ", " + cur.cooldown + " s cooldown  -  not wired up in Unity yet", wrap);
-                    GUILayout.Label("Speed x" + cur.speed.ToString("0.##") + "   Health " + cur.hp + (cur.hasModel ? "" : "   (classic blocky look)"), small);
-                    if (cur.killFx != null && cur.killFx.Length > 0) GUILayout.Label("Kill effects: " + string.Join(", ", cur.killFx), small);
-                }
-                GUILayout.Space(14);
-                if (range)
-                {
-                    GUILayout.Label("PRACTICE DUMMIES", head);
-                    GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("New dummies", GUILayout.Width(120))) range.Shuffle();
-                    if (GUILayout.Button(range.strafe ? "Stop strafing (T)" : "Strafe (T)", GUILayout.Width(140))) range.strafe = !range.strafe;
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("How many: " + range.count, small, GUILayout.Width(90));
-                    int n = Mathf.RoundToInt(GUILayout.HorizontalSlider(range.count, 0, 8, GUILayout.Width(160)));
-                    if (n != range.count) { range.count = n; range.Shuffle(); }
-                    GUILayout.EndHorizontal();
-                }
+                    break;
+                case RoundManager.State.MatchEnd:
+                    {
+                        bool won = rm.score[fighter.team] >= rm.toWin;
+                        Fill(R(0, 0, W, H), new Color(0, 0, 0, .55f));
+                        Shadowed(R(0, H / 2 - 190, W, 100), won ? "You caught the W!" : "Took the L this time :(", huge, won ? new Color(1f, .85f, .3f) : new Color(1f, .55f, .5f));
+                        Shadowed(R(0, H / 2 - 80, W, 50), $"{rm.score[fighter.team]}  -  {rm.score[1 - fighter.team]}", big, Color.white);
+                        var f = fighter;
+                        int acc = f.shots > 0 ? Mathf.RoundToInt(100f * f.hits / f.shots) : 0;
+                        string[] k = { "Kills", "Damage", "Accuracy", "Headshots" };
+                        string[] v = { f.kills.ToString(), Mathf.RoundToInt(f.damageDealt).ToString(), acc + "%", f.headshots.ToString() };
+                        float x0 = W / 2 - 300;
+                        for (int i = 0; i < 4; i++)
+                        {
+                            Shadowed(R(x0 + i * 150, H / 2 - 10, 150, 50), v[i], big, Color.white);
+                            Shadowed(R(x0 + i * 150, H / 2 + 36, 150, 24), k[i], center, new Color(1, 1, 1, .8f));
+                        }
+                        Shadowed(R(0, H / 2 + 100, W, 30), $"Enter: rematch   (starts by itself in {Mathf.CeilToInt(rm.stateT)} s)", center, new Color(1, 1, 1, .85f));
+                    }
+                    break;
             }
-            GUILayout.EndArea();
-
-            // weapons
-            float wx = px + cw, ww = pw - cw - 16;
-            GUILayout.BeginArea(new Rect(wx, py + 42, ww, ph - 54));
-            scrollR = GUILayout.BeginScrollView(scrollR);
-            hoverW = null;
-            if (arsenal && armory)
-            {
-                GUILayout.BeginHorizontal();
-                GUILayout.BeginVertical(GUILayout.Width(ww / 2 - 10));
-                WeaponList("PRIMARY", armory.Slot("primary"), arsenal.primary, id => arsenal.SetLoadout(id, null, null));
-                GUILayout.Space(8);
-                WeaponList("LETHAL (G)", armory.Slot("lethal"), arsenal.lethal, id => arsenal.SetLoadout(null, null, id));
-                GUILayout.EndVertical();
-                GUILayout.BeginVertical(GUILayout.Width(ww / 2 - 10));
-                var sec = armory.Slot("secondary"); foreach (var x in new[] { "flamer", "fists", "stars" }) if (armory.Weapon(x) != null && !sec.Contains(x)) sec.Add(x);
-                WeaponList("SECONDARY", sec, arsenal.secondary, id => { if (id == "flamer" && arsenal.secondary != "flamer") arsenal.prevSecondary = arsenal.secondary; arsenal.SetLoadout(null, id, null); arsenal.slot = 1; });
-                GUILayout.EndVertical();
-                GUILayout.EndHorizontal();
-                var show = armory.Weapon(hoverW ?? arsenal.Current);
-                if (show != null)
-                {
-                    GUILayout.Space(10);
-                    GUILayout.Label(show.name + "   " + show.cls, new GUIStyle(label) { fontSize = 16, normal = { textColor = show.Colour } });
-                    if (!string.IsNullOrEmpty(show.note)) GUILayout.Label(show.note, wrap);
-                    GUILayout.Label(Stats(show), wrap);
-                }
-            }
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
-        }
-
-        void WeaponList(string title, List<string> ids, string current, System.Action<string> pick)
-        {
-            GUILayout.Label(title, head);
-            foreach (var id in ids)
-            {
-                var w = armory.Weapon(id); if (w == null) continue;
-                bool on = id == current;
-                GUI.backgroundColor = on ? w.Colour : Color.Lerp(w.Colour, Color.gray, .6f);
-                string extra = id == "flamer" ? "  (shop)" : id == "fists" || id == "stars" ? "  (extra)" : "";
-                if (GUILayout.Button(w.name + "   " + w.cls + extra, on ? btnOn : btn, GUILayout.Height(24))) pick(id);
-                if (Event.current.type == EventType.Repaint && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition)) hoverW = id;
-                GUI.backgroundColor = Color.white;
-            }
-        }
-
-        static string Stats(WeaponInfo w)
-        {
-            var sb = new System.Text.StringBuilder();
-            if (w.type == "melee") sb.Append("Damage " + w.dmg + " a hit, reach " + w.reach + " m, " + (1 / Mathf.Max(.01f, w.rate)).ToString("0.#") + " swings a second");
-            else if (w.slot == "lethal") sb.Append((w.dmg > 0 ? "Damage " + w.dmg + ", " : "") + "radius " + w.radius + " m" + (w.fuse > 0 ? ", fuse " + w.fuse + " s" : "") + ", 2 per round");
-            else
-            {
-                sb.Append("Damage " + w.dmg + (w.pellets > 1 ? " x " + w.pellets + " pellets" : "") + (w.burst > 1 ? " x " + w.burst + " missiles" : ""));
-                if (w.direct > 0) sb.Append(" (direct hit " + w.direct + ")");
-                if (w.head > 1) sb.Append(", head x" + w.head);
-                if (w.rate > 0) sb.Append(", " + (1 / w.rate).ToString("0.#") + " shots a second");
-                sb.Append(w.Infinite ? "" : ", " + w.mag + " rounds");
-                if (w.reload > 0) sb.Append(", reload " + w.reload.ToString("0.##") + " s");
-                if (w.HasFall) sb.Append(", full damage to " + w.fall[0] + " m, 45% by " + w.fall[1] + " m");
-                if (w.radius > 0) sb.Append(", splash " + w.radius + " m");
-                sb.Append(". Spread " + w.spread + "° hip, " + w.adsSpread + "° aimed" + (w.auto ? ", full auto" : "") + ".");
-            }
-            return sb.ToString();
+            if (!fighter.alive && rm.state == RoundManager.State.Fight) Shadowed(R(0, H / 2 + 60, W, 30), "You're out", big, new Color(1, .5f, .45f));
         }
     }
 }

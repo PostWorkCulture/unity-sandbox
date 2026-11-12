@@ -81,6 +81,7 @@ namespace StreetLife
                 var rig = go.AddComponent<CharacterRig>();
                 rig.fighter = bot; rig.library = pr.library; rig.charJson = pr.charJson; rig.charBin = pr.charBin;
                 rig.tint = new Color(1f, .55f, .5f);    // until the characters chat adds the other characters
+                CharacterSkin.ForBot(rig);              // characters chat: the bot gets its own character (random each match unless picked with F3)
             }
             go.AddComponent<FighterAudio>();
         }

@@ -8,6 +8,7 @@ namespace StreetLife
     {
         public Material[] map;
         public Material[] character;
+        public Material[] guns;   // weapons chat
         public Material unlitBase;
         public Material lineBase;
         [Tooltip("Fingerprint of the material tables these were made from; a new export rebuilds them automatically")]

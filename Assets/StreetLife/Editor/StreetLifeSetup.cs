@@ -53,18 +53,40 @@ namespace StreetLife.EditorTools
             if (!File.Exists(Root + "/Data/map.json")) return;
             if (File.Exists(ScenePath))
             {
-                // a fresh export (new material tables, characters or weapons) rebuilds the materials, the armory and the scene
+                // a fresh export (new material tables) rebuilds the materials; the scene itself is kept
                 var lib0 = AssetDatabase.LoadAssetAtPath<MaterialLibrary>(Root + "/Materials/MaterialLibrary.asset");
-                if (lib0 && lib0.dataStamp == DataStamp()) return;
-                if (SessionState.GetString("StreetLifeAutoStamp", "") == DataStamp()) return;
-                SessionState.SetString("StreetLifeAutoStamp", DataStamp());
-                Debug.Log("Street Life: new export found (characters and weapons), rebuilding materials, armory and scene.");
-                Setup();
+                if (lib0 && lib0.dataStamp != DataStamp()) { BuildMaterials(); Debug.Log("Street Life: new export found, materials rebuilt."); }
+                WireDynamic();
                 return;
             }
             if (SessionState.GetBool("StreetLifeAutoRan", false)) return;
             SessionState.SetBool("StreetLifeAutoRan", true);
             Setup();
+        }
+
+        // Scenes made before destruction existed: hand the map builder the dyn.json / dyn.bytes it needs (once).
+        static void WireDynamic()
+        {
+            var dj = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/dyn.json");
+            var db = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/dyn.bytes");
+            if (!dj || !db) return;
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            bool opened = false;
+            if (scene.path != ScenePath)
+            {
+                if (EditorSceneManager.GetActiveScene().isDirty) return;   // don't disturb unsaved work in another scene
+                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive); opened = true;
+            }
+            bool changed = false;
+            foreach (var root in scene.GetRootGameObjects())
+                foreach (var mb in root.GetComponentsInChildren<MapBuilder>(true))
+                    if (mb.dynJson != dj || mb.dynBin != db)
+                    {
+                        mb.dynJson = dj; mb.dynBin = db; EditorUtility.SetDirty(mb); changed = true;
+                        mb.enabled = false; mb.enabled = true;   // rebuild now so the props show in the Scene view
+                    }
+            if (changed) { EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); Debug.Log("Street Life: breakable and moving things added to the scene."); }
+            if (opened) EditorSceneManager.CloseScene(scene, true);
         }
 
         [MenuItem("Street Life/Rebuild materials only")]
@@ -77,19 +99,18 @@ namespace StreetLife.EditorTools
             try
             {
                 var lib = BuildMaterials();
-                var armory = BuildArmory(lib);
                 EditorUtility.DisplayProgressBar("Street Life", "Building the scene", .7f);
                 var profile = MakeProfile();
                 var sky = MakeSky();
-                BuildScene(lib, armory, profile, sky);
+                BuildScene(lib, profile, sky);
             }
             finally { EditorUtility.ClearProgressBar(); }
         }
 
         static string DataStamp()
         {
-            var a = File.ReadAllText(Root + "/Data/materials.json") + File.ReadAllText(Root + "/Data/models_materials.json") + File.ReadAllText(Root + "/Data/catalog.json");
-            return Hash128.Compute("v3" + a).ToString();   // bump the version when the material setup itself changes
+            var a = File.ReadAllText(Root + "/Data/materials.json") + File.ReadAllText(Root + "/Data/wednesday_materials.json");
+            return Hash128.Compute("v2" + a).ToString();   // bump the version when the material setup itself changes
         }
 
         static MaterialLibrary BuildMaterials()
@@ -99,63 +120,25 @@ namespace StreetLife.EditorTools
             {
                 EditorUtility.DisplayProgressBar("Street Life", "Importing textures", .1f);
                 var mapMats = JsonUtility.FromJson<MatJson>(File.ReadAllText(Root + "/Data/materials.json"));
-                // one material table for every character and weapon (Data/models_materials.json, textures in Textures/Models)
-                var chMats = JsonUtility.FromJson<MatJson>(File.ReadAllText(Root + "/Data/models_materials.json"));
+                var chMats = JsonUtility.FromJson<MatJson>(File.ReadAllText(Root + "/Data/wednesday_materials.json"));
                 var mapTex = ImportTextures(mapMats, Root + "/Textures", "t");
-                var chTex = ImportTextures(chMats, Root + "/Textures/Models", "c");
+                var chTex = ImportTextures(chMats, Root + "/Textures/Char", "c");
 
                 EditorUtility.DisplayProgressBar("Street Life", "Making materials", .4f);
-                Directory.CreateDirectory(Root + "/Materials/Map"); Directory.CreateDirectory(Root + "/Materials/Models");
+                Directory.CreateDirectory(Root + "/Materials/Map"); Directory.CreateDirectory(Root + "/Materials/Wednesday");
                 var lib = AssetDatabase.LoadAssetAtPath<MaterialLibrary>(Root + "/Materials/MaterialLibrary.asset");
                 if (!lib) { lib = ScriptableObject.CreateInstance<MaterialLibrary>(); AssetDatabase.CreateAsset(lib, Root + "/Materials/MaterialLibrary.asset"); }
                 lib.unlitBase = SaveMat(new Material(Shader.Find("Universal Render Pipeline/Unlit")), Root + "/Materials/UnlitBase.mat");
                 var edge = Shader.Find("StreetLife/Edge Lines");
                 if (edge) lib.lineBase = SaveMat(new Material(edge), Root + "/Materials/EdgeLines.mat");
                 lib.map = MakeMats(mapMats, mapTex, Root + "/Materials/Map/m");
-                lib.character = MakeMats(chMats, chTex, Root + "/Materials/Models/c");
+                lib.character = MakeMats(chMats, chTex, Root + "/Materials/Wednesday/w");
                 lib.dataStamp = DataStamp();
                 EditorUtility.SetDirty(lib);
                 AssetDatabase.SaveAssets();
                 return lib;
             }
             finally { EditorUtility.ClearProgressBar(); }
-        }
-
-        // ------------------------------------------------------------------ armory: every character and weapon exported from the web game
-        [MenuItem("Street Life/Rebuild armory (characters and weapons)")]
-        public static void RebuildArmory() { BuildArmory(AssetDatabase.LoadAssetAtPath<MaterialLibrary>(Root + "/Materials/MaterialLibrary.asset")); }
-
-        static Armory BuildArmory(MaterialLibrary lib)
-        {
-            AssetDatabase.Refresh();
-            var path = Root + "/Data/Armory.asset";
-            var ar = AssetDatabase.LoadAssetAtPath<Armory>(path);
-            if (!ar) { ar = ScriptableObject.CreateInstance<Armory>(); AssetDatabase.CreateAsset(ar, path); }
-            ar.library = lib;
-            ar.catalog = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/catalog.json");
-            ar.characters = Entries(Root + "/Data/Characters");
-            ar.weapons = Entries(Root + "/Data/Weapons");
-            EditorUtility.SetDirty(ar); AssetDatabase.SaveAssets();
-            Debug.Log("Street Life: armory has " + ar.characters.Length + " characters and " + ar.weapons.Length + " weapons.");
-            return ar;
-        }
-
-        static Armory.Entry[] Entries(string folder)
-        {
-            var list = new List<Armory.Entry>();
-            if (!Directory.Exists(folder)) return list.ToArray();
-            var files = Directory.GetFiles(folder, "*.json"); System.Array.Sort(files);
-            foreach (var f in files)
-            {
-                var id = Path.GetFileNameWithoutExtension(f);
-                list.Add(new Armory.Entry
-                {
-                    id = id,
-                    json = AssetDatabase.LoadAssetAtPath<TextAsset>(folder + "/" + id + ".json"),
-                    bin = AssetDatabase.LoadAssetAtPath<TextAsset>(folder + "/" + id + ".bytes")
-                });
-            }
-            return list.ToArray();
         }
 
         // ------------------------------------------------------------------ textures
@@ -278,7 +261,7 @@ namespace StreetLife.EditorTools
         }
 
         // ------------------------------------------------------------------ scene
-        static void BuildScene(MaterialLibrary lib, Armory armory, VolumeProfile profile, Material sky)
+        static void BuildScene(MaterialLibrary lib, VolumeProfile profile, Material sky)
         {
             var world = JsonUtility.FromJson<WorldJson>(File.ReadAllText(Root + "/Data/map.json"));
             Directory.CreateDirectory(Root + "/Scenes");
@@ -326,19 +309,17 @@ namespace StreetLife.EditorTools
             map.library = lib;
             map.mapJson = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/map.json");
             map.mapBin = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/map.bytes");
+            map.dynJson = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/dyn.json");
+            map.dynBin = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/dyn.bytes");
 
-            var player = new GameObject("Player");
+            var player = new GameObject("Wednesday (player)");
             var f = player.AddComponent<Fighter>();
             player.AddComponent<PlayerController>();
-            var ars = player.AddComponent<Arsenal>(); ars.armory = armory;
             var rig = player.AddComponent<CharacterRig>();
-            rig.fighter = f; rig.library = lib; rig.armory = armory; rig.arsenal = ars; rig.characterId = "wednesday";
-            ars.rig = rig;
-            var hud = player.AddComponent<Hud>(); hud.fighter = f; hud.arsenal = ars; hud.rig = rig; hud.armory = armory;
-
-            var range = new GameObject("Practice dummies").AddComponent<PracticeRange>();
-            range.armory = armory; range.library = lib; range.player = f;
-            hud.range = range;
+            rig.fighter = f; rig.library = lib;
+            rig.charJson = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/wednesday.json");
+            rig.charBin = AssetDatabase.LoadAssetAtPath<TextAsset>(Root + "/Data/wednesday.bytes");
+            player.AddComponent<Hud>().fighter = f;
             if (world.spawns != null && world.spawns.Length > 0) player.transform.position = new Vector3(world.spawns[0].x, world.spawns[0].y, world.spawns[0].z);
 
             var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
@@ -348,8 +329,7 @@ namespace StreetLife.EditorTools
             acd.renderPostProcessing = true;
             acd.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             camGo.AddComponent<AudioListener>();
-            var sc = camGo.AddComponent<ShoulderCamera>(); sc.target = f; sc.rig = rig; sc.arsenal = ars;
-            ars.aimCamera = cam;
+            var sc = camGo.AddComponent<ShoulderCamera>(); sc.target = f; sc.rig = rig;
             camGo.transform.position = player.transform.position + new Vector3(0, 3, -5);
 
             EditorSceneManager.SaveScene(scene, ScenePath);

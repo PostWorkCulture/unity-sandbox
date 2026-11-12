@@ -1,0 +1,276 @@
+{
+ "source": "imok 1v1 d60032c",
+ "exported": "2026-11-12T19:53:39.076Z",
+ "characters": [
+  {
+   "id": "wednesday",
+   "name": "Wednesday",
+   "desc": "Fastest runner; sprints even faster",
+   "ability": "Sprint",
+   "cooldown": 9,
+   "hp": 100,
+   "speed": 1.1,
+   "color": "#d0202a",
+   "killFx": [
+    "Black hole",
+    "Disco"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "crusty",
+   "name": "Crusty",
+   "desc": "Honks a blast that knocks foes back (20 dmg)",
+   "ability": "Honk",
+   "cooldown": 8,
+   "hp": 100,
+   "speed": 1,
+   "color": "#e8322a",
+   "killFx": [
+    "Balloon",
+    "Firework"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "angel",
+   "name": "Angel",
+   "desc": "Leaps on her wings and glides down",
+   "ability": "Wing leap",
+   "cooldown": 6,
+   "hp": 100,
+   "speed": 1,
+   "color": "#dfe6ff",
+   "killFx": [
+    "Spirit",
+    "Rainbow beam"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "antihero",
+   "name": "Anti Hero",
+   "desc": "Grapples to wherever you aim",
+   "ability": "Grapple",
+   "cooldown": 5,
+   "hp": 100,
+   "speed": 1,
+   "color": "#2f9a46",
+   "killFx": [
+    "Tornado",
+    "Firework"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "jet",
+   "name": "Jet",
+   "desc": "Jump fires a rocket boost onto the rooftops when it's ready",
+   "ability": "Rocket boost",
+   "cooldown": 15,
+   "hp": 100,
+   "speed": 1,
+   "color": "#2f7fe0",
+   "killFx": [
+    "Balloon",
+    "Rainbow beam"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "ghost",
+   "name": "Starscreen",
+   "desc": "Turns almost invisible",
+   "ability": "Vanish",
+   "cooldown": 12,
+   "hp": 100,
+   "speed": 1,
+   "color": "#9fd3f0",
+   "killFx": [
+    "Freeze",
+    "Tornado"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "dracula",
+   "name": "Dracula",
+   "desc": "Drains 25 HP from the nearest enemy and heals himself",
+   "ability": "Life drain",
+   "cooldown": 10,
+   "hp": 100,
+   "speed": 1,
+   "color": "#c4122e",
+   "killFx": [
+    "Black hole",
+    "Spirit"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "astronaut",
+   "name": "Spaceman",
+   "desc": "Low-gravity moon jump",
+   "ability": "Moon jump",
+   "cooldown": 6,
+   "hp": 100,
+   "speed": 1,
+   "color": "#ff7a1f",
+   "killFx": [
+    "Rainbow beam",
+    "Firework"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "lilpink",
+   "name": "Lil Pink",
+   "desc": "Throws a heartbreak that bursts for 30 and slows",
+   "ability": "Heartbreak",
+   "cooldown": 6,
+   "hp": 100,
+   "speed": 1,
+   "color": "#ff6fae",
+   "killFx": [
+    "Balloon",
+    "Disco"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "brute",
+   "name": "Gorillaz",
+   "desc": "Giant who leaps and smashes the ground",
+   "ability": "Ground smash",
+   "cooldown": 7,
+   "hp": 100,
+   "speed": 0.95,
+   "color": "#ff7a2a",
+   "killFx": [
+    "Brick burst",
+    "Lightning"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "blaze",
+   "name": "Blaze",
+   "desc": "Throws fireballs that burn",
+   "ability": "Fireball",
+   "cooldown": 3.5,
+   "hp": 100,
+   "speed": 1,
+   "color": "#ff6a1a",
+   "killFx": [
+    "Brick burst",
+    "Black hole"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "blink",
+   "name": "Blink",
+   "desc": "Teleports a short distance",
+   "ability": "Blink",
+   "cooldown": 4,
+   "hp": 100,
+   "speed": 1,
+   "color": "#a05ad6",
+   "killFx": [
+    "Disco",
+    "Spirit"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "tank",
+   "name": "Pyro",
+   "desc": "Throws up a shield bubble",
+   "ability": "Shield",
+   "cooldown": 12,
+   "hp": 100,
+   "speed": 0.9,
+   "color": "#6b6f78",
+   "killFx": [
+    "Gold statue",
+    "Shrink"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "frost",
+   "name": "Ice Maiden",
+   "desc": "Frost nova chills and slows anyone close",
+   "ability": "Frost nova",
+   "cooldown": 9,
+   "hp": 100,
+   "speed": 1,
+   "color": "#7fd3ff",
+   "killFx": [
+    "Freeze",
+    "Shrink"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "patch",
+   "name": "Murda Medic",
+   "desc": "Field medic who heals 48 HP",
+   "ability": "Med kit",
+   "cooldown": 14,
+   "hp": 100,
+   "speed": 1,
+   "color": "#3bb54a",
+   "killFx": [
+    "Balloon",
+    "Spirit"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "thorn",
+   "name": "Xero",
+   "desc": "Thorn armour blocks 30% and reflects 60%",
+   "ability": "Thorns",
+   "cooldown": 12,
+   "hp": 100,
+   "speed": 1,
+   "color": "#7bd13a",
+   "killFx": [
+    "Gold statue",
+    "Black hole"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "thor",
+   "name": "Thor",
+   "desc": "Shoots a lightning bolt (36 dmg)",
+   "ability": "Zap",
+   "cooldown": 5,
+   "hp": 100,
+   "speed": 1,
+   "color": "#3a8ee8",
+   "killFx": [
+    "Lightning",
+    "Brick burst"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "isaac",
+   "name": "Isaac",
+   "desc": "Instantly reloads both guns",
+   "ability": "Quick reload",
+   "cooldown": 8,
+   "hp": 100,
+   "speed": 1,
+   "color": "#9a5a2a",
+   "killFx": [
+    "Gold statue",
+    "Balloon"
+   ],
+   "hasModel": false
+  }
+ ]
+}

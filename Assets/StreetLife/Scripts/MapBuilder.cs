@@ -10,6 +10,9 @@ namespace StreetLife
         public MaterialLibrary library;
         public TextAsset mapJson;
         public TextAsset mapBin;
+        [Tooltip("Things that break or move (dyn.json / dyn.bytes). Optional.")]
+        public TextAsset dynJson;
+        public TextAsset dynBin;
 
         const string GenName = "__Generated";
         Transform gen;
@@ -55,7 +58,51 @@ namespace StreetLife
             }
             BuildLines(w);
             BuildLamps(w);
+            BuildDynamic();
         }
+
+        // Each breakable / moving thing gets its own object (own transform, own meshes) so it can be shoved, toppled or hidden.
+        void BuildDynamic()
+        {
+            if (!dynJson || !dynBin) return;
+            var dj = JsonUtility.FromJson<DynJson>(dynJson.text);
+            if (dj == null || dj.entities == null) return;
+            var bin = dynBin.bytes;
+            var root = new GameObject("Dynamic").transform; root.SetParent(gen, false);
+            var made = new System.Collections.Generic.List<Transform>();
+            foreach (var d in dj.entities)
+            {
+                var go = new GameObject(d.kind + d.id + (string.IsNullOrEmpty(d.prop) ? "" : "_" + d.prop));
+                Transform parent = root;
+                if (d.kind == "anim" && d.ppos != null && d.ppos.Length == 3)
+                {
+                    parent = new GameObject("pivot" + d.id).transform; parent.SetParent(root, false);
+                    parent.localPosition = V(d.ppos); parent.localRotation = Q(d.prot); parent.localScale = d.pscl != null && d.pscl.Length == 3 ? V(d.pscl) : Vector3.one;
+                }
+                var t = go.transform; t.SetParent(parent, false);
+                t.position = root.TransformPoint(V(d.pos)); t.rotation = root.rotation * Q(d.rot);
+                var ws = d.scl != null && d.scl.Length == 3 ? V(d.scl) : Vector3.one;
+                var ps = parent.lossyScale;
+                t.localScale = new Vector3(ws.x / Mathf.Max(1e-4f, ps.x), ws.y / Mathf.Max(1e-4f, ps.y), ws.z / Mathf.Max(1e-4f, ps.z));
+                if (d.meshes != null)
+                    foreach (var mi in d.meshes)
+                    {
+                        if (mi < 0 || mi >= dj.meshes.Length) continue;
+                        var wm = dj.meshes[mi];
+                        var mgo = new GameObject("m" + mi); mgo.transform.SetParent(t, false);
+                        mgo.AddComponent<MeshFilter>().sharedMesh = MeshIO.Build(bin, wm, mgo.name);
+                        var mr = mgo.AddComponent<MeshRenderer>();
+                        mr.sharedMaterial = wm.mat >= 0 && wm.mat < library.map.Length ? library.map[wm.mat] : library.unlitBase;
+                        bool transparent = mr.sharedMaterial && mr.sharedMaterial.renderQueue >= 3000;
+                        mr.shadowCastingMode = wm.cast && !transparent ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
+                    }
+                made.Add(t);
+            }
+            if (Application.isPlaying) Destruction.Init(root, dj, made);
+        }
+
+        static Vector3 V(float[] a) => a != null && a.Length >= 3 ? new Vector3(a[0], a[1], a[2]) : Vector3.zero;
+        static Quaternion Q(float[] a) => a != null && a.Length >= 4 ? new Quaternion(a[0], a[1], a[2], a[3]) : Quaternion.identity;
 
         void BuildLines(WorldJson w)
         {

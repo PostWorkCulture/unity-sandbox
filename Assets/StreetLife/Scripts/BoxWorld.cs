@@ -9,6 +9,7 @@ namespace StreetLife
     {
         public float x0, x1, y0, y1, z0, z1;
         public bool wood, glass, prop;
+        public int tag;   // non-zero: a placed object (weapons chat: the Sentry), so hits can find it
     }
 
     public class Ladder
@@ -26,7 +27,7 @@ namespace StreetLife
 
         public static void Load(WorldJson w)
         {
-            Boxes.Clear(); Ladders.Clear(); Spawns.Clear();
+            Boxes.Clear(); Ladders.Clear(); Spawns.Clear(); parked.Clear();
             foreach (var b in w.boxes)
                 Boxes.Add(new Box { x0 = b.x0, x1 = b.x1, y0 = b.y0, y1 = b.y1, z0 = b.z0, z1 = b.z1, wood = b.wood, glass = b.prop == "glass", prop = !string.IsNullOrEmpty(b.prop) });
             foreach (var l in w.ladders)
@@ -37,9 +38,12 @@ namespace StreetLife
         }
 
         /// Nearest hit distance along a ray (d normalised), or -1. Same slab test as the web game's rayBoxes.
-        public static float Ray(Vector3 o, Vector3 d, float maxT)
+        public static float Ray(Vector3 o, Vector3 d, float maxT) => Ray(o, d, maxT, out _);
+
+        /// As Ray, also giving which box was hit (index into Boxes, -1 for none).
+        public static float Ray(Vector3 o, Vector3 d, float maxT, out int index)
         {
-            float best = maxT; bool hit = false;
+            float best = maxT; bool hit = false; index = -1;
             for (int i = 0; i < Boxes.Count; i++)
             {
                 var b = Boxes[i];
@@ -49,54 +53,25 @@ namespace StreetLife
                 if (!Slab(o.z, d.z, b.z0, b.z1, ref t0, ref t1)) continue;
                 if (t1 < 0 || t0 > best) continue;
                 float t = Mathf.Max(0, t0);
-                if (t < best) { best = t; hit = true; }
+                if (t < best) { best = t; hit = true; index = i; }
             }
             return hit ? best : -1f;
         }
 
-        /// Nearest hit that stops a bullet (wood is shot through: each wooden layer in front is listed in woods, nearest first).
-        /// Returns the distance or -1, with the face normal of the box that was hit.
-        public static float RayHit(Vector3 o, Vector3 d, float maxT, out Vector3 normal, List<float> woods = null)
-        {
-            float best = maxT; bool hit = false; normal = Vector3.up;
-            woods?.Clear();
-            for (int i = 0; i < Boxes.Count; i++)
-            {
-                var b = Boxes[i];
-                float t0 = -1e9f, t1 = 1e9f;
-                if (!Slab(o.x, d.x, b.x0, b.x1, ref t0, ref t1)) continue;
-                if (!Slab(o.y, d.y, b.y0, b.y1, ref t0, ref t1)) continue;
-                if (!Slab(o.z, d.z, b.z0, b.z1, ref t0, ref t1)) continue;
-                if (t1 < 0 || t0 > maxT) continue;
-                float t = Mathf.Max(0, t0);
-                if (woods != null && b.wood && !b.glass) { woods.Add(t); continue; }
-                if (t < best) { best = t; hit = true; normal = FaceNormal(b, o + d * t); }
-            }
-            if (woods != null) { woods.Sort(); for (int i = woods.Count - 1; i >= 0; i--) if (woods[i] > best) woods.RemoveAt(i); }
-            return hit ? best : -1f;
-        }
+        static readonly Dictionary<int, Box> parked = new Dictionary<int, Box>();
 
-        static Vector3 FaceNormal(in Box b, Vector3 p)
+        /// Take a box out of the world (broken glass, a smashed crate...). Restore puts it back.
+        public static void Disable(int i)
         {
-            float[] dist = { Mathf.Abs(p.x - b.x0), Mathf.Abs(p.x - b.x1), Mathf.Abs(p.y - b.y0), Mathf.Abs(p.y - b.y1), Mathf.Abs(p.z - b.z0), Mathf.Abs(p.z - b.z1) };
-            int k = 0; for (int i = 1; i < 6; i++) if (dist[i] < dist[k]) k = i;
-            return k == 0 ? Vector3.left : k == 1 ? Vector3.right : k == 2 ? Vector3.down : k == 3 ? Vector3.up : k == 4 ? Vector3.back : Vector3.forward;
+            if (i < 0 || i >= Boxes.Count || parked.ContainsKey(i)) return;
+            parked[i] = Boxes[i];
+            Boxes[i] = new Box { x0 = -9999, x1 = -9999, y0 = -9999, y1 = -9999, z0 = -9999, z1 = -9999 };
         }
-
-        /// Clear line between two points (no box in between).
-        public static bool Los(Vector3 a, Vector3 b)
-        {
-            var d = b - a; float L = d.magnitude; if (L < 1e-4f) return true;
-            return Ray(a, d / L, L - .05f) < 0;
-        }
-
-        /// Height of the floor under a point (top of the highest box below it), or 0.
-        public static float FloorUnder(Vector3 p)
-        {
-            float best = 0;
-            foreach (var b in Boxes) if (p.x > b.x0 && p.x < b.x1 && p.z > b.z0 && p.z < b.z1 && b.y1 <= p.y + .3f && b.y1 > best) best = b.y1;
-            return best;
-        }
+        public static void Restore(int i) { if (parked.TryGetValue(i, out var b)) { Boxes[i] = b; parked.Remove(i); } }
+        public static bool IsDisabled(int i) => parked.ContainsKey(i);
+        /// Move or resize a live box (shoved furniture, driving cars, chipped tables).
+        public static void Set(int i, Box b) { if (i >= 0 && i < Boxes.Count && !parked.ContainsKey(i)) Boxes[i] = b; }
+        public static void ClearParked() => parked.Clear();
 
         static bool Slab(float o, float d, float mn, float mx, ref float t0, ref float t1)
         {
