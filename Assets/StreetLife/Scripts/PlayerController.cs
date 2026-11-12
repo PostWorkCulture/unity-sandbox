@@ -17,7 +17,7 @@ namespace StreetLife
         int spawnIx = -1;
         bool lockClick;
 
-        void Awake() { f = GetComponent<Fighter>(); }
+        void Awake() { f = GetComponent<Fighter>(); TouchControls.Ensure(f); }
 
         void Start() { if (!RoundManager.Instance) Respawn(); }
 

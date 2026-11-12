@@ -46,6 +46,7 @@ namespace StreetLife
         {
             if (!I) { I = new GameObject("Destruction").AddComponent<Destruction>(); }
             I.Setup(dj, made);
+            TownLife.Ensure();
         }
 
         void Awake() { mpb = new MaterialPropertyBlock(); }
@@ -55,14 +56,14 @@ namespace StreetLife
 
         void Setup(DynJson dj, List<Transform> made)
         {
-            ents.Clear(); byBox.Clear(); knocks.Clear(); cars.Clear(); anims.Clear();
+            ents.Clear(); byBox.Clear(); knocks.Clear(); cars.Clear(); anims.Clear(); NavGrid.Dynamic.Clear();
             period = dj.period > 0 ? dj.period : 209.44f;
             for (int i = 0; i < dj.entities.Length; i++)
             {
                 var d = dj.entities[i]; var t = made[i]; if (!t) continue;
                 var e = new Ent { d = d, t = t, boxes = d.boxes ?? new int[0], homePos = t.localPosition, homeRot = t.localRotation, homeScale = t.localScale };
                 e.homeBoxes = new Box[e.boxes.Length];
-                for (int k = 0; k < e.boxes.Length; k++) { if (e.boxes[k] < BoxWorld.Boxes.Count) e.homeBoxes[k] = BoxWorld.Boxes[e.boxes[k]]; byBox[e.boxes[k]] = e; }
+                for (int k = 0; k < e.boxes.Length; k++) { if (e.boxes[k] < BoxWorld.Boxes.Count) e.homeBoxes[k] = BoxWorld.Boxes[e.boxes[k]]; byBox[e.boxes[k]] = e; NavGrid.Dynamic.Add(e.boxes[k]); }
                 e.rends.AddRange(t.GetComponentsInChildren<Renderer>(true));
                 e.hp = d.kind == "tree" ? TREE_HP : d.kind == "play" ? PLAY_HP : d.hp > 0 ? d.hp : 60;
                 if (d.kind == "chip") { e.chipHP = e.hp; e.h0 = e.boxes.Length > 0 ? e.homeBoxes[0].y1 - e.homeBoxes[0].y0 : 1; }

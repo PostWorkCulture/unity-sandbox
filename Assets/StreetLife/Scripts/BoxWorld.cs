@@ -66,11 +66,17 @@ namespace StreetLife
             if (i < 0 || i >= Boxes.Count || parked.ContainsKey(i)) return;
             parked[i] = Boxes[i];
             Boxes[i] = new Box { x0 = -9999, x1 = -9999, y0 = -9999, y1 = -9999, z0 = -9999, z1 = -9999 };
+            NavGrid.Refresh(parked[i]);
         }
-        public static void Restore(int i) { if (parked.TryGetValue(i, out var b)) { Boxes[i] = b; parked.Remove(i); } }
+        public static void Restore(int i) { if (parked.TryGetValue(i, out var b)) { Boxes[i] = b; parked.Remove(i); NavGrid.Refresh(b); } }
         public static bool IsDisabled(int i) => parked.ContainsKey(i);
-        /// Move or resize a live box (shoved furniture, driving cars, chipped tables).
-        public static void Set(int i, Box b) { if (i >= 0 && i < Boxes.Count && !parked.ContainsKey(i)) Boxes[i] = b; }
+        /// Move or resize a live box (shoved furniture, driving cars, chipped tables). The bots' grid follows.
+        public static void Set(int i, Box b)
+        {
+            if (i < 0 || i >= Boxes.Count || parked.ContainsKey(i)) return;
+            var o = Boxes[i]; Boxes[i] = b;
+            NavGrid.Refresh(Mathf.Min(o.x0, b.x0), Mathf.Max(o.x1, b.x1), Mathf.Min(o.z0, b.z0), Mathf.Max(o.z1, b.z1));
+        }
         public static void ClearParked() => parked.Clear();
 
         static bool Slab(float o, float d, float mn, float mx, ref float t0, ref float t1)

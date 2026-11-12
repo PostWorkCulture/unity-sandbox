@@ -263,5 +263,7 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 1e5805560fa990e448d2370d6c1adc21, type: 2}
   - {fileID: 2100000, guid: 9812d8d11c4739d44ab4078ed1d6e419, type: 2}
   - {fileID: 2100000, guid: 9bc51877ef4c229499436601353650cb, type: 2}
+  guns: []
   unlitBase: {fileID: 2100000, guid: 299add25613231245ad8f160f23b2059, type: 2}
-  dataStamp: 82ed82688369edd27017b094ed981ea6
+  lineBase: {fileID: 2100000, guid: c1ab8692e32e7fa478a33e8c831c9c09, type: 2}
+  dataStamp: 0f0a6a38f9d09bbbc9bfe45e77122f6d

@@ -16,6 +16,8 @@ namespace StreetLife
         [Header("Character")]
         public string characterName = "Wednesday";
         public float charSpeed = 1.1f;   // Wednesday: fastest runner
+        // set by the weapons chat: aiming pace for the gun in hand (the web game's moveSpeed) and any speed change (stun, Speed shop item)
+        [System.NonSerialized] public float adsMoveSpeed = 5.6f, moveMul = 1f;
         public float charJump = 1f;
         public float hpMax = 100f;
 
@@ -71,7 +73,7 @@ namespace StreetLife
             float wl = Mathf.Sqrt(wx * wx + wz * wz); if (wl > 1) { wx /= wl; wz /= wl; }
             if (onLadder != null) ads = false;
             UpdCrouch(crouchOn, dt);
-            float spd = (ads ? 5.6f : 11.25f) * MOVE_MUL;
+            float spd = (ads ? adsMoveSpeed : 11.25f) * MOVE_MUL;
             Physics(dt, wx, wz, inJump, spd, inJumpPress);
             TickStam(dt);
             TickCombat(dt);
@@ -81,6 +83,7 @@ namespace StreetLife
         void Physics(float dt, float wx, float wz, bool jump, float speed, bool jumpPress)
         {
             if (stamLock) speed *= .75f;
+            speed *= moveMul;
             float v = Mathf.Max(HorizontalSpeed, speed * 1.25f * charSpeed) + Mathf.Abs(vel.y) * .5f;
             int n = Mathf.Min(5, Mathf.Max(1, Mathf.Max(Mathf.CeilToInt(dt * 60 - .05f), Mathf.CeilToInt(v * dt / .45f))));
             if (n == 1) Physics1(dt, wx, wz, jump, speed, jumpPress);

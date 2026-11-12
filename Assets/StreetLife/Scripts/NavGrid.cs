@@ -25,6 +25,14 @@ namespace StreetLife
         public static int MainComp = -1;
         public static bool Ready;
         static List<int>[] cols;
+
+        // Boxes that move, shrink or vanish during a round (cars, glass, furniture, trees...; set by Destruction before Build).
+        // The grid is built as if they weren't there; nodes they currently sit on are 'blocked' and A* goes round them.
+        // Destruction calls Refresh(area) whenever one changes, like the web game's dirtyGrid.
+        public static readonly HashSet<int> Dynamic = new HashSet<int>();
+        static bool[] blocked;
+        public static int Version;   // bumps on every refresh, so bots know to repath
+        public static bool Blocked(int n) => blocked != null && n >= 0 && n < blocked.Length && blocked[n];
         static int W, H; static float X0, Z0;
 
         static int Col(int ix, int iz) => ix + iz * W;
@@ -43,6 +51,7 @@ namespace StreetLife
             var bucket = new List<int>[bw * bh];
             for (int i = 0; i < B.Count; i++)
             {
+                if (Dynamic.Contains(i)) continue;
                 var b = B[i];
                 int a0 = Mathf.Clamp(Mathf.FloorToInt((b.x0 - CLR - X0) / BK), 0, bw - 1), a1 = Mathf.Clamp(Mathf.FloorToInt((b.x1 + CLR - X0) / BK), 0, bw - 1);
                 int c0 = Mathf.Clamp(Mathf.FloorToInt((b.z0 - CLR - Z0) / BK), 0, bh - 1), c1 = Mathf.Clamp(Mathf.FloorToInt((b.z1 + CLR - Z0) / BK), 0, bh - 1);
@@ -137,6 +146,8 @@ namespace StreetLife
                 comp++;
             }
             MainComp = best;
+            blocked = new bool[Nodes.Count];
+            foreach (var i in Dynamic) if (i >= 0 && i < B.Count) { var b = B[i]; Refresh(b.x0, b.x1, b.z0, b.z1); }
             Ready = true;
             Debug.Log($"Street Life nav grid: {Nodes.Count} walkable spots, {BoxWorld.Ladders.Count} ladders, main area {bestN}");
         }
@@ -154,18 +165,48 @@ namespace StreetLife
         {
             var lo = a.p.y < b.p.y ? a : b; var hi = lo == a ? b : a;
             float mx = (a.p.x + b.p.x) / 2, mz = (a.p.z + b.p.z) / 2;
-            foreach (var x in BoxWorld.Boxes)
-                if (x.x0 <= mx + .2f && x.x1 >= mx - .2f && x.z0 <= mz + .2f && x.z1 >= mz - .2f && x.y1 - lo.p.y > .05f && x.y1 - lo.p.y <= Fighter.STEP + .01f && hi.p.y - x.y1 <= Fighter.STEP + .01f) return true;
+            for (int i = 0; i < BoxWorld.Boxes.Count; i++)
+                { if (Dynamic.Contains(i)) continue; var x = BoxWorld.Boxes[i]; if (x.x0 <= mx + .2f && x.x1 >= mx - .2f && x.z0 <= mz + .2f && x.z1 >= mz - .2f && x.y1 - lo.p.y > .05f && x.y1 - lo.p.y <= Fighter.STEP + .01f && hi.p.y - x.y1 <= Fighter.STEP + .01f) return true; }
             return false;
         }
 
         static bool HeadroomAbove(NavNode n, float topY)
         {
             float need = topY + NAV_H;
-            foreach (var b in BoxWorld.Boxes)
-                if (b.x0 < n.p.x + CLR && b.x1 > n.p.x - CLR && b.z0 < n.p.z + CLR && b.z1 > n.p.z - CLR && b.y0 > n.p.y + .1f && b.y0 < need) return false;
+            for (int i = 0; i < BoxWorld.Boxes.Count; i++)
+                { if (Dynamic.Contains(i)) continue; var b = BoxWorld.Boxes[i]; if (b.x0 < n.p.x + CLR && b.x1 > n.p.x - CLR && b.z0 < n.p.z + CLR && b.z1 > n.p.z - CLR && b.y0 > n.p.y + .1f && b.y0 < need) return false; }
             return true;
         }
+
+        /// Re-check which nodes in an area (x0..x1, z0..z1, world metres) are covered by a dynamic box right now.
+        public static void Refresh(float x0, float x1, float z0, float z1)
+        {
+            if (cols == null || blocked == null) return;
+            x0 -= CLR; x1 += CLR; z0 -= CLR; z1 += CLR;
+            var B = BoxWorld.Boxes; near.Clear();
+            foreach (var i in Dynamic) { if (i < 0 || i >= B.Count) continue; var b = B[i]; if (b.x1 > x0 - CLR && b.x0 < x1 + CLR && b.z1 > z0 - CLR && b.z0 < z1 + CLR) near.Add(i); }
+            int a0 = Mathf.Max(0, Mathf.FloorToInt((x0 - X0) / CS)), a1 = Mathf.Min(W - 1, Mathf.FloorToInt((x1 - X0) / CS));
+            int c0 = Mathf.Max(0, Mathf.FloorToInt((z0 - Z0) / CS)), c1 = Mathf.Min(H - 1, Mathf.FloorToInt((z1 - Z0) / CS));
+            for (int iz = c0; iz <= c1; iz++)
+                for (int ix = a0; ix <= a1; ix++)
+                {
+                    var c = cols[Col(ix, iz)]; if (c == null) continue;
+                    foreach (var ni in c)
+                    {
+                        var n = Nodes[ni]; bool bl = false;
+                        foreach (var i in near)
+                        {
+                            var b = B[i];
+                            if (b.x0 < n.p.x + CLR && b.x1 > n.p.x - CLR && b.z0 < n.p.z + CLR && b.z1 > n.p.z - CLR && b.y1 > n.p.y + Fighter.STEP + .01f && b.y0 < n.p.y + NAV_H) { bl = true; break; }
+                        }
+                        blocked[ni] = bl;
+                    }
+                }
+            Version++;
+        }
+        public static void Refresh(Box b) => Refresh(b.x0, b.x1, b.z0, b.z1);
+        public static void RefreshAll() { var B = BoxWorld.Boxes; foreach (var i in Dynamic) if (i >= 0 && i < B.Count) Refresh(B[i]); }
+        static readonly List<int> near = new List<int>();
 
         /// Nearest walkable spot to p (prefers the floor you're standing on).
         public static int Nearest(Vector3 p, float radius = 3f, float maxUp = 1.2f, bool mainOnly = true)
@@ -180,6 +221,7 @@ namespace StreetLife
                     foreach (var i in cols[Col(x, z)])
                     {
                         var n = Nodes[i]; if (mainOnly && n.comp != MainComp) continue;
+                        if (blocked != null && blocked[i]) continue;
                         float dy = n.p.y - p.y; if (dy > maxUp) continue;
                         float v = new Vector2(n.p.x - p.x, n.p.z - p.z).magnitude + Mathf.Abs(dy) * 2f;
                         if (v < bv) { bv = v; best = i; }
@@ -194,7 +236,7 @@ namespace StreetLife
             for (int t = 0; t < 200; t++)
             {
                 var n = Nodes[rng != null ? rng.Next(Nodes.Count) : Random.Range(0, Nodes.Count)];
-                if (n.comp == MainComp) return n;
+                if (n.comp == MainComp && !Blocked(n.id)) return n;
             }
             return Nodes[0];
         }
@@ -218,6 +260,7 @@ namespace StreetLife
                 if (f - Heur(c, to) > g[c] + 1e-3f) continue;   // stale entry
                 foreach (var e in Nodes[c].edges)
                 {
+                    if (blocked != null && blocked[e.to] && e.to != to) continue;   // a car, a pane of glass, a table in the way right now
                     float ng = g[c] + e.cost;
                     if (seen[e.to] == stamp && ng >= g[e.to]) continue;
                     seen[e.to] = stamp; g[e.to] = ng; came[e.to] = c; Push(ng + Heur(e.to, to), e.to);

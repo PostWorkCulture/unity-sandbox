@@ -211,7 +211,15 @@ namespace StreetLife
             if (Flat(p - f.pos).magnitude < arrive && Mathf.Abs(p.y - f.pos.y) < 1.2f) { Stop(); return; }
             int n = NavGrid.Nearest(p, 4f, 2.5f);
             if (n < 0) return;
-            if (n != goalNode || path == null || Time.time > repathT) SetGoal(n);
+            if (n != goalNode || path == null || Time.time > repathT || PathBlocked()) SetGoal(n);
+        }
+
+        // a car pulled in, or something got shoved, across the next few steps
+        bool PathBlocked()
+        {
+            if (path == null) return false;
+            for (int i = pathIx; i < path.Count && i < pathIx + 4; i++) if (NavGrid.Blocked(path[i])) return true;
+            return false;
         }
 
         void GoAway(float minDist)

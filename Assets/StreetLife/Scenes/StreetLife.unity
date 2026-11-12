@@ -129,6 +129,7 @@ GameObject:
   m_Component:
   - component: {fileID: 435000102}
   - component: {fileID: 435000101}
+  - component: {fileID: 435000103}
   m_Layer: 0
   m_Name: Fill light
   m_TagString: Untagged
@@ -216,6 +217,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &435000103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 435000100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &535159282
 GameObject:
   m_ObjectHideFlags: 0
@@ -451,6 +481,8 @@ MonoBehaviour:
   library: {fileID: 11400000, guid: 16563d876b1fb824e83aaff8bbdf9d19, type: 2}
   mapJson: {fileID: 4900000, guid: ee15a85d47b020049962f2a3fc5c0d90, type: 3}
   mapBin: {fileID: 4900000, guid: f772ee37784394648a40e82ca4727bae, type: 3}
+  dynJson: {fileID: 4900000, guid: 627e28c65f4ab9149a21b0578970133d, type: 3}
+  dynBin: {fileID: 4900000, guid: ffa03eb8900218c4d91a9cc3f82029c2, type: 3}
 --- !u!4 &957440323
 Transform:
   m_ObjectHideFlags: 0
@@ -502,6 +534,7 @@ MonoBehaviour:
   library: {fileID: 11400000, guid: 16563d876b1fb824e83aaff8bbdf9d19, type: 2}
   charJson: {fileID: 4900000, guid: e345b97d7018fda468930c1eb67a0d39, type: 3}
   charBin: {fileID: 4900000, guid: ec5083f67592bfa43bd5e901750701c5, type: 3}
+  tint: {r: 1, g: 1, b: 1, a: 1}
 --- !u!114 &1818336417
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -533,6 +566,13 @@ MonoBehaviour:
   stamLock: 0
   lastHurt: -99
   simTime: 0
+  displayName: You
+  team: 0
+  isBot: 0
+  alive: 1
+  primary: gar
+  secondary: sword
+  lethal: grenade
 --- !u!114 &1818336418
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -547,6 +587,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StreetLife.Hud
   fighter: {fileID: 1818336417}
   showHelp: 1
+  drawCrosshair: 1
 --- !u!114 &1818336419
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -586,6 +627,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2030592484}
   - component: {fileID: 2030592483}
+  - component: {fileID: 2030592485}
   m_Layer: 0
   m_Name: Sun
   m_TagString: Untagged
@@ -673,6 +715,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2030592485
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2030592482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
