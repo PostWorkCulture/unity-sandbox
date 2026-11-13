@@ -22,20 +22,20 @@ namespace StreetLife
             if (e == null) return;
             if (e.env != null)
             {
-                e.env.top = "#2c5cab"; e.env.mid = "#f2b47c"; e.env.bot = "#c78d6a"; e.env.ex = .5f;
-                e.env.glow = "#ffc070"; e.env.glowA = .85f; e.env.disc = "#fff2c8"; e.env.discCos = .99945f;
+                e.env.top = "#3d7bd0"; e.env.mid = "#f4c8a0"; e.env.bot = "#d4a888"; e.env.ex = .42f;
+                e.env.glow = "#ffc070"; e.env.glowA = .6f; e.env.disc = "#fff2c8"; e.env.discCos = .99945f;
                 e.env.sd = new[] { Sun.x, Sun.y, Sun.z };
             }
-            if (e.fog != null) { e.fog.color = "#e6b78f"; e.fog.near = 60; e.fog.far = 420; }
+            if (e.fog != null) { e.fog.color = "#dcc0a8"; e.fog.near = 80; e.fog.far = 500; }
             if (e.global == null) return;
             bool first = true;
             foreach (var g in e.global)
             {
                 if (g == null) continue;
-                if (g.type == "HemisphereLight") { g.color = "#c9d6ff"; g.ground = "#b08d6e"; g.intensity = 1.4f; }
+                if (g.type == "HemisphereLight") { g.color = "#b4c8ff"; g.ground = "#a08a78"; g.intensity = 1.75f; }
                 else if (g.type == "DirectionalLight")
                 {
-                    if (first) { g.color = "#ffc58a"; g.intensity = 3.1f; g.pos = new[] { Sun.x * 80, Sun.y * 80, Sun.z * 80 }; g.target = new[] { 0f, 0f, 0f }; first = false; }
+                    if (first) { g.color = "#ffd09a"; g.intensity = 3.0f; g.pos = new[] { Sun.x * 80, Sun.y * 80, Sun.z * 80 }; g.target = new[] { 0f, 0f, 0f }; first = false; }
                     else { g.color = "#a8c0ff"; g.intensity = .4f; g.pos = new[] { 30f, 25f, 40f }; g.target = new[] { 0f, 0f, 0f }; }
                 }
             }
