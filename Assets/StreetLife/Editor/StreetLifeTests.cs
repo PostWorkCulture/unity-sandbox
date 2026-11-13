@@ -74,12 +74,59 @@ namespace StreetLife.EditorTools
 
         public static string Profile(string a) { var pm = Object.FindAnyObjectByType<ProfileMenu>(); if (!pm) return "no profile menu"; pm.Open(); return "profile open"; }
 
+        public static string Wall(string a)
+        {
+            var p = P; if (!p) return "no player"; p.Frozen = false; p.buildT = 0; if (p.walls <= 0) p.walls = 4;
+            bool ok = Walls.Build(p); return $"wall built {ok}, walls left {p.walls}, boxes {BoxWorld.Boxes.Count}";
+        }
+
+        public static string ShootWall(string a)
+        {
+            var p = P; if (!p) return "no player";
+            int hits = 0; for (int i = 0; i < 12; i++) { var o = p.Eye; var d = p.Forward; float t = BoxWorld.Ray(o, d, 10, out int bi); if (t >= 0 && Destruction.Hit(bi, 25, o + d * t, d, p)) hits++; }
+            return "brick hits " + hits;
+        }
+
+        public static string Kiosk(string a)
+        {
+            var p = P; if (!p) return "no player"; var k = StreetLife.Kiosk.Nearest(p); if (!k.HasValue) return "no kiosk on " + MapSet.Current;
+            p.Place(k.Value + new Vector3(1.5f, 0, 0), 0); p.Frozen = false;
+            var w = p.GetComponent<Weapons>(); float ar = p.armor; w.Buy("armor"); float ar2 = p.armor; w.Buy("speed");
+            return $"kiosk {k.Value} near {StreetLife.Kiosk.Near(p)} armour {ar}->{ar2} cd {p.shopCD:F0} speedT {p.speedT:F0}";
+        }
+
+        public static string Sense(string a)
+        {
+            var p = P; if (!p) return "no player"; var w = p.GetComponent<Weapons>(); w.SetLoadout(p.primary, p.secondary, "sense"); p.Frozen = false;
+            bool ok = w.UseCons(); return $"sense used {ok} senseT {p.senseT:F1} consT {w.consT:F0}";
+        }
+
+        public static string Gold(string a)
+        {
+            var p = P; if (!p) return "no player"; var w = p.GetComponent<Weapons>(); w.SetLoadout(p.primary, p.secondary, "gold"); p.armor = 5; p.lastHurt = -99;
+            return "gold set, armour " + p.armor;
+        }
+
+        public static string SetRules(string a)
+        {   // e.g. "duels 1v1", "rumble 2v2", "duels ffa4"
+            var parts = a.Split(' '); Rules.Mode = parts[0];
+            var pl = parts.Length > 1 ? parts[1] : "1v1"; if (pl.StartsWith("ffa")) { Rules.Players = "ffa"; Rules.FfaN = pl.Length > 3 ? pl[3] - '0' : 4; } else Rules.Players = pl;
+            PlayerPrefs.Save(); return $"rules {Rules.Mode} {Rules.Players} n {Rules.FighterCount}";
+        }
+
+        public static string Fighters(string a)
+        {
+            if (!RM) return "no rm"; var sb = new System.Text.StringBuilder($"{RM.state} r{RM.round} t{RM.timer:F0} dm {RM.Deathmatch}: ");
+            foreach (var f in RM.fighters) { var br = f.GetComponent<BotBrain>(); var w = f.GetComponent<Weapons>(); sb.Append($"[{f.displayName} t{f.team} {(f.alive ? (f.downed ? "down" : "up") : "out")} hp{f.hp:F0} k{f.kills} {(w ? w.Gun : "")} ->{(br && br.target ? br.target.displayName : "-")}] "); }
+            sb.Append(" score "); for (int i = 0; i < 7; i++) sb.Append(RM.score[i] + ","); return sb.ToString();
+        }
+
         public static string Unfreeze(string a) { if (B) B.Frozen = false; return "bot free"; }
 
         public static string State(string a)
         {
             var p = P; var b = B; if (!p) return "no player";
-            return $"round {RM.round} state {RM.state} score {RM.score[0]}-{RM.score[1]} player {p.CharId} hp {p.hp:F0} abilT {p.abilT:F1} | bot {(b ? b.CharId : "-")} hp {(b ? b.hp : 0):F0} abilT {(b ? b.abilT : 0):F1} alive {(b && b.alive)} lethal {(b ? b.lethal : "")} uses left {(b && b.GetComponent<Weapons>() ? b.GetComponent<Weapons>().consN : -1)}";
+            return $"round {RM.round} state {RM.state} score {RM.score[0]}-{RM.score[1]} player {p.CharId} hp {p.hp:F0} abilT {p.abilT:F1} | bot {(b ? b.CharId : "-")} hp {(b ? b.hp : 0):F0} abilT {(b ? b.abilT : 0):F1} alive {(b && b.alive)} lethal {(b ? b.lethal : "")} walls {(b ? b.walls : 0)} gun {(b && b.GetComponent<Weapons>() ? b.GetComponent<Weapons>().Gun : "")} style {(RM.botBrain ? RM.botBrain.styleId : "")} mode {(RM.botBrain ? RM.botBrain.Mode : "")} | p armour {p.armor:F1} uses left {(b && b.GetComponent<Weapons>() ? b.GetComponent<Weapons>().consN : -1)}";
         }
     }
 

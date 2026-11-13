@@ -40,6 +40,9 @@ namespace StreetLife
 
         // read by BotExtras (abilities, lethals)
         public bool Sees => sees;
+        public float SeeT => seeT;
+        /// set by BotExtras for a trip to the shop kiosk: walk there, whatever the style says
+        public Vector3? ForceGoal;
         public float LostT => lostT;
         public Vector3? LastSeen => lastSeen;
         public float StuckT => stuckT;
@@ -83,6 +86,8 @@ namespace StreetLife
             // without contact for a while, every style gets a rough idea where you are (sooner for the aggressive ones),
             // so a round never turns into two players hiding from each other
             if (!sees && target.alive && lostT > (Style.aggr >= .6f ? 6f : 13f)) { lastSeen = target.pos + new Vector3(Random.Range(-7f, 7f), 0, Random.Range(-7f, 7f)); lostT = 1; }
+            // HeartBeat running, or you've been tagged: it knows exactly where you are
+            if (target.alive && (f.senseT > 0 || target.Tagged)) { lastSeen = target.pos; lostT = Mathf.Min(lostT, .5f); }
             // hunters always have a rough fix
             if (styleId == "hunter") { senseT -= dt; if (senseT <= 0 && target.alive) { senseT = Random.Range(2.5f, 4f); lastSeen = target.pos + new Vector3(Random.Range(-4f, 4f), 0, Random.Range(-4f, 4f)); lostT = Mathf.Min(lostT, 1); } }
         }
@@ -104,6 +109,7 @@ namespace StreetLife
             float ideal = IdealRange;
 
             if (!target.alive) { Mode = "roam"; Roam(); return; }
+            if (ForceGoal.HasValue) { Mode = "shop"; GoTo(ForceGoal.Value, .6f); return; }
             if (hurt && !push && styleId != "rusher") { Mode = "retreat"; GoHide(Mathf.Max(ideal, 14), true); return; }
             if (push && (sees || lastSeen.HasValue)) { Mode = "push"; GoTo(target.pos, .8f); return; }
 

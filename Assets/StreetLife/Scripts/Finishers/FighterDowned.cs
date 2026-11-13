@@ -76,7 +76,7 @@ namespace StreetLife
         {
             if (!downed || !alive || finishing != null) return;
             hp = 0;
-            bleed -= dt; revive += dt / REVIVE_TIME;
+            bleed -= dt; revive += dt / REVIVE_TIME * ReviveHelp();   // match chat: x2 with a team-mate over you (2v2)
             if (revive >= 1)
             {
                 downed = false; hp = Mathf.Max(1, Mathf.Round(dhp)); lastHurt = simTime; revive = 0; downedBy = null;

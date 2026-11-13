@@ -55,6 +55,8 @@ namespace StreetLife
             foreach (var rig in UnityEngine.Object.FindObjectsByType<CharacterRig>())
                 if (rig.GetComponent<PlayerController>()) Apply(rig, PlayerChoice);
             if (!UnityEngine.Object.FindAnyObjectByType<CharacterPicker>()) new GameObject("Character picker").AddComponent<CharacterPicker>();
+            if (!UnityEngine.Object.FindAnyObjectByType<CharacterShowcase>()) new GameObject("Character showcase").AddComponent<CharacterShowcase>();
+            if (!UnityEngine.Object.FindAnyObjectByType<CharacterClimb>()) new GameObject("Character climbing").AddComponent<CharacterClimb>();
         }
 
         /// Called by RoundManager when it makes the bot: a random character other than yours (or the one picked for it).

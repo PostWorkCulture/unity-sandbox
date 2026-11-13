@@ -7,6 +7,7 @@ Shader "StreetLife/Fresnel"
         _Color ("Colour (alpha = base opacity)", Color) = (1, 1, 1, 0.15)
         _Rim ("Rim", Float) = 0.8
         _Power ("Power", Float) = 2.5
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("ZTest", Float) = 4
     }
     SubShader
     {
@@ -17,6 +18,7 @@ Shader "StreetLife/Fresnel"
             Tags { "LightMode" = "SRPDefaultUnlit" }
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
+            ZTest [_ZTest]
             Cull Back
 
             HLSLPROGRAM

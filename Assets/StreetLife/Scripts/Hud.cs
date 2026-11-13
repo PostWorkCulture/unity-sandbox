@@ -58,6 +58,10 @@ namespace StreetLife
             st.normal.textColor = o;
         }
 
+        static string flashTitle, flashSub; static float flashUntil;
+        /// a short message in the middle of the screen ("Air strike!")
+        public static void Flash(string title, string sub) { flashTitle = title; flashSub = sub; flashUntil = Time.time + 1.4f; }
+
         void OnGUI()
         {
             if (!fighter) return;
@@ -69,12 +73,12 @@ namespace StreetLife
             Vitals(H);
             if (fighter.alive) { if (drawCrosshair) Crosshair(W, H); HitArc(W, H); }
             Minimap(W);
-            if (rm && rm.player && rm.bot)
+            if (rm && rm.player)
             {
                 ScoreAndFeed(rm, W);
                 Leaderboard(rm);
                 Banners(rm, W, H);
-                if (showBot && rm.botBrain) GUI.Label(R(18, 120, 520, 60), $"Bot: {rm.botBrain.Style.name} ({rm.botBrain.Dif.name}), {rm.botBrain.Mode}", small);
+                if (showBot && rm && rm.botBrain) GUI.Label(R(18, 120, 520, 60), $"Bot: {rm.botBrain.Style.name} ({rm.botBrain.Dif.name}), {rm.botBrain.Mode}", small);
             }
             if (showHelp && !(TouchControls.I && TouchControls.I.Showing))
             {
@@ -94,6 +98,7 @@ namespace StreetLife
             Bar(x, y + 38, 230, 12, fighter.stam / Fighter.STAM_MAX, fighter.stamLock ? new Color(.45f, .3f, .55f) : new Color(.62f, .38f, 1f));
             Shadowed(R(x, y - 22, 300, 20), fighter.characterName + "   " + Mathf.CeilToInt(fighter.hp), label, Color.white);
             AbilityChip(x + 242, y - 2, H);
+            ExtrasInfo(x, y, H);
         }
 
         /// the character ability: name, G, and the cooldown filling up; status timers above it
@@ -109,6 +114,20 @@ namespace StreetLife
             string st = fighter.shieldT > 0 ? "Shield " + Mathf.CeilToInt(fighter.shieldT) + "s" : fighter.thornT > 0 ? "Thorns " + Mathf.CeilToInt(fighter.thornT) + "s" : fighter.ghostT > 0 ? "Vanished " + Mathf.CeilToInt(fighter.ghostT) + "s" : fighter.zipT > 0 ? "Sprint " + Mathf.CeilToInt(fighter.zipT) + "s" : fighter.boostT > 0 ? "Jetpack" : null;
             if (st != null) Shadowed(R(x, y - 22, 200, 20), st, small, new Color(.75f, .95f, 1f));
             if (fighter.slowT > 0) FrostEdges(Mathf.Clamp01(fighter.slowT / 1.5f));
+        }
+
+        /// walls left, the shop kiosk, HeartBeat and tagging (match chat)
+        void ExtrasInfo(float x, float y, float H)
+        {
+            if (!fighter.alive) return;
+            float W = Screen.width / s;
+            if (Walls.On && !(TouchControls.I && TouchControls.I.Showing)) Shadowed(R(x, y - 44, 300, 20), fighter.walls > 0 ? $"Q  wall  x{fighter.walls}" : "no walls left", small, new Color(1, 1, 1, fighter.walls > 0 ? .8f : .4f));
+            string msg = null; var col = Color.white;
+            if (fighter.downed && !fighter.InFinisher) { msg = "Down  ·  fire to tag an enemy (seen through walls for 3 s)"; col = new Color(1f, .55f, .6f); }
+            else if (Intel.EnemySensing(fighter)) { msg = "An enemy used HeartBeat: they can see you"; col = new Color(1f, .45f, .45f); }
+            else if (fighter.senseT > 0) { msg = "HeartBeat  " + Mathf.CeilToInt(fighter.senseT) + "s"; col = new Color(.5f, .95f, 1f); }
+            else if (Kiosk.Near(fighter)) { msg = fighter.shopCD > 0 ? "Shop ready in " + Mathf.CeilToInt(fighter.shopCD) + "s" : (TouchControls.I && TouchControls.I.Showing ? "Shop open: tap Shop" : "Shop: press Tab, pick one item"); col = new Color(1f, .85f, .35f); }
+            if (msg != null) { Fill(R(W / 2 - 260, H - 150, 520, 30), new Color(0, 0, 0, .45f)); Shadowed(R(W / 2 - 260, H - 147, 520, 26), msg, center, col); }
         }
 
         void FrostEdges(float k)
@@ -194,9 +213,10 @@ namespace StreetLife
             if (rm)
             {
                 // enemies only show where they fired from (fading over two seconds)
-                foreach (var f in new[] { rm.player, rm.bot })
+                foreach (var f in rm.fighters)
                 {
-                    if (!f || f == fighter || f.team == fighter.team) continue;
+                    if (!f || f == fighter) continue;
+                    if (f.team == fighter.team) { if (f.alive) { var ap = ToMap(f.VisualPos); Fill(new Rect(ap.x - 3.5f * s, ap.y - 3.5f * s, 7 * s, 7 * s), new Color(.35f, .8f, 1f, .95f)); } continue; }   // team-mates always show
                     float age = Time.time - f.lastShotTime;
                     if (age < 2f) { var p = ToMap(f.lastShotPos); Fill(new Rect(p.x - 3 * s, p.y - 3 * s, 6 * s, 6 * s), new Color(1, .2f, .15f, 1 - age / 2)); }
                 }
@@ -218,11 +238,15 @@ namespace StreetLife
         // ------------------------------------------------------------------ score, feed, leaderboard
         void ScoreAndFeed(RoundManager rm, float W)
         {
-            int me = fighter.team, them = 1 - me;
+            int me = fighter.team, them = 1 - me; foreach (var o in rm.fighters) if (o.team != me) { them = o.team; break; }
             string t = rm.state == RoundManager.State.Fight || rm.state == RoundManager.State.RoundEnd ? $"{Mathf.FloorToInt(Mathf.Max(0, rm.timer) / 60)}:{Mathf.FloorToInt(Mathf.Max(0, rm.timer) % 60):00}" : "";
             Fill(R(W / 2 - 170, 8, 340, 58), new Color(0, 0, 0, .45f));
-            Shadowed(R(W / 2 - 170, 8, 340, 36), $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}", big, Color.white);
-            Shadowed(R(W / 2 - 170, 42, 340, 20), $"{t}   First to {rm.toWin}", center, new Color(1, 1, 1, .85f));
+            string head;
+            if (rm.Deathmatch) { int best = 0; foreach (var o in rm.fighters) if (o != fighter) best = Mathf.Max(best, o.kills); head = $"YOU  {fighter.kills}   ·   BEST BOT  {best}"; }
+            else if (Rules.TwoVTwo) head = $"YOUR TEAM  {rm.score[me]}  :  {rm.score[them]}  THEIRS";
+            else head = $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}";
+            Shadowed(R(W / 2 - 170, 8, 340, 36), head, big, Color.white);
+            Shadowed(R(W / 2 - 170, 42, 340, 20), $"{t}   First to {rm.toWin}{(rm.Deathmatch ? " kills" : "")}", center, new Color(1, 1, 1, .85f));
             float y = 62;
             foreach (var it in rm.feed)
             {
@@ -236,10 +260,11 @@ namespace StreetLife
         void Leaderboard(RoundManager rm)
         {
             float x = 18, y = 16;
-            Fill(R(x - 6, y - 4, 230, 66), new Color(0, 0, 0, .35f));
+            Fill(R(x - 6, y - 4, 230, 26 + 20 * rm.fighters.Count), new Color(0, 0, 0, .35f));
             GUI.Label(R(x, y, 120, 18), "Player", small); GUI.Label(R(x + 130, y, 90, 18), "K   A   D", small);
             y += 20;
-            foreach (var f in new[] { rm.player, rm.bot })
+            var list = new System.Collections.Generic.List<Fighter>(rm.fighters); list.Sort((a, b) => b.kills != a.kills ? b.kills.CompareTo(a.kills) : a.deaths.CompareTo(b.deaths));
+            foreach (var f in list)
             {
                 var col = f.alive ? (f.team == fighter.team ? new Color(.55f, .85f, 1f) : new Color(1f, .55f, .5f)) : new Color(.6f, .6f, .6f);
                 Shadowed(R(x, y, 120, 18), f.displayName, label, col);
@@ -256,27 +281,29 @@ namespace StreetLife
                 case RoundManager.State.Intro:
                     Fill(R(0, H / 2 - 90, W, 180), new Color(0, 0, 0, .55f));
                     Shadowed(R(0, H / 2 - 70, W, 90), "Street Life", huge, Color.white);
-                    Shadowed(R(0, H / 2 + 20, W, 40), $"Round 1   ·   1v1   ·   First to {rm.toWin}", big, new Color(1, 1, 1, .85f));
+                    Shadowed(R(0, H / 2 + 20, W, 40), rm.Deathmatch ? $"{Rules.Tag}   ·   {rm.fighters.Count} players   ·   First to {rm.toWin} kills" : $"Round 1   ·   {Rules.Tag}   ·   First to {rm.toWin}", big, new Color(1, 1, 1, .85f));
                     break;
                 case RoundManager.State.Countdown:
                     Shadowed(R(0, H / 2 - 120, W, 100), Mathf.CeilToInt(rm.stateT).ToString(), huge, Color.white);
-                    Shadowed(R(0, H / 2 - 30, W, 40), "Round " + rm.round, big, new Color(1, 1, 1, .9f));
+                    Shadowed(R(0, H / 2 - 30, W, 40), rm.Deathmatch ? "Fight!" : "Round " + rm.round, big, new Color(1, 1, 1, .9f));
                     break;
                 case RoundManager.State.RoundEnd:
                     {
-                        string msg = rm.lastWinner < 0 ? (rm.timer <= 0 ? "Draw: time ran out" : "Draw") : rm.lastWinner == fighter.team ? "Round to you" : "Round to the bot";
+                        string other = rm.Deathmatch && rm.LastWinnerFighter ? rm.LastWinnerFighter.displayName : Rules.TwoVTwo ? "the other team" : rm.bot ? rm.bot.displayName : "the bot";
+                        string msg = rm.lastWinner < 0 ? (rm.timer <= 0 ? "Draw: time ran out" : "Draw") : rm.lastWinner == fighter.team ? (Rules.TwoVTwo ? "Round to your team" : "Round to you") : "Round to " + other;
                         if (rm.timer <= 0 && rm.lastWinner >= 0) msg += " (more health left)";
-                        if (rm.matchOver) msg = rm.lastWinner == fighter.team ? "Match point won!" : "Match lost";
+                        if (rm.matchOver) msg = rm.lastWinner == fighter.team ? "Match point won!" : rm.Deathmatch ? other + " wins" : "Match lost";
                         Fill(R(0, 118, W, 44), new Color(0, 0, 0, .55f));
                         Shadowed(R(0, 118, W, 44), msg, big, rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : rm.lastWinner < 0 ? Color.white : new Color(1f, .5f, .45f));
                     }
                     break;
                 case RoundManager.State.MatchEnd:
                     {
-                        bool won = rm.score[fighter.team] >= rm.toWin;
+                        bool won = rm.PlayerWonMatch;
                         Fill(R(0, 0, W, H), new Color(0, 0, 0, .55f));
                         Shadowed(R(0, H / 2 - 190, W, 100), won ? "You caught the W!" : "Took the L this time :(", huge, won ? new Color(1f, .85f, .3f) : new Color(1f, .55f, .5f));
-                        Shadowed(R(0, H / 2 - 80, W, 50), $"{rm.score[fighter.team]}  -  {rm.score[1 - fighter.team]}", big, Color.white);
+                        int oth = 0; foreach (var o in rm.fighters) if (o.team != fighter.team) oth = Mathf.Max(oth, rm.score[o.team]);
+                        Shadowed(R(0, H / 2 - 80, W, 50), rm.Deathmatch ? $"{fighter.kills} kills   ·   {(rm.LastWinnerFighter ? rm.LastWinnerFighter.displayName : "")} wins" : $"{rm.score[fighter.team]}  -  {oth}", big, Color.white);
                         var f = fighter;
                         int acc = f.shots > 0 ? Mathf.RoundToInt(100f * f.hits / f.shots) : 0;
                         string[] k = { "Kills", "Damage", "Accuracy", "Headshots" };
@@ -291,7 +318,8 @@ namespace StreetLife
                     }
                     break;
             }
-            if (!fighter.alive && rm.state == RoundManager.State.Fight) Shadowed(R(0, H / 2 + 60, W, 30), "You're out", big, new Color(1, .5f, .45f));
+            if (!fighter.alive && rm.state == RoundManager.State.Fight) Shadowed(R(0, H / 2 + 60, W, 30), rm.Deathmatch ? "Respawning in " + Mathf.CeilToInt(rm.RespawnIn(fighter)) : Rules.TwoVTwo ? "You're out: your team-mate is still in" : "You're out", big, new Color(1, .5f, .45f));
+            if (Time.time < flashUntil) { float a = Mathf.Clamp01((flashUntil - Time.time) / .4f); Shadowed(R(0, H / 2 - 160, W, 60), flashTitle, huge, new Color(1f, .85f, .3f, a)); Shadowed(R(0, H / 2 - 95, W, 30), flashSub, big, new Color(1, 1, 1, a)); }
         }
     }
 }

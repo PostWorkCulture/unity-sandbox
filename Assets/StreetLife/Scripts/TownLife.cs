@@ -28,6 +28,7 @@ namespace StreetLife
             var col = go.GetComponent<Collider>(); if (col) Destroy(col);
             go.transform.SetParent(parent, false); go.transform.localPosition = pos; go.transform.localScale = size;
             var r = go.GetComponent<Renderer>(); r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            if (mpb == null) mpb = new MaterialPropertyBlock();
             mpb.Clear(); mpb.SetColor("_BaseColor", c); r.SetPropertyBlock(mpb);
             return go.transform;
         }

@@ -177,10 +177,11 @@ namespace StreetLife
             stepA = new VisualElement(); stepA.style.flexGrow = 1; stepA.style.flexDirection = FlexDirection.Row; stepA.pickingMode = PickingMode.Ignore;
             var left = Card(330); left.style.marginRight = 16; left.style.alignSelf = Align.FlexStart;
             left.Add(StepHead(1, "Mode & map"));
-            left.Add(Caps("Mode")); left.Add(Segmented(new[] { "Duels", "1v1" }, new[] { "duels", "1v1" }, () => Settings.Mode, SetMode));
+            left.Add(Caps("Mode")); left.Add(Segmented(new[] { "Duels", "Rumble" }, new[] { "duels", "rumble" }, () => Rules.Mode, v => { Rules.Mode = v; RefreshMap(); }));
+            left.Add(Caps("Players")); left.Add(Segmented(new[] { "1v1", "2v2", "FFA 4", "FFA 6" }, new[] { "1v1", "2v2", "ffa4", "ffa6" }, () => Rules.Ffa ? "ffa" + Rules.FfaN : Rules.Players, v => { if (v.StartsWith("ffa")) { Rules.Players = "ffa"; Rules.FfaN = v[3] - '0'; } else Rules.Players = v; RefreshMap(); }));
             left.Add(Caps("Rules")); left.Add(Segmented(new[] { "Normal", "Simple" }, new[] { "normal", "simple" }, () => Settings.Rules, v => Settings.Rules = v));
             left.Add(Caps("Bots")); left.Add(Segmented(new[] { "Easy", "Normal", "Hard", "Extreme" }, new[] { "easy", "normal", "hard", "extreme" }, () => Settings.Difficulty, v => Settings.Difficulty = v));
-            var hint = L("Normal: pick your own loadout (step 3, or Tab in a match) and every bot style.\nSimple: M4, sword and grenade for both; no sniper bots.", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal;
+            var hint = L("Duels: guns, lethals, walls (Q), abilities (G), the shop. Rumble: fists only; land a punch while falling for an air strike.\n2v2: you and a bot against two bots. FFA: everyone respawns, first to 10 kills.\nRules: Simple is the M4, sword and grenade (1v1 Duels only).", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal;
             left.Add(hint);
             stepA.Add(left);
 
@@ -199,6 +200,8 @@ namespace StreetLife
             foreach (var e in new VisualElement[] { mapTag, mapTitle, bar, mapDesc }) mapCard.Add(e);
             right.Add(mapCard);
             var chips = new VisualElement(); chips.style.flexDirection = FlexDirection.Row; chips.style.flexWrap = Wrap.Wrap; chips.style.marginTop = 10;
+            var bigChips = new VisualElement(); bigChips.style.flexDirection = FlexDirection.Row; bigChips.style.flexWrap = Wrap.Wrap;
+            var smallChips = new VisualElement(); smallChips.style.flexDirection = FlexDirection.Row; smallChips.style.flexWrap = Wrap.Wrap;
             var set = MapSet.Load();
             if (set && set.maps != null)
                 foreach (var m in set.maps)
@@ -206,9 +209,11 @@ namespace StreetLife
                     if (m == null || (!m.IsStreet && (!m.mapJson || !m.library))) continue;   // left out of this build
                     var id = m.id;
                     var c = Btn(m.title, () => { selMap = id; RefreshMap(); }, false, 13); c.name = "map-" + id; c.style.marginRight = 8; c.style.marginBottom = 6;
-                    chips.Add(c);
+                    (IsBig(id) ? bigChips : smallChips).Add(c);
                 }
-            if (chips.childCount <= 1) { chips.style.display = DisplayStyle.None; arrows.style.display = DisplayStyle.None; }   // a one-map build (the Street Life WebGL)
+            chips.style.flexDirection = FlexDirection.Column;
+            foreach (var (cap, row) in new[] { ("Big maps", bigChips), ("Small maps", smallChips) }) { if (row.childCount == 0) continue; var lab = Caps(cap); lab.style.marginTop = 4; chips.Add(lab); chips.Add(row); }
+            if (bigChips.childCount + smallChips.childCount <= 1) { chips.style.display = DisplayStyle.None; arrows.style.display = DisplayStyle.None; }   // a one-map build (the Street Life WebGL)
             right.Add(chips);
             stepA.Add(right);
             body.Add(stepA);
@@ -232,6 +237,7 @@ namespace StreetLife
             loadBox = new VisualElement(); lc.Add(loadBox);
             stepC.Add(lc);
             var gap3 = new VisualElement(); gap3.style.flexGrow = 1; gap3.pickingMode = PickingMode.Ignore; stepC.Add(gap3);
+            stepC.Add(WeaponShowcase.Panel());   // the weapon you pick, under studio lights; drag to turn it
             body.Add(stepC);
 
             // ---- bottom: back / next or play
@@ -263,6 +269,7 @@ namespace StreetLife
             stepB.style.display = s == 1 ? DisplayStyle.Flex : DisplayStyle.None;
             stepC.style.display = s == 2 ? DisplayStyle.Flex : DisplayStyle.None;
             if (s == 2) BuildLoadout();
+            WeaponShowcase.SetActive(s == 2, s == 2 ? (Settings.Rules == "simple" ? "gar" : Settings.Primary) : null);
             var back = menu.Q<Button>("back"); if (back != null) back.style.visibility = s == 0 ? Visibility.Hidden : Visibility.Visible;
             var next = menu.Q<Button>("next"); if (next != null) next.text = s == 0 ? "Character" : s == 1 ? "Loadout" : "Play";
         }
@@ -274,10 +281,13 @@ namespace StreetLife
             for (int k = 0; k < set.maps.Length; k++)
             {
                 i = (i + d + set.maps.Length) % set.maps.Length; var m = set.maps[i];
-                if (Usable(m) && ModeKey(m) == Settings.Mode) break;
+                if (Usable(m)) break;   // every map in every mode
             }
             selMap = set.maps[i].id; RefreshMap();
         }
+
+        /// the four big maps; the rest (Sky High, Lagoon, The House, Backyard) are the small ones
+        static bool IsBig(string id) => id == "street" || id == "wreck" || id == "arena" || id == "rail";
 
         static bool Usable(MapSet.Entry m) => m != null && (m.IsStreet || (m.mapJson && m.library));
         /// Duels maps vs everything else (1v1, plus the Rumble maps, which are played here as 1v1)
@@ -303,7 +313,7 @@ namespace StreetLife
             mapTitle.text = m != null ? m.title : "Street Life";
             mapDesc.text = (m != null ? m.desc : "Suburban road, cars and front yards").ToUpperInvariant();
             var md = m != null && !string.IsNullOrEmpty(m.mode) ? m.mode : "Duels";
-            mapTag.text = (md.IndexOf("rumble", StringComparison.OrdinalIgnoreCase) >= 0 ? "Rumble map  ·  1v1" : md).ToUpperInvariant();
+            mapTag.text = ((IsBig(selMap) ? "Big map" : "Small map") + "  ·  " + (Rules.Rumble ? "Rumble" : "Duels") + "  ·  " + (Rules.Ffa ? "FFA " + Rules.FfaN : Rules.Players)).ToUpperInvariant();
             // the live map shows through when it's the one picked; another map gets its own colours until you play it
             bool live = selMap == MapSet.Current;
             var sw = m != null && m.swatch != null && m.swatch.Length > 0 ? m.swatch[0] : new Color(.2f, .3f, .25f);
@@ -312,7 +322,7 @@ namespace StreetLife
             mapCard.style.backgroundSize = new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Cover));
             mapCard.style.backgroundColor = live ? new Color(0, 0, 0, .08f) : thumb ? Color.white : new Color(sw.r * .6f, sw.g * .6f, sw.b * .6f, .92f);
             if (set && set.maps != null)
-                foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; b.style.display = ModeKey(e) == Settings.Mode ? DisplayStyle.Flex : DisplayStyle.None; Border(b, on ? 2 : 1, on ? Sel : Line); b.style.color = on ? Text : Dim; }
+                foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; Border(b, on ? 2 : 1, on ? Sel : Line); b.style.color = on ? Text : Dim; }
         }
 
         // ---- map pictures for the carousel: taken from the menu's own view the first time each map is shown live.
@@ -444,7 +454,7 @@ namespace StreetLife
                 string name = c != null ? c.name : g != null ? g.name : id;
                 string stat = c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
                 bool on = id == sel; var pid = id;
-                var b = new Button(() => { if (locked) return; pick(pid); PlayerPrefs.Save(); BuildLoadout(); }) { text = "" };
+                var b = new Button(() => { WeaponShowcase.Show(pid); if (locked) return; pick(pid); PlayerPrefs.Save(); BuildLoadout(); }) { text = "" };
                 b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, on ? 2 : 1, on ? Sel : Line); Pad(b, 4, 8);
                 b.style.marginLeft = b.style.marginTop = 0; b.style.marginRight = b.style.marginBottom = 7;
                 b.style.backgroundColor = on ? Sel : Chip; b.style.justifyContent = Justify.Center; b.style.alignItems = Align.FlexStart;
@@ -464,8 +474,9 @@ namespace StreetLife
         void ApplyLoadout()
         {
             var p = player ? player : FindPlayer(); if (!p) return;
-            bool simple = Settings.Rules == "simple";
+            bool simple = Settings.Rules == "simple" && Rules.OneVOne;
             string pri = simple ? "gar" : Settings.Primary, sec = simple ? "sword" : Settings.Secondary, leth = simple ? "grenade" : Settings.Lethal;
+            if (Rules.Rumble) { pri = "fists"; sec = "fists"; }   // Rumble: fists only
             if (GunsDb.Loaded) { if (GunsDb.Gun(pri) == null) pri = "gar"; if (GunsDb.Gun(sec) == null) sec = "sword"; if (GunsDb.Cons(leth) == null) leth = "grenade"; }
             p.primary = pri; p.secondary = sec; p.lethal = leth;
             var w = p.GetComponent<Weapons>(); if (w && GunsDb.Loaded) w.ResetKit();
@@ -530,6 +541,9 @@ namespace StreetLife
             c.Add(Caps("Graphics"));
             c.Add(Segmented(new[] { "High", "Smooth" }, new[] { "high", "smooth" }, () => Settings.Graphics, v => { Settings.Graphics = v; Settings.Apply(); }));
             var gh = L("High: 4K shadows, full ambient occlusion, 4x anti-aliasing. Smooth: the lighter settings phones use.", 12, Dim); gh.style.whiteSpace = WhiteSpace.Normal; gh.style.marginTop = 6; c.Add(gh);
+            c.Add(Caps("Touch controls"));
+            c.Add(Segmented(new[] { "Auto", "On", "Off" }, new[] { "auto", "on", "off" }, () => Settings.Touch, v => { Settings.Touch = v; Settings.Apply(); }));
+            var th = L("Auto: on phones, or once you touch the screen. Off hides the on-screen buttons and stick.", 12, Dim); th.style.whiteSpace = WhiteSpace.Normal; th.style.marginTop = 6; c.Add(th);
             c.Add(Caps("Frame rate readout"));
             c.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => PerfProbe.Show ? "on" : "off", v => PerfProbe.Show = v == "on"));
             var done = Btn("Done", () => Show(backTo), true); done.style.marginTop = 18; c.Add(done);
@@ -594,6 +608,7 @@ namespace StreetLife
 
         void Play()
         {
+            WeaponShowcase.SetActive(false);
             if (selMap != MapSet.Current && MapSet.Load() && MapSet.Load().Get(selMap) != null)
             {
                 MapSet.Choice = selMap; skipOnce = true;
@@ -662,7 +677,7 @@ namespace StreetLife
             }
         }
 
-        void OnDestroy() { if (Paused) Time.timeScale = 1; Open = false; Paused = false; }
+        void OnDestroy() { WeaponShowcase.SetActive(false); if (Paused) Time.timeScale = 1; Open = false; Paused = false; }
     }
 
     /// Saved player settings (PlayerPrefs), applied at every scene load and whenever they change.
@@ -691,6 +706,7 @@ namespace StreetLife
             int hz = Mathf.Max(60, Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value));
             Application.targetFrameRate = Mathf.Min(Fps, hz);
         }
+        public static string Touch { get => PlayerPrefs.GetString(P + "touch", "auto"); set => PlayerPrefs.SetString(P + "touch", value); }
         public static string Graphics
         {
             get => PlayerPrefs.GetString(P + "gfx", Application.isMobilePlatform ? "smooth" : "high");
@@ -700,6 +716,7 @@ namespace StreetLife
         public static void Apply()
         {
             foreach (var pc in UnityEngine.Object.FindObjectsByType<PlayerController>()) { pc.sensitivity = Sens; pc.adsSensitivity = AimSens; }
+            TouchControls.Mode = Touch;
             if (TouchControls.I) { TouchControls.I.sensitivity = Sens; TouchControls.I.aimAssist = AimAssist; TouchControls.I.gyro = Gyro; }
             Haptics.On = Vibration; ApplyFps();
             Sfx.MusicVolume = Music; Sfx.SfxVolume = Effects;

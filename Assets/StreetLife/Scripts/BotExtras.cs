@@ -10,8 +10,48 @@ namespace StreetLife
     public class BotExtras : MonoBehaviour
     {
         Fighter f; BotBrain a; Weapons w;
+        float reactCD, hurtSeen = -99, wallUntil, wallCD, shopNext = -1, shopUntil;
+        bool wallNow;
+
+        // the web game's STYLES: wall building (build, wallHp, wallCD) and the guns each style picks in Normal rules
+        public class Kit { public float build, wallHp, wallCD; public string[] prim, sec; }
+        public static readonly System.Collections.Generic.Dictionary<string, Kit> Kits = new System.Collections.Generic.Dictionary<string, Kit>
+        {
+            ["rusher"] = new Kit { build = .3f, wallHp = 35, prim = new[] { "ar", "mg", "gar", "scout", "m60", "burst", "shotgun", "autoshot" }, sec = new[] { "sword", "smg", "hornet", "sword", "duals", "vector" } },
+            ["sniper"] = new Kit { build = .7f, wallHp = 70, prim = new[] { "sniper", "sniper", "sniper", "scout", "crossbow" }, sec = new[] { "smg", "duals" } },
+            ["lurker"] = new Kit { build = .4f, wallHp = 55, prim = new[] { "ar", "scout", "mg", "m60", "burst", "crossbow", "shotgun", "autoshot" }, sec = new[] { "sword", "smg", "duals", "vector" } },
+            ["flanker"] = new Kit { build = .5f, wallHp = 60, prim = new[] { "ar", "scout", "gar", "burst", "crossbow", "shotgun" }, sec = new[] { "smg", "hornet", "sword", "duals", "vector" } },
+            ["turtle"] = new Kit { build = 1.6f, wallHp = 95, wallCD = 10, prim = new[] { "mg", "ar", "gar", "m60", "burst", "crossbow" }, sec = new[] { "smg", "rocket", "duals", "swarm", "ump" } },
+            ["hunter"] = new Kit { build = .6f, wallHp = 55, prim = new[] { "ar", "mg", "scout", "m60", "burst", "crossbow", "autoshot" }, sec = new[] { "smg", "duals", "p90", "ump" } },
+            ["breacher"] = new Kit { build = .4f, wallHp = 50, prim = new[] { "shotgun", "autoshot", "shotgun" }, sec = new[] { "smg", "hornet", "duals", "sting" } },
+            ["kiter"] = new Kit { build = .8f, wallHp = 65, prim = new[] { "ar", "scout", "mg", "gar", "m60", "burst", "crossbow" }, sec = new[] { "smg", "hornet", "duals", "p90" } },
+            ["camper"] = new Kit { build = 1.3f, wallHp = 90, wallCD = 25, prim = new[] { "mg", "ar", "sniper", "m60", "burst" }, sec = new[] { "smg", "duals" } },
+            ["duelist"] = new Kit { build = 1, wallHp = 70, prim = new[] { "sniper", "scout", "ar", "gar", "burst", "mg", "m60", "crossbow", "shotgun", "autoshot" }, sec = new[] { "smg", "hornet", "rocket", "sword", "duals", "vector", "p90", "ump", "sting", "swarm" } },
+        };
+        static readonly System.Collections.Generic.Dictionary<string, float> DifBuild = new System.Collections.Generic.Dictionary<string, float> { ["easy"] = .15f, ["normal"] = .3f, ["hard"] = .7f, ["extreme"] = .8f };
+        Kit K => Kits.TryGetValue(a.styleId, out var k) ? k : Kits["duelist"];
 
         void Awake() { f = GetComponent<Fighter>(); a = GetComponent<BotBrain>(); }
+        void OnEnable() { RoundManager.RoundStarted += OnRound; }
+        void OnDisable() { RoundManager.RoundStarted -= OnRound; }
+
+        /// each round the bot takes its style's kit: a random primary and secondary from its list in Normal rules, the
+        /// Simple kit in Simple rules, fists in Rumble (the web game's applyStyle)
+        /// a deathmatch respawn: the style's kit again
+        public void Rekit() => OnRound(0);
+
+        void OnRound(int r)
+        {
+            reactCD = 0; hurtSeen = f.lastHurt; wallNow = false; wallCD = 0; shopNext = -1; a.ForceGoal = null;
+            if (!w) w = GetComponent<Weapons>(); if (!w) return;
+            var rm = RoundManager.Instance;
+            string pri, sec, leth = f.lethal;
+            if (Rules.Rumble) { pri = "fists"; sec = "fists"; }
+            else if (rm && rm.simpleRules && Rules.OneVOne && !Rules.Rumble) { pri = "gar"; sec = "sword"; leth = "grenade"; }
+            else { var k = K; pri = k.prim[Random.Range(0, k.prim.Length)]; sec = k.sec[Random.Range(0, k.sec.Length)]; }
+            if (GunsDb.Gun(pri) == null) pri = "gar"; if (GunsDb.Gun(sec) == null) sec = Rules.Rumble ? pri : "sword";
+            w.SetLoadout(pri, sec, leth);
+        }
 
         static bool Close(string id) => id == "sword" || id == "shotgun" || id == "autoshot";
 
@@ -74,14 +114,60 @@ namespace StreetLife
                 }
             }
 
-            if (!w || w.Busy || f.dazeT > 0 || f.stunT > 0) return;
+            // ---- walls: a reaction to being shot, or the style's habit of walling up when it first spots you
+            if (Walls.On && f.walls > 0 && !Close(gun))
+            {
+                var k = K;
+                if (f.lastHurt > hurtSeen)
+                {
+                    hurtSeen = f.lastHurt;
+                    if (Time.time > reactCD && T.alive)
+                    {
+                        reactCD = Time.time + Random.Range(2.2f, 4f);
+                        float wall = f.hp < k.wallHp ? .3f * k.build : 0, total = wall + 1.1f + .5f + (1 - f.hp / f.hpMax) * .8f + .6f + (style == "rusher" || style == "breacher" ? 1.4f : .35f);
+                        if (Random.value * total < wall) { wallNow = true; wallUntil = Time.time + .8f; }
+                    }
+                }
+                float dif = DifBuild.TryGetValue(a.difficulty, out var db) ? db : .3f;
+                if (see && (wallNow && Time.time < wallUntil || k.build > 1.2f && a.SeeT < 1.2f && dist > 9 && Time.time > wallCD && Random.value < dif * k.build * dt * 8))
+                {
+                    wallNow = false; float y = f.yaw; f.yaw = Mathf.Atan2(T.pos.x - f.pos.x, T.pos.z - f.pos.z);
+                    if (Walls.Build(f)) wallCD = Time.time + k.wallCD;
+                    f.yaw = y;
+                }
+            }
+
+            // ---- the shop kiosk: now and then, when it's not in a fight, pop over for what it needs most
+            {
+                if (a.ForceGoal.HasValue)
+                {
+                    if (Kiosk.Near(f)) { Kiosk.BotBuy(f); a.ForceGoal = null; }
+                    else if (f.shopCD > 0 || Time.time > shopUntil || Kiosk.Want(f) == null || (see && dist < 10 && !T.downed)) a.ForceGoal = null;
+                }
+                else if (f.shopCD <= 0 && rm && rm.state == RoundManager.State.Fight && !(see && dist < 16))
+                {
+                    if (shopNext < 0) shopNext = Time.time + Random.Range(40f, 70f);
+                    if (Time.time > shopNext && Kiosk.Want(f) != null)
+                    {
+                        shopNext = Time.time + Random.Range(60f, 100f);
+                        var sh = Kiosk.Nearest(f);
+                        if (sh.HasValue && Vector3.Distance(sh.Value, f.pos) < 45 && Random.value < .5f) { a.ForceGoal = sh; shopUntil = Time.time + 14; }
+                    }
+                }
+            }
+
+            // ---- Rumble: hop in for an air strike
+            if (Rules.Rumble && f.grounded && see && dist > 2.2f && dist < 4.6f && Mathf.Abs(T.pos.y - f.pos.y) < 1 && Random.value < dt * 1.5f) f.inJumpPress = true;
+
+            if (!w || w.Busy || f.dazeT > 0 || f.stunT > 0 || Rules.Rumble) return;
             var last = a.LastSeen;
 
             // ---- the lethal
             if (w.ConsReady())
             {
                 string cid = f.lethal;
-                if (cid == "mine")
+                if (cid == "sense") { if (a.LostT > 3 && Random.value < dt * .4f) w.UseCons(); }
+                else if (cid == "mine")
                 {
                     if ((!see && a.LostT > 1.5f || see && dist < 9) && Random.value < dt * .35f) w.UseCons();
                 }

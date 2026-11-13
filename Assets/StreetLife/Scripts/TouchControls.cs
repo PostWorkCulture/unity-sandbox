@@ -48,7 +48,9 @@ namespace StreetLife
 
         static Rect Safe => Screen.safeArea;
         float S { get { var sa = Safe; return Mathf.Max(1f, Mathf.Min(sa.height / 360f, sa.width / 640f)); } }   // CSS px -> screen px
-        public bool Showing => forceShow || Preview || Application.isMobilePlatform || seenTouch;
+        /// Settings > Touch controls: "auto" (phones, or once the screen is touched), "on" (always) or "off" (never)
+        public static string Mode = "auto";
+        public bool Showing => Mode == "off" ? false : Mode == "on" || forceShow || Preview || Application.isMobilePlatform || seenTouch;
         bool Down => f && (f.downed || f.InFinisher);
 
         public static void Ensure(Fighter player)
@@ -254,6 +256,7 @@ namespace StreetLife
         void Update()
         {
             if (!f) return;
+            if (!EnhancedTouchSupport.enabled) EnhancedTouchSupport.Enable();   // also after a script reload in play mode
             var touches = ETouch.activeTouches;
             if (touches.Count > 0) seenTouch = true;
             if (!Showing) return;

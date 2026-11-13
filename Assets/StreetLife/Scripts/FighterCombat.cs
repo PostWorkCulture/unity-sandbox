@@ -41,6 +41,8 @@ namespace StreetLife
             Place(p, yawRad);
             hp = hpMax;
             ResetAbility();
+            walls = Walls.PER_ROUND; buildT = 0; shopCD = 0; senseT = 0; tagT = -9;
+            if (lethal == "gold") armor = GOLD_ARMOUR;   // Golden Armour starts every round at 30
         }
 
         public void ResetStats() { kills = deaths = assists = shots = hits = headshots = 0; damageDealt = 0; }

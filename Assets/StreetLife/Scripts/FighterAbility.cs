@@ -22,7 +22,7 @@ namespace StreetLife
         public static event Action<Fighter, string> AbilityUsed;
 
         /// Normal rules only, as in the web game (S.simple turns them off). Free roam (no round manager) has them on.
-        public static bool AbilitiesOn => !RoundManager.Instance || !RoundManager.Instance.simpleRules;
+        public static bool AbilitiesOn => !Rules.Rumble && (!RoundManager.Instance || !RoundManager.Instance.simpleRules || !Rules.OneVOne);
 
         CharacterRig abilRig; bool abilRigLooked;
         /// the web game's character id this fighter is wearing (wednesday, blaze, ...)

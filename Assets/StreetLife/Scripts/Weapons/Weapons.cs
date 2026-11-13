@@ -334,13 +334,16 @@ namespace StreetLife
             {
                 float dx = foe.pos.x - F.pos.x, dz = foe.pos.z - F.pos.z, dy = foe.pos.y - F.pos.y, dist = Mathf.Sqrt(dx * dx + dz * dz);
                 float ang = Mathf.Abs(Mathf.DeltaAngle(Mathf.Atan2(dx, dz) * Mathf.Rad2Deg, F.yaw * Mathf.Rad2Deg)) * Mathf.Deg2Rad;
-                if (dist < g.reach && Mathf.Abs(dy) < 1.9f && ang < g.arc && Combat.Los(e, foe.pos + Vector3.up * (1.2f * Fighter.SC)))
+                bool aerial = Rules.Rumble && !F.grounded && F.vel.y < -1;   // match chat: Rumble's air strike
+                float reach = (g.reach > 0 ? g.reach : 2.7f) + (aerial ? .5f : 0);
+                if (dist < reach && (Mathf.Abs(dy) < 1.9f || (aerial && dy < 0 && dy > -3.2f)) && ang < g.arc && Combat.Los(e, foe.pos + Vector3.up * (1.2f * Fighter.SC)))
                 {
-                    float dm = g.dmg;
+                    float dm = aerial ? 20 : g.dmg;
+                    if (aerial) Rumble.AirStrike(F, foe, dx, dz, dist);
                     GunFx.HitSpray(foe.pos + Vector3.up * 1.4f, null, 10, 1.3f);
                     Sfx.Play("punch", foe.pos, 1, 14, Gun == "sword" ? .9f : 1.05f); F.NoteHit(false);
                     if (isPlayer) Combat.Feedback(foe, dm, false, dm >= foe.hp);
-                    foe.vel.x += dx / (dist > 0 ? dist : 1) * 5; foe.vel.z += dz / (dist > 0 ? dist : 1) * 5;
+                    if (!aerial) { foe.vel.x += dx / (dist > 0 ? dist : 1) * 5; foe.vel.z += dz / (dist > 0 ? dist : 1) * 5; }
                     Combat.Damage(foe, dm, F, false, Gun);
                     return;
                 }
@@ -403,15 +406,16 @@ namespace StreetLife
 
         public bool UseCons()
         {
-            if (Busy || F.Frozen || !ConsReady()) return false;
+            if (Busy || F.Frozen || !ConsReady() || Rules.Rumble) return false;
             if (lethal == "mine") { if (!Mines.Lay(F)) return false; consN--; consT = .9f; swingT = .32f; }
             else if (Projectiles.Aimed.Contains(lethal)) { Sfx.Play("throw", F.pos, 1, 14); Projectiles.Spawn(F, lethal, ThrowFrom(), ThrowDir()); consN--; consT = .9f; swingT = .32f; }
+            else if (lethal == "sense") { if (!Intel.Sense(F)) return false; var sc = GunsDb.Cons("sense"); consT = sc != null && sc.cd > 0 ? sc.cd : 25; }   // match chat: HeartBeat (Intel.cs)
             return true;
         }
 
         public bool ThrowNade()
         {
-            if (!(nades > 0 || goldNade > 0) || nadeT > 0 || Busy || F.Frozen) return false;
+            if (!(nades > 0 || goldNade > 0) || nadeT > 0 || Busy || F.Frozen || Rules.Rumble) return false;
             Sfx.Play("throw", F.pos, 1, 14);
             var p = Projectiles.Spawn(F, "grenade", ThrowFrom(), ThrowDir());
             if (goldNade > 0) { goldNade--; if (p != null) Projectiles.MakeGold(p); } else nades--;
@@ -456,6 +460,7 @@ namespace StreetLife
         // ------------------------------------------------------------------ the shop kit (bought from the loadout menu while testing)
         public void Buy(string item)
         {
+            if (!Kiosk.TryBuy(F, item)) return;   // match chat: only at the shop kiosk, one item per 30 s (Kiosk.cs)
             switch (item)
             {
                 case "gold": goldNade = 1; break;

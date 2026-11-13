@@ -99,6 +99,7 @@ namespace StreetLife
 
         public static bool Hit(int boxIndex, float dmg, Vector3 at, Vector3 dir, Fighter by = null)
         {
+            if (Walls.Hit(boxIndex, dmg, dir)) return true;   // a brick in a built wall
             if (!I || !I.byBox.TryGetValue(boxIndex, out var e) || !e.alive) return false;
             curBy = by; try { I.Damage(e, dmg, at, dir); } finally { curBy = null; }
             return true;
@@ -108,6 +109,7 @@ namespace StreetLife
         /// fells trees and play frames, knocks loose items flying. maxDamage 0 = no damage to fighters (just the world).
         public static void Blast(Vector3 at, float radius, Fighter by = null, float maxDamage = 0)
         {
+            Walls.Splash(at, radius, 120);   // built walls (the web game's splashBricks)
             if (!I) return;
             var prevBy = curBy; curBy = by ?? curBy;
             try { I.DoBlast(at, radius, by, maxDamage); } finally { curBy = prevBy; }

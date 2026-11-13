@@ -23,7 +23,7 @@ namespace StreetLife
 
         void OnEnable() { RoundManager.RoundStarted += OnRound; }
         void OnDisable() { RoundManager.RoundStarted -= OnRound; if (I == this) I = null; }
-        void OnRound(int r) { ClearProjs(); }
+        void OnRound(int r) { ClearProjs(); Kiosk.ResetRound(); }
 
         // ------------------------------------------------------------------ shared helpers
         /// where the player is aiming (crosshair target from the camera), or the given direction
@@ -234,6 +234,7 @@ namespace StreetLife
         {
             float dt = Time.deltaTime;
             StepProjs(dt);
+            Kiosk.Tick(dt);
             flashI = Mathf.Max(0, flashI - dt * 20); flashLight.intensity = flashI;
             // the player's Ability button on phones: at the web game's E place, labelled with the cooldown
             var me = Combat.Me;
@@ -242,6 +243,8 @@ namespace StreetLife
                 bool on = Fighter.AbilitiesOn && me.alive && !MainMenu.Open;
                 string label = me.abilT > 0 ? "Ability\n" + Mathf.CeilToInt(me.abilT) + "s" : "Ability";
                 TouchControls.AddButton("ability", 234, 90, on ? 52 : 0, label, d => { var p = Combat.Me; if (!p) return; p.abilityHeld = d; if (d) p.UseAbility(); });
+                bool wallOn = Walls.On && me.alive && !MainMenu.Open && me.walls > 0;
+                TouchControls.AddButton("wall", 236, 164, wallOn ? 48 : 0, "Wall\n" + me.walls, d => { var p = Combat.Me; if (d && p) Walls.Build(p); });
             }
         }
 
