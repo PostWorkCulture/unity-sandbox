@@ -30,7 +30,7 @@ namespace StreetLife
 
         Rect R(float x, float y, float w, float h) => new Rect(x * s, y * s, w * s, h * s);
 
-        void Fill(Rect r, Color c) { GUI.color = c; GUI.DrawTexture(r, white); GUI.color = Color.white; }
+        void Fill(Rect r, Color c) => HudRound.Fill(r, c, white);   // rounded corners (HudRound.cs)
 
         void Bar(float x, float y, float w, float h, float v, Color c)
         {
@@ -197,6 +197,10 @@ namespace StreetLife
             mapTex.SetPixels32(px); mapTex.Apply();
         }
 
+        Material miniMat;
+        public static bool MiniPlain;   // remote check: "call Hud.MiniCheck plain" draws the old way to compare
+        public static string MiniCheck(string a) { MiniPlain = a.Trim() == "plain"; if (a.Trim() == "flip") MiniFlipY = 1 - MiniFlipY; return "minimap " + (MiniPlain ? "plain" : "shader") + " flipY " + MiniFlipY; }
+        public static float MiniFlipY = 0;   // set to 1 if the minimap ever shows upside down (Graphics.DrawTexture's uv.y in OnGUI)
         void Minimap(float W)
         {
             if (!BoxWorld.Loaded) return;
@@ -204,14 +208,28 @@ namespace StreetLife
             var bd = BoxWorld.Bounds; const float k = 2.4f;   // UI px per metre
             float size = 190;
             var area = R(W - size - 14, 14, size, size);
+            var me = fighter.VisualPos;
+            // the map picture: turned round you and cut to a rounded square by a shader (no sharp corners); the plain
+            // square version is the fallback if the shader is missing
+            if (!miniMat) { var sh = Resources.Load<Shader>("StreetLife/HudMinimap"); if (sh) miniMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave }; }
+            bool shaded = miniMat && GUI.matrix.isIdentity && !MiniPlain;
+            if (shaded && Event.current.type == EventType.Repaint)
+            {
+                float spanX = (bd.x1 - bd.x0) * k * s, spanZ = (bd.z1 - bd.z0) * k * s;
+                miniMat.SetVector("_Size", new Vector4(area.width, area.height, 22 * s, 1.5f * s));
+                miniMat.SetVector("_Map", new Vector4((me.x - bd.x0) / (bd.x1 - bd.x0), (me.z - bd.z0) / (bd.z1 - bd.z0), 1f / spanX, 1f / spanZ));
+                miniMat.SetFloat("_Rot", fighter.yaw);
+                miniMat.SetFloat("_FlipY", MiniFlipY);
+                miniMat.SetVector("_MapPx", new Vector4(spanX, spanZ, Mathf.Min(14 * s, Mathf.Min(spanX, spanZ) * .5f), 0));
+                Graphics.DrawTexture(area, mapTex, miniMat);
+            }
             GUI.BeginGroup(area);   // no square backing: only the rotating map shows (Pete, 13 Nov)
             var m = GUI.matrix;
             var c = new Vector2(area.width / 2, area.height / 2);
-            var me = fighter.VisualPos;
             Vector2 ToMap(Vector3 p) => new Vector2(c.x + (p.x - me.x) * k * s, c.y - (p.z - me.z) * k * s);
             GUIUtility.RotateAroundPivot(-fighter.yaw * Mathf.Rad2Deg, c);
             var tl = ToMap(new Vector3(bd.x0, 0, bd.z1));
-            GUI.DrawTexture(new Rect(tl.x, tl.y, (bd.x1 - bd.x0) * k * s, (bd.z1 - bd.z0) * k * s), mapTex);
+            if (!shaded) GUI.DrawTexture(new Rect(tl.x, tl.y, (bd.x1 - bd.x0) * k * s, (bd.z1 - bd.z0) * k * s), mapTex, ScaleMode.StretchToFill, true, 0, Color.white, Vector4.zero, Vector4.one * 14 * s);
             var rm = RoundManager.Instance;
             if (rm)
             {

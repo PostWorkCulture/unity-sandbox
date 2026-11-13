@@ -36,7 +36,7 @@ namespace StreetLife
         public static void Note(string text, float dur) { if (inst) { inst.note = text; inst.noteT = Time.unscaledTime + dur; } }
 
         Rect R(float x, float y, float w, float h) => new Rect(x * s, y * s, w * s, h * s);
-        void Fill(Rect r, Color c) { GUI.color = c; GUI.DrawTexture(r, white); GUI.color = Color.white; }
+        void Fill(Rect r, Color c) => HudRound.Fill(r, c, white);   // rounded corners (HudRound.cs)
 
         void Styles()
         {

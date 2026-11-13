@@ -11,7 +11,7 @@ namespace StreetLife.EditorTools
     {
         const string Dir = "Assets/StreetLife/Maps/rail/Surfaces", SetPath = "Assets/StreetLife/Resources/RailLook.asset", Stamp = "rail-surface-2";
 
-        struct Def { public string name, reference; public float metres, bump; public bool tinted, keepGloss; }
+        struct Def { public string name, reference; public float metres, bump, metallic; public bool tinted, keepGloss; }
         static readonly Def[] Defs =
         {
             new Def { name = "brick", metres = 2.4f, reference = "#a5543a", bump = 1f },
@@ -19,7 +19,7 @@ namespace StreetLife.EditorTools
             new Def { name = "floor", metres = 3f, reference = "#9d978b", bump = 1f },
             new Def { name = "ballast", metres = 2f, reference = "#8f877b", bump = 1f },
             new Def { name = "concrete", metres = 2.4f, tinted = true, bump = 1f },
-            new Def { name = "corrugated", metres = 2f, tinted = true, bump = 1f },
+            new Def { name = "corrugated", metres = 2f, tinted = true, bump = 1f, metallic = .35f },
             new Def { name = "roofing", metres = 2f, tinted = true, bump = 1f },
             new Def { name = "metal", metres = 1.5f, tinted = true, bump = 1f, keepGloss = true },
             new Def { name = "wood", metres = 1.2f, tinted = true, bump = 1f },
@@ -53,23 +53,25 @@ namespace StreetLife.EditorTools
                 m.enableInstancing = true;
                 EditorUtility.SetDirty(m);
                 ColorUtility.TryParseHtmlString(string.IsNullOrEmpty(d.reference) ? "#ffffff" : d.reference, out var rc);
-                list.Add(new RailLookSet.Surface { name = d.name, material = m, metres = d.metres, tinted = d.tinted, reference = rc, keepGloss = d.keepGloss });
+                list.Add(new RailLookSet.Surface { name = d.name, material = m, metres = d.metres, tinted = d.tinted, reference = rc, keepGloss = d.keepGloss, metallic = d.metallic });
             }
             var set = AssetDatabase.LoadAssetAtPath<RailLookSet>(SetPath);
             if (!set) { set = ScriptableObject.CreateInstance<RailLookSet>(); AssetDatabase.CreateAsset(set, SetPath); }
             set.surfaces = list.ToArray();
+            string sign = Dir + "/sign_shed.png";
+            if (File.Exists(sign)) { Import(sign, false, true); set.shedSign = AssetDatabase.LoadAssetAtPath<Texture2D>(sign); }
             EditorUtility.SetDirty(set);
             AssetDatabase.SaveAssets();
             return list.Count + " surfaces" + (missing.Length > 0 ? ", missing:" + missing : "");
         }
 
-        static void Import(string path, bool normal)
+        static void Import(string path, bool normal, bool sign = false)
         {
             if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) return;
             if (ti.userData == Stamp) return;
             ti.textureType = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
             ti.sRGBTexture = !normal; ti.alphaSource = normal ? TextureImporterAlphaSource.None : TextureImporterAlphaSource.FromInput; ti.alphaIsTransparency = false;
-            ti.mipmapEnabled = true; ti.wrapMode = TextureWrapMode.Repeat; ti.filterMode = FilterMode.Trilinear; ti.anisoLevel = 8;
+            ti.mipmapEnabled = true; ti.wrapMode = sign ? TextureWrapMode.Clamp : TextureWrapMode.Repeat; ti.filterMode = FilterMode.Trilinear; ti.anisoLevel = 8;
             ti.maxTextureSize = 1024; ti.textureCompression = TextureImporterCompression.CompressedHQ;
             ti.userData = Stamp;
             ti.SaveAndReimport();

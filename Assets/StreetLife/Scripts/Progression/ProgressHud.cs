@@ -14,7 +14,7 @@ namespace StreetLife
         static readonly Color Cyan = new Color32(63, 214, 245, 255), Gold = new Color(1f, .85f, .3f), Dim = new Color(1, 1, 1, .75f);
 
         Rect R(float x, float y, float w, float h) => new Rect(x * s, y * s, w * s, h * s);
-        void Fill(Rect r, Color c) { GUI.color = c; GUI.DrawTexture(r, white); GUI.color = Color.white; }
+        void Fill(Rect r, Color c) => HudRound.Fill(r, c, white);   // rounded corners (HudRound.cs)
 
         void Styles()
         {

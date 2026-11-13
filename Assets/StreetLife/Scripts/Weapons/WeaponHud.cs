@@ -98,7 +98,7 @@ namespace StreetLife
             t.SetPixels(px); t.Apply(); return t;
         }
 
-        void Rect(float x, float y, float w, float h, Color c) { GUI.color = c; GUI.DrawTexture(new Rect(x, y, w, h), white); GUI.color = Color.white; }
+        void Rect(float x, float y, float w, float h, Color c) => HudRound.Fill(new Rect(x, y, w, h), c, white);   // rounded corners (HudRound.cs)
         void Shadowed(Rect r, string s, GUIStyle st, Color c)
         {
             var c0 = st.normal.textColor; st.normal.textColor = new Color(.06f, .07f, .08f, c.a);

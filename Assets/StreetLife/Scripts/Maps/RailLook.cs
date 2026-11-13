@@ -6,6 +6,8 @@
 //    Which surface a material gets is decided by its exported colour (and whether it had a texture), so a re-export
 //    that renumbers the materials still lands on the right ones.
 //  - Reflections: a box-projected probe inside each shed, and a sharper one for the yard.
+//  - Signs: the flat glow cards behind the two shed signs are gone; each sign is lit by a row of lamps on arms above it,
+//    so the light falls on the brick the way a real one does. The goods shed's sign reads SHED.
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -83,6 +85,7 @@ namespace StreetLife
             if (wj == null || wj.meshes == null) return;
             var bin = e.mapBin.bytes;
             var made = new Dictionary<Material, Material>();
+            var signs = new List<WMesh>();
             int n = 0;
             foreach (Transform t in geo)
             {
@@ -92,6 +95,22 @@ namespace StreetLife
                 var mr = t.GetComponent<MeshRenderer>(); var mf = t.GetComponent<MeshFilter>();
                 var src = mr ? mr.sharedMaterial : null;
                 if (!src || !mf) continue;
+                var rec = wj.meshes[i];
+                // the yellow halo card round the kiosk's SHOP sign goes the same way as the sign glows: the sign itself is bright enough to bloom
+                if (src.shader && src.shader.name.Contains("Unlit") && src.renderQueue >= 3000 && rec.bsize != null && rec.bsize.Length == 3 && rec.bmin != null
+                    && rec.bsize[1] > 1.5f && rec.bsize[1] < 3f && rec.bsize[2] > 3f && rec.bsize[2] < 5f && src.HasProperty("_BaseMap") && src.GetTexture("_BaseMap") && NearKiosk(rec))
+                { t.gameObject.SetActive(false); continue; }
+                if (src.shader && src.shader.name.Contains("Unlit") && rec.bsize != null && rec.bsize.Length == 3 && rec.bmin != null && rec.bsize[0] < .02f && rec.bsize[2] > 6f)
+                {
+                    bool card = src.renderQueue >= 3000;
+                    if (card && rec.bsize[1] > 2f) { t.gameObject.SetActive(false); continue; }   // the glow card behind a sign
+                    if (!card && rec.bsize[1] <= 1.3f && src.HasProperty("_BaseMap") && src.GetTexture("_BaseMap"))
+                    {
+                        signs.Add(rec);
+                        if (rec.bmin[0] < 0 && set.shedSign) { var sm = new Material(src) { name = "Shed sign" }; sm.SetTexture("_BaseMap", set.shedSign); mr.sharedMaterial = sm; }
+                        continue;
+                    }
+                }
                 string rule = RuleFor(src); if (rule == null) continue;
                 var s = set.Get(rule); if (s == null || !s.material) continue;
                 if (!made.TryGetValue(src, out var m)) { m = Make(s, src); made[src] = m; }
@@ -102,7 +121,24 @@ namespace StreetLife
                 mr.sharedMaterial = m;
                 n++;
             }
-            Debug.Log("Railed look: " + n + " meshes on " + made.Count + " new surfaces");
+            if (signs.Count > 0)
+            {
+                var root = new GameObject("Sign lamps").transform; root.SetParent(w.transform, false);
+                var ms = set.Get("metal"); var lib = mb.library;
+                Material arm = ms != null && ms.material ? new Material(ms.material) { name = "Sign lamp arm" } : null;
+                if (arm) { arm.SetColor("_BaseColor", Hex.ToColor("#2b2d33")); arm.SetFloat("_Metallic", .6f); }
+                Material bulb = lib && lib.unlitBase ? new Material(lib.unlitBase) { name = "Sign lamp bulb" } : null;
+                if (bulb) bulb.SetColor("_BaseColor", new Color(4f, 3.1f, 2f, 1));
+                foreach (var s in signs) SignLamps(root, s, arm, bulb);
+            }
+            Debug.Log("Railed look: " + n + " meshes on " + made.Count + " new surfaces, " + signs.Count + " signs");
+        }
+
+        static bool NearKiosk(WMesh rec)
+        {
+            var c = new Vector3(rec.bmin[0] + rec.bsize[0] / 2, 0, rec.bmin[2] + rec.bsize[2] / 2);
+            foreach (var k in Kiosk.Here) if (Mathf.Abs(k.x - c.x) < 3f && Mathf.Abs(k.z - c.z) < 3f) return true;
+            return false;
         }
 
         static Material Make(RailLookSet.Surface s, Material src)
@@ -115,7 +151,7 @@ namespace StreetLife
                 tint = new Color(Mathf.Min(ol.r / Mathf.Max(rl.r, .01f), 1.6f), Mathf.Min(ol.g / Mathf.Max(rl.g, .01f), 1.6f), Mathf.Min(ol.b / Mathf.Max(rl.b, .01f), 1.6f), 1).gamma;
             }
             tint.a = 1; m.SetColor("_BaseColor", tint);
-            if (src.HasProperty("_Metallic")) m.SetFloat("_Metallic", src.GetFloat("_Metallic"));
+            m.SetFloat("_Metallic", Mathf.Max(s.metallic, src.HasProperty("_Metallic") ? src.GetFloat("_Metallic") : 0));
             float gloss = src.HasProperty("_Smoothness") ? src.GetFloat("_Smoothness") : .28f;
             m.SetFloat("_Smoothness", s.keepGloss ? Mathf.Clamp01(.55f + gloss * .7f) : 1f);   // times the texture's own smoothness (albedo alpha)
             if (src.HasProperty("_Cull")) m.SetFloat("_Cull", src.GetFloat("_Cull"));
@@ -138,6 +174,38 @@ namespace StreetLife
                 else { uv[i] = new Vector2(p.x * k, p.y * k); tan[i] = new Vector4(1, 0, 0, q.z >= 0 ? 1 : -1); }
             }
             mesh.SetUVs(0, uv); mesh.SetTangents(tan);
+        }
+
+        // ------------------------------------------------------------------ sign lamps
+        // a lamp on an arm every 2.5 m or so above the sign, shining down the wall
+        static void SignLamps(Transform root, WMesh sign, Material arm, Material bulb)
+        {
+            float x = sign.bmin[0], top = sign.bmin[1] + sign.bsize[1], z0 = sign.bmin[2], len = sign.bsize[2];
+            float side = x < 0 ? 1 : -1;   // the sign faces the line
+            int count = Mathf.Max(2, Mathf.RoundToInt(len / 2.5f));
+            for (int k = 0; k < count; k++)
+            {
+                float z = z0 + len * (k + .5f) / count;
+                var head = new Vector3(x + side * .55f, top + .5f, z);
+                Block(root, "arm", new Vector3(x + side * .27f, top + .57f, z), new Vector3(.58f, .04f, .04f), arm);
+                Block(root, "shade", head, new Vector3(.24f, .1f, .32f), arm);
+                Block(root, "bulb", head + Vector3.down * .055f, new Vector3(.17f, .02f, .25f), bulb);
+                var go = new GameObject("Sign lamp"); go.transform.SetParent(root, false);
+                go.transform.position = head + Vector3.down * .1f;
+                go.transform.rotation = Quaternion.LookRotation(new Vector3(-side * .3f, -1, 0).normalized);
+                var l = go.AddComponent<Light>();
+                l.type = LightType.Spot; l.color = new Color(1f, .84f, .64f); l.intensity = 6f; l.range = 8f;
+                l.spotAngle = 100; l.innerSpotAngle = 40; l.shadows = LightShadows.None;
+            }
+        }
+
+        static void Block(Transform root, string name, Vector3 at, Vector3 size, Material mat)
+        {
+            if (!mat) return;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube); go.name = name;
+            var col = go.GetComponent<Collider>(); if (col) Destroy(col);
+            go.transform.SetParent(root, false); go.transform.position = at; go.transform.localScale = size;
+            var mr = go.GetComponent<MeshRenderer>(); mr.sharedMaterial = mat; mr.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         // ------------------------------------------------------------------ reflections

@@ -95,7 +95,7 @@ namespace StreetLife
             btnOn = new GUIStyle(btn) { normal = { textColor = Color.black, background = white }, hover = { textColor = Color.black, background = white } };
         }
 
-        void Fill(Rect r, Color c) { GUI.color = c; GUI.DrawTexture(r, white); GUI.color = Color.white; }
+        void Fill(Rect r, Color c) => HudRound.Fill(r, c, white);   // rounded corners (HudRound.cs)
 
         void OnGUI()
         {
