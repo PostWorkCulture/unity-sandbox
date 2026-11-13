@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: BeachBakeSky
+  m_Shader: {fileID: 4800000, guid: 8cd3de07cad307141b19dd0c8a4609a0, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _CloudAlpha: 0.95
+    - _CloudCover: 0.35
+    - _CloudScale: 0.9
+    - _CloudSharp: 0.22
+    - _CloudSpeed: 0.006
+    - _DiscCos: 1.01
+    - _Ex: 0.55
+    - _Exposure: 1
+    - _GlowA: 0.35
+    m_Colors:
+    - _Bot: {r: 0.9038216, g: 0.944998, b: 0.94891965, a: 1}
+    - _CloudLit: {r: 1, g: 1, b: 1, a: 1}
+    - _CloudShade: {r: 0.62, g: 0.68, b: 0.78, a: 1}
+    - _Disc: {r: 0, g: 0, b: 0, a: 1}
+    - _Glow: {r: 1, g: 0.9647059, b: 0.8627451, a: 1}
+    - _Mid: {r: 0.65683335, g: 0.78428435, b: 0.8431078, a: 1}
+    - _SunCol: {r: 1, g: 0.9411765, b: 0.8235294, a: 1}
+    - _SunDir: {r: 0.6, g: 0.62, b: -0.505, a: 0}
+    - _Top: {r: 0.25517058, g: 0.43752354, b: 0.6257588, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -44,7 +44,8 @@ Shader "StreetLife/Map Water"
             float wH(float2 p, float t)
             {
                 float d = p.x - wSh(p.y), c = .5 + .5 * sin(wPh(p, t));
-                float A = (.08 + .2 * exp(-pow((d - 6.) / 7., 2.))) * smoothstep(-.3, 3., d);
+                // (the swell flattens out to sea, past where anyone can wade: from above, 13 m crests to the horizon read as stripes)
+                float A = (.08 * (1. - .65 * smoothstep(28., 80., d)) + .2 * exp(-pow((d - 6.) / 7., 2.))) * smoothstep(-.3, 3., d);
                 float ch = saturate(d / 8.) * (.035 * sin(p.x * .33 + p.y * .21 - t * 1.2) + .03 * sin(-p.x * .17 + p.y * .41 + t * 1.05) + .018 * sin(p.x * .9 + p.y * .7 + t * 2.3)) * (1. + saturate((d - 30.) / 80.) * 1.5);
                 return A * (pow(c, 2.5) * 1.7 - .5) + ch;
             }
@@ -91,6 +92,11 @@ Shader "StreetLife/Map Water"
                 // fine ripples on top of the swell, faded out with distance so far water doesn't shimmer
                 float rk = saturate(1. - camD / 70.);
                 float2 rg = float2(cos(p.x * 1.9 + p.y * .7 + t * 2.1) * .9 + cos(p.x * 3.1 - p.y * 2.3 + t * 3.3) * .5, cos(-p.x * .8 + p.y * 2.2 + t * 1.7) * .9 + cos(p.x * 2.6 + p.y * 3.4 - t * 2.9) * .5) * .06 * rk;
+                // wind chop from two drifting noise fields (beach only): it breaks the sun's reflection into glitter instead of one white patch
+                float2 q1 = p * .55 + float2(t * .21, t * .13), q2 = p * 1.7 - float2(t * .3, -t * .22); const float ce = .35;
+                float2 chop = float2(vn(q1 + float2(ce, 0)) - vn(q1 - float2(ce, 0)), vn(q1 + float2(0, ce)) - vn(q1 - float2(0, ce))) * .5
+                            + float2(vn(q2 + float2(ce, 0)) - vn(q2 - float2(ce, 0)), vn(q2 + float2(0, ce)) - vn(q2 - float2(0, ce))) * .6;
+                rg += chop * lerp(.3, .12, saturate(camD / 120.)) * step(_Mode, .5);
                 float3 N = normalize(i.normalWS + float3(rg.x, 0, -rg.y));
                 if (!IS_FRONT_VFACE(face, true, false)) N = -N;
 
@@ -99,7 +105,7 @@ Shader "StreetLife/Map Water"
                 if (_Mode < .5)
                 {
                     float d = p.x - wSh(p.y), c = .5 + .5 * sin(wPh(p, t));
-                    col = lerp(col, half3(.62, .97, .92), smoothstep(.7, 1., c) * smoothstep(1., 8., d) * .3);
+                    col = lerp(col, half3(.62, .97, .92), smoothstep(.7, 1., c) * smoothstep(1., 8., d) * .3 * (1. - smoothstep(16., 38., d)));   // bright crests belong to the surf
                     foam = (1. - smoothstep(0., 2.6, d)) * smoothstep(.3, .7, n1 + .25);                               // lacy foam where the water meets the sand
                     foam = max(foam, smoothstep(.9, 1., c) * smoothstep(2., 5., d) * (1. - smoothstep(9., 15., d)) * smoothstep(.45, .7, n2));   // breaking crests over the bar
                     alpha = lerp(_Shallow, _Deep, smoothstep(0., 12., d));

@@ -18,8 +18,10 @@ namespace StreetLife
             [Tooltip("Smoothness follows the original material (painted metal)")] public bool keepGloss;
             [Tooltip("At least this metallic, whatever the original had (bare ribbed steel)")] public float metallic;
             [Tooltip("Multiplied into the colour: ribbed steel is cooled a little so grey sheds stay steel in the evening sun and don't turn to timber")] public Color shift = Color.white;
+            [Tooltip("On walls the texture runs up and down instead of along (posts and piles: the grain follows the timber)")] public bool upright;
         }
         public Surface[] surfaces;
+        [Tooltip("Beach Please: the sand (the map's own colours drawn into a texture, with ripples as a detail map)")] public Material ground;
         [Tooltip("The goods shed's sign, reading just SHED")] public Texture2D shedSign;
 
         public Surface Get(string n) { if (surfaces != null) foreach (var s in surfaces) if (s != null && s.name == n) return s; return null; }

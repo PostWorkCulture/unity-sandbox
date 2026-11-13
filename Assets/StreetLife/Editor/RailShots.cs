@@ -3,7 +3,7 @@
 // Plays the map, starts the match, takes every view listed in Logs/railshots.txt and leaves play mode again, restoring the
 // map pick. Shots go to Logs/rail/<tag>_<name>.png, a line per run to Logs/rail/log.txt. It refuses while play mode is on,
 // so it never cuts into another chat's test.
-// Logs/railshots.txt, one view per line:   name x y z yaw pitch [fov]     |   top name cx cz halfHeight   |   player x y z yawDeg
+// Logs/railshots-<map>.txt if there is one, else Logs/railshots.txt, one view per line:   name x y z yaw pitch [fov]     |   top name cx cz halfHeight   |   player x y z yawDeg
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -107,8 +107,10 @@ namespace StreetLife.EditorTools
                     if (!EditorApplication.isPlaying) { Finish("stopped by someone else before the shots"); return; }
                     if (Now - Mark < 3.5) return;
                     views = new List<string[]>();
-                    if (File.Exists(ListFile))
-                        foreach (var raw in File.ReadAllLines(ListFile))
+                    string own = Path.Combine(Root, "Logs", "railshots-" + MapSet.Current + ".txt");   // a map's own views, if it has a list
+                    string listFile = File.Exists(own) ? own : ListFile;
+                    if (File.Exists(listFile))
+                        foreach (var raw in File.ReadAllLines(listFile))
                         {
                             var l = raw.Trim(); if (l.Length == 0 || l.StartsWith("#")) continue;
                             views.Add(l.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));

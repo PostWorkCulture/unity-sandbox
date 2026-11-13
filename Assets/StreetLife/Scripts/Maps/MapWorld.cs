@@ -44,11 +44,12 @@ namespace StreetLife
             try { extras = entry.extrasJson ? JsonUtility.FromJson<ExtrasJson>(entry.extrasJson.text) : null; } catch (System.Exception ex) { Debug.LogError("Street Life maps: extras.json: " + ex.Message); }
             bin = entry.extrasBin ? entry.extrasBin.bytes : null;
             if (entry.id == "rail") RailLook.Env(env);   // Railed at golden hour (RailLook.cs)
+            if (entry.id == "wreck") BeachLook.Env(env);   // Beach Please on a clear afternoon (BeachLook.cs)
             ApplyEnv();
             Mood();
             if (entry.id == "rail") RailLook.Apply(this);   // its surfaces and reflections
             if (extras != null && bin != null) { BuildGround(); BuildCrowd(); }
-            if (entry.id == "wreck") BuildBeachSea();
+            if (entry.id == "wreck") { BuildBeachSea(); BeachLook.Apply(this); }   // then its surfaces, sand and reflections
             if (entry.IsStreet && builder) gameObject.AddComponent<StreetTraffic>().Init(this, builder);
             if (extras != null && extras.trains != null && extras.trains.Length > 0 || extras != null && extras.glow != null && extras.glow.Length > 0)
                 gameObject.AddComponent<RailYard>().Init(this);
@@ -156,7 +157,7 @@ namespace StreetLife
             var l = new LookSet { cover = .52f, alpha = .95f, lit = Color.white, shade = new Color(.62f, .68f, .78f), bloom = -1, ev = .6f };
             switch (id)
             {
-                case "wreck": l.cover = .45f; l.temp = 3; break;                                                         // bright beach day
+                case "wreck": l.cover = .35f; l.temp = 3; l.sat = 8; l.contrast = 6; break;                                                         // bright beach day
                 case "rail": l.cover = .5f; l.lit = new Color(1f, .84f, .66f); l.shade = new Color(.52f, .44f, .56f); l.temp = 2; l.sat = 6; l.contrast = 4; break;   // golden hour (RailLook.Env)
                 case "skyhigh": l.cover = .55f; l.lit = new Color(1f, .8f, .62f); l.shade = new Color(.55f, .38f, .45f); l.temp = 10; l.sat = 8; break;   // golden hour
                 case "lagoon": l.cover = .52f; l.lit = new Color(1f, .82f, .86f); l.shade = new Color(.55f, .42f, .62f); l.temp = 6; l.sat = 10; break; // sunset

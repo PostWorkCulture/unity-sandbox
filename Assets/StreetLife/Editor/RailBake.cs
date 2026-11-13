@@ -1,5 +1,6 @@
-// Railed look: bakes the yard's bounce light into Adaptive Probe Volumes (PC only: WebGL has none).
-//   Menu: Street Life > Maps > Bake Railed lighting.   Remote: call RailBake.Run   (progress in Logs/rail/bake.txt)
+// Map looks: bakes a map's bounce light into Adaptive Probe Volumes (not for WebGL: it has none). Railed and Beach Please.
+//   Menu: Street Life > Maps > Bake Railed lighting / Bake Beach Please lighting.
+//   Remote: call RailBake.Run [rail|wreck]   (progress in Logs/rail/bake.txt)
 // The map is built at play time, so there is nothing in the game's scene to bake. This opens a scene of its own
 // (RailLook.LightScene), builds the yard's solid geometry there with the surfaces and the sun the game uses, bakes, removes
 // the geometry and the sun again and saves: what is left in that scene is just the probe volumes and their baked data.
@@ -20,7 +21,14 @@ namespace StreetLife.EditorTools
     [InitializeOnLoad]
     public static class RailBake
     {
-        const string Key = "StreetLife.RailBake", Dir = "Assets/StreetLife/Maps/rail/Light";
+        const string Key = "StreetLife.RailBake";
+        static string Map => SessionState.GetString(Key + ".map", "rail");
+        static bool Beach => Map == "wreck";
+        static string Dir => "Assets/StreetLife/Maps/" + Map + "/Light";
+        static string LightScene => Beach ? BeachLook.LightScene : RailLook.LightScene;
+        static Vector3 Sun => Beach ? BeachLook.Sun : RailLook.Sun;
+        static string SunHex => Beach ? BeachLook.SunHex : RailLook.SunHex;
+        static float SunPower => Beach ? BeachLook.SunPower : RailLook.SunPower;
         static readonly string LogFile = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Logs", "rail", "bake.txt");
 
         static RailBake()
@@ -44,20 +52,24 @@ namespace StreetLife.EditorTools
         static void Log(string s) { try { Directory.CreateDirectory(Path.GetDirectoryName(LogFile)); File.AppendAllText(LogFile, $"{DateTime.Now:HH:mm:ss} {s}\n"); } catch { } }
 
         [MenuItem("Street Life/Maps/Bake Railed lighting")]
-        static void Menu() { Debug.Log("Railed lighting: " + Run("")); }
+        static void Menu() { Debug.Log("Railed lighting: " + Run("rail")); }
+
+        [MenuItem("Street Life/Maps/Bake Beach Please lighting")]
+        static void MenuBeach() { Debug.Log("Beach Please lighting: " + Run("wreck")); }
 
         public static string Run(string arg)
         {
             if (Phase != 0) return "busy: a bake is already going or waiting";
             SessionState.SetString(Key + ".arg", arg ?? "");
+            SessionState.SetString(Key + ".map", (arg ?? "").Contains("wreck") || (arg ?? "").Contains("beach") ? "wreck" : "rail");
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling) { Phase = 9; Log("waiting for play mode to end"); return "queued: the bake starts when play mode ends"; }
             return Begin();
         }
 
         static string Begin()
         {
-            var set = MapSet.Load(); var e = set ? set.Get("rail") : null;
-            if (e == null || !e.mapJson || !e.mapBin || !e.library || !e.envJson || !set.sky) return "no Railed data";
+            var set = MapSet.Load(); var e = set ? set.Get(Map) : null;
+            if (e == null || !e.mapJson || !e.mapBin || !e.library || !e.envJson || !set.sky) return "no data for " + Map;
             var asset = UniversalRenderPipeline.asset;
             if (!asset) return "no URP asset";
             if (asset.lightProbeSystem != LightProbeSystem.ProbeVolumes)
@@ -67,7 +79,7 @@ namespace StreetLife.EditorTools
             }
             SessionState.SetString(Key + ".prev", SceneManager.GetActiveScene().path);
             Phase = 1; Mark = Now;
-            Log("bake asked for, quality level " + QualitySettings.names[QualitySettings.GetQualityLevel()]);
+            Log("bake of " + Map + " asked for, quality level " + QualitySettings.names[QualitySettings.GetQualityLevel()]);
             return "bake started (progress in Logs/rail/bake.txt)";
         }
 
@@ -86,10 +98,13 @@ namespace StreetLife.EditorTools
         public static string Register(string arg)
         {
             var list = new System.Collections.Generic.List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
-            if (list.Exists(x => x.path == RailLook.LightScene)) return "already in the scene list";
-            list.Add(new EditorBuildSettingsScene(RailLook.LightScene, true)); EditorBuildSettings.scenes = list.ToArray();
-            AssetDatabase.SaveAssets();
-            return "added to the scene list";
+            int added = 0;
+            foreach (var path in new[] { RailLook.LightScene, BeachLook.LightScene })
+                if (File.Exists(path) && !list.Exists(x => x.path == path)) { list.Add(new EditorBuildSettingsScene(path, true)); added++; }
+            if (added == 0) return "already in the scene list";
+            EditorBuildSettings.scenes = list.ToArray();
+            EditorApplication.ExecuteMenuItem("File/Save Project");
+            return added + " added to the scene list";
         }
 
         static bool SetProbeSystem(UniversalRenderPipelineAsset asset, int v)
@@ -143,13 +158,15 @@ namespace StreetLife.EditorTools
         {
             var active = SceneManager.GetActiveScene();
             if (active.isDirty && !string.IsNullOrEmpty(active.path)) EditorSceneManager.SaveScene(active);
-            if (!AssetDatabase.IsValidFolder(Dir)) AssetDatabase.CreateFolder("Assets/StreetLife/Maps/rail", "Light");
-            var set = MapSet.Load(); var e = set.Get("rail");
+            if (!AssetDatabase.IsValidFolder(Dir)) AssetDatabase.CreateFolder("Assets/StreetLife/Maps/" + Map, "Light");
+            var set = MapSet.Load(); var e = set.Get(Map);
+            string stem = Beach ? "BeachLight" : "RailLight";
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // the sky and the sun as the game has them on Railed (MapWorld.ApplyEnv with RailLook.Env)
-            var env = JsonUtility.FromJson<EnvJson>(e.envJson.text); RailLook.Env(env);
-            string skyPath = Dir + "/RailBakeSky.mat";
+            var env = JsonUtility.FromJson<EnvJson>(e.envJson.text);
+            if (Beach) BeachLook.Env(env); else RailLook.Env(env);
+            string skyPath = Dir + (Beach ? "/BeachBakeSky.mat" : "/RailBakeSky.mat");
             var sky = AssetDatabase.LoadAssetAtPath<Material>(skyPath);
             if (!sky) { sky = new Material(set.sky); AssetDatabase.CreateAsset(sky, skyPath); } else sky.shader = set.sky;
             var s = env.env;
@@ -157,44 +174,52 @@ namespace StreetLife.EditorTools
             sky.SetColor("_Top", Pale(Hex.ToColor(s.top))); sky.SetColor("_Mid", Pale(Hex.ToColor(s.mid))); sky.SetColor("_Bot", Pale(Hex.ToColor(s.bot)));
             sky.SetFloat("_Ex", s.ex); sky.SetColor("_Glow", Hex.ToColor(s.glow)); sky.SetFloat("_GlowA", s.glowA);
             sky.SetColor("_Disc", Color.black); sky.SetFloat("_DiscCos", 1.01f);   // no sun disc: the sun itself is the light below
-            sky.SetVector("_SunDir", new Vector4(RailLook.Sun.x, RailLook.Sun.y, RailLook.Sun.z, 0));
-            sky.SetColor("_SunCol", Hex.ToColor(RailLook.SunHex));
-            sky.SetFloat("_CloudCover", .5f); sky.SetColor("_CloudLit", new Color(1f, .84f, .66f)); sky.SetColor("_CloudShade", new Color(.52f, .44f, .56f)); sky.SetFloat("_CloudAlpha", .95f);
+            sky.SetVector("_SunDir", new Vector4(Sun.x, Sun.y, Sun.z, 0));
+            sky.SetColor("_SunCol", Hex.ToColor(SunHex));
+            if (Beach) { sky.SetFloat("_CloudCover", .35f); sky.SetColor("_CloudLit", Color.white); sky.SetColor("_CloudShade", new Color(.62f, .68f, .78f)); }
+            else { sky.SetFloat("_CloudCover", .5f); sky.SetColor("_CloudLit", new Color(1f, .84f, .66f)); sky.SetColor("_CloudShade", new Color(.52f, .44f, .56f)); }
+            sky.SetFloat("_CloudAlpha", .95f);
             EditorUtility.SetDirty(sky);
             RenderSettings.skybox = sky; RenderSettings.ambientMode = AmbientMode.Skybox; RenderSettings.ambientIntensity = 1.15f; RenderSettings.fog = false;
 
             var sunGo = new GameObject("Bake sun");
             var sun = sunGo.AddComponent<Light>(); sun.type = LightType.Directional;
-            sun.color = Hex.ToColor(RailLook.SunHex); sun.intensity = RailLook.SunPower / Mathf.PI; sun.bounceIntensity = 1;
+            sun.color = Hex.ToColor(SunHex); sun.intensity = SunPower / Mathf.PI; sun.bounceIntensity = 1;
             sun.shadows = LightShadows.Soft; sun.lightmapBakeType = LightmapBakeType.Mixed;
-            sunGo.transform.rotation = Quaternion.LookRotation(-RailLook.Sun.normalized);
+            sunGo.transform.rotation = Quaternion.LookRotation(-Sun.normalized);
             RenderSettings.sun = sun;
 
             // probes: close-set over the yard and the tunnel mouths, coarse over the fields and hills around
-            var inner = new GameObject("Railed probes").AddComponent<ProbeVolume>();
-            inner.mode = ProbeVolume.Mode.Local; inner.transform.position = new Vector3(0, 9, 0); inner.size = new Vector3(66, 22, 150); inner.fillEmptySpaces = true;
+            // (Beach Please: close-set over the beach, the bar and the jetties; coarse over the cliffs and rocks around)
+            var inner = new GameObject("Map probes").AddComponent<ProbeVolume>();
+            inner.mode = ProbeVolume.Mode.Local; inner.fillEmptySpaces = true;
+            if (Beach) { inner.transform.position = new Vector3(0, 6.5f, 0); inner.size = new Vector3(92, 15, 120); }
+            else { inner.transform.position = new Vector3(0, 9, 0); inner.size = new Vector3(66, 22, 150); }
             if (!SessionState.GetString(Key + ".arg", "").Contains("inner"))
             {
-                var outer = new GameObject("Railed probes (far)").AddComponent<ProbeVolume>();
-                outer.mode = ProbeVolume.Mode.Local; outer.transform.position = new Vector3(0, 6, 0); outer.size = new Vector3(284, 56, 304);
+                var outer = new GameObject("Map probes (far)").AddComponent<ProbeVolume>();
+                outer.mode = ProbeVolume.Mode.Local;
+                if (Beach) { outer.transform.position = new Vector3(2, 10, 0); outer.size = new Vector3(144, 34, 160); }
+                else { outer.transform.position = new Vector3(0, 6, 0); outer.size = new Vector3(284, 56, 304); }
                 outer.overridesSubdivLevels = true; outer.lowestSubdivLevelOverride = 1; outer.highestSubdivLevelOverride = 5;
             }
 
-            string lsPath = Dir + "/RailLight.lighting";
+            string lsPath = Dir + "/" + stem + ".lighting";
             var ls = AssetDatabase.LoadAssetAtPath<LightingSettings>(lsPath);
-            if (!ls) { ls = new LightingSettings { name = "RailLight" }; AssetDatabase.CreateAsset(ls, lsPath); }
+            if (!ls) { ls = new LightingSettings { name = stem }; AssetDatabase.CreateAsset(ls, lsPath); }
             ls.bakedGI = true; ls.realtimeGI = false; ls.mixedBakeMode = MixedLightingMode.IndirectOnly;
             ls.lightmapper = LightingSettings.Lightmapper.ProgressiveGPU;
             ls.directSampleCount = 32; ls.indirectSampleCount = 512; ls.environmentSampleCount = 512; ls.lightProbeSampleCountMultiplier = 4; ls.maxBounces = 3;
             EditorUtility.SetDirty(ls);
             Lightmapping.lightingSettings = ls;
 
-            EditorSceneManager.SaveScene(scene, RailLook.LightScene);
+            EditorSceneManager.SaveScene(scene, LightScene);
             AssetDatabase.SaveAssets();
 
             // the yard itself: there for the bake only, never saved
             var root = new GameObject("Bake geometry");
-            RailLook.BuildForBake(root.transform, e, Resources.Load<RailLookSet>("RailLook"));
+            if (Beach) BeachLook.BuildForBake(root.transform, e, Resources.Load<RailLookSet>("BeachLook"));
+            else RailLook.BuildForBake(root.transform, e, Resources.Load<RailLookSet>("RailLook"));
             int n = 0;
             foreach (var mr in root.GetComponentsInChildren<MeshRenderer>())
             {
@@ -202,7 +227,7 @@ namespace StreetLife.EditorTools
                 mr.receiveGI = ReceiveGI.LightProbes; mr.shadowCastingMode = ShadowCastingMode.On;
                 n++;
             }
-            Log($"scene ready: {n} renderers, sun {sun.intensity:F2} {RailLook.SunHex}, ambient x{RenderSettings.ambientIntensity}");
+            Log($"scene ready: {n} renderers, sun {sun.intensity:F2} {SunHex}, ambient x{RenderSettings.ambientIntensity}");
         }
 
         static Color Pale(Color c) { float g = c.grayscale; return Color.Lerp(c, new Color(g, g, g, 1), .5f); }
@@ -212,7 +237,7 @@ namespace StreetLife.EditorTools
             try
             {
                 var scene = SceneManager.GetActiveScene();
-                if (scene.path == RailLook.LightScene)
+                if (scene.path == LightScene)
                 {
                     var root = GameObject.Find("Bake geometry");
                     if (root)
@@ -228,7 +253,7 @@ namespace StreetLife.EditorTools
                     }
                 }
                 string prev = SessionState.GetString(Key + ".prev", "");
-                if (!string.IsNullOrEmpty(prev) && prev != RailLook.LightScene && File.Exists(prev)) EditorSceneManager.OpenScene(prev, OpenSceneMode.Single);
+                if (!string.IsNullOrEmpty(prev) && prev != RailLook.LightScene && prev != BeachLook.LightScene && File.Exists(prev)) EditorSceneManager.OpenScene(prev, OpenSceneMode.Single);
             }
             catch (Exception ex) { Log("while finishing: " + ex.Message); }
             Phase = 0;

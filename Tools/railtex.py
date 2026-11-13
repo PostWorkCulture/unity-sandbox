@@ -221,7 +221,7 @@ def metal():
         xs = (x + np.cos(a) * np.arange(L)).astype(int) % N; ys = (y + np.sin(a) * np.arange(L)).astype(int) % N
         scr[ys, xs] = r.uniform(.4, 1)
     scr = np.clip(blur(scr, .7) * 1.4, 0, 1)
-    wear = smooth(.6, .85, mid) * .5
+    wear = smooth(.4, 1.0, big) * .2
     h = norm01(.5 + (fine - .5) * .08 + (mid - .5) * .05 - scr * .2)
     m = (.96 + mid * .05) * (.97 + fine * .05) * (.94 + big * .08) * (1 - scr * .06)
     c = np.dstack([m, m, m])

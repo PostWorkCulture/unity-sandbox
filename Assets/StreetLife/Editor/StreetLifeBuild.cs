@@ -162,9 +162,14 @@ namespace StreetLife.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssets();
         }
 
-        // Railed's baked light lives in a scene of its own (Editor/RailBake.cs), loaded on top of the game's when Railed is played.
+        // Railed's and Beach Please's baked light each live in a scene of their own (Editor/RailBake.cs), loaded on top of the game's when Railed is played.
         // Not on WebGL: it has no probe volumes, and the baked data would only make the download bigger.
-        static string[] Scenes(BuildTarget target) => target != BuildTarget.WebGL && File.Exists(RailLook.LightScene) ? new[] { Scene, RailLook.LightScene } : new[] { Scene };
+        static string[] Scenes(BuildTarget target)
+        {
+            var list = new System.Collections.Generic.List<string> { Scene };
+            if (target != BuildTarget.WebGL) foreach (var s in new[] { RailLook.LightScene, BeachLook.LightScene }) if (File.Exists(s)) list.Add(s);
+            return list.ToArray();
+        }
 
         static BuildReport Build(BuildTarget target, BuildTargetGroup group, string path)
         {

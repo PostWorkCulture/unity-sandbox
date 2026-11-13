@@ -1,0 +1,98 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b4591521d3c21d4dab8bdafaca0e645, type: 3}
+  m_Name: BeachLook
+  m_EditorClassIdentifier: Assembly-CSharp::StreetLife.RailLookSet
+  surfaces:
+  - name: rock
+    material: {fileID: 2100000, guid: ddcca60ca548472499f03ec42c0cc186, type: 2}
+    metres: 4
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  - name: planks
+    material: {fileID: 2100000, guid: 9ee31841a639dea449162c972b924741, type: 2}
+    metres: 1.68
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  - name: thatch
+    material: {fileID: 2100000, guid: 3d4169f5af5b16049a60a6d857e8273d, type: 2}
+    metres: 2
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  - name: bamboo
+    material: {fileID: 2100000, guid: 33b7e1fd587da514b9eb0cfd130f8743, type: 2}
+    metres: 1.2
+    tinted: 0
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  - name: wicker
+    material: {fileID: 2100000, guid: dcd3c54c8b6304b40a7d4c511785b44f, type: 2}
+    metres: 0.8
+    tinted: 0
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  - name: post
+    material: {fileID: 2100000, guid: 7387b46383ebc394fac1e57563aec572, type: 2}
+    metres: 1.2
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 1
+  - name: paint
+    material: {fileID: 2100000, guid: d11613455693392428c00950db115296, type: 2}
+    metres: 1.5
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 1
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  - name: grass
+    material: {fileID: 2100000, guid: fbd234f4b7799bd42a689214ac766df2, type: 2}
+    metres: 6
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  - name: leaf
+    material: {fileID: 2100000, guid: fbd234f4b7799bd42a689214ac766df2, type: 2}
+    metres: 3
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  ground: {fileID: 2100000, guid: 740703f4a37597b4b9240bf8b068a999, type: 2}
+  shedSign: {fileID: 0}

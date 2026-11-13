@@ -21,6 +21,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: slabs
     material: {fileID: 2100000, guid: f4a3e7f7292b223488f4303cb9989b88, type: 2}
     metres: 5
@@ -29,6 +30,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: floor
     material: {fileID: 2100000, guid: 8f53cd3e9f3c4cd4a938997fc16f98b5, type: 2}
     metres: 3
@@ -37,6 +39,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: ballast
     material: {fileID: 2100000, guid: 5e158ce19dad5534d860d59b39e1b835, type: 2}
     metres: 2
@@ -45,6 +48,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: concrete
     material: {fileID: 2100000, guid: 108e3e36f8448d94badc989e9bcdc8b9, type: 2}
     metres: 2.4
@@ -53,6 +57,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: corrugated
     material: {fileID: 2100000, guid: 7f52148be124f8b4ea3e782c17f34897, type: 2}
     metres: 2
@@ -61,6 +66,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0.35
     shift: {r: 0.8627451, g: 0.9411765, b: 1, a: 1}
+    upright: 0
   - name: roofing
     material: {fileID: 2100000, guid: 6f2108970a2d7d5418bbb18b48e3175a, type: 2}
     metres: 2
@@ -69,6 +75,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: metal
     material: {fileID: 2100000, guid: d11613455693392428c00950db115296, type: 2}
     metres: 1.5
@@ -77,6 +84,7 @@ MonoBehaviour:
     keepGloss: 1
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: wood
     material: {fileID: 2100000, guid: 7387b46383ebc394fac1e57563aec572, type: 2}
     metres: 1.2
@@ -85,6 +93,7 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
   - name: grass
     material: {fileID: 2100000, guid: fbd234f4b7799bd42a689214ac766df2, type: 2}
     metres: 6
@@ -93,4 +102,6 @@ MonoBehaviour:
     keepGloss: 0
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 0
+  ground: {fileID: 0}
   shedSign: {fileID: 2800000, guid: 72be269ff87e4814db114c6267d07b87, type: 3}

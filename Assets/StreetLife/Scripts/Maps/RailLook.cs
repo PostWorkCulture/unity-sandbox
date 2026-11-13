@@ -71,7 +71,10 @@ namespace StreetLife
         }
 
         /// For the lighting bake (Editor/RailBake.cs): the yard's solid geometry with the surfaces the game shows, and the trees.
-        public static void BuildForBake(Transform root, MapSet.Entry e, RailLookSet set)
+        public static void BuildForBake(Transform root, MapSet.Entry e, RailLookSet set) => BuildForBake(root, e, set, RuleFor, "grass", "tree");
+
+        /// The same for any map: its rules, the surface that is always mapped from above, and the kind of breakable to include.
+        internal static void BuildForBake(Transform root, MapSet.Entry e, RailLookSet set, System.Func<Material, string> ruleFor, string fromAbove, string dynKind)
         {
             var lib = e.library;
             var wj = JsonUtility.FromJson<WorldJson>(e.mapJson.text); var bin = e.mapBin.bytes;
@@ -82,11 +85,11 @@ namespace StreetLife
                 var src = rec.mat >= 0 && rec.mat < lib.map.Length ? lib.map[rec.mat] : null;
                 if (!src || src.renderQueue >= 2450 || (src.shader && src.shader.name.Contains("Unlit"))) continue;
                 var mesh = MeshIO.Build(bin, rec, "bake" + i);
-                var m = src; string rule = set ? RuleFor(src) : null; var s = rule != null ? set.Get(rule) : null;
+                var m = src; string rule = set ? ruleFor(src) : null; var s = rule != null ? set.Get(rule) : null;
                 if (s != null && s.material)
                 {
                     if (!made.TryGetValue(src, out m)) { m = Make(s, src); made[src] = m; }
-                    WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == "grass");
+                    WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == fromAbove, s.upright);
                 }
                 BakePart(root, "bake" + i, mesh, m, Vector3.zero, Quaternion.identity, Vector3.one);
             }
@@ -95,7 +98,7 @@ namespace StreetLife
             if (dj == null || dj.entities == null) return;
             foreach (var d in dj.entities)
             {
-                if (d.kind != "tree" || d.meshes == null || d.pos == null || d.pos.Length < 3) continue;
+                if (d.kind != dynKind || d.meshes == null || d.pos == null || d.pos.Length < 3) continue;
                 var rot = d.rot != null && d.rot.Length >= 4 ? new Quaternion(d.rot[0], d.rot[1], d.rot[2], d.rot[3]) : Quaternion.identity;
                 var scl = d.scl != null && d.scl.Length >= 3 ? new Vector3(d.scl[0], d.scl[1], d.scl[2]) : Vector3.one;
                 foreach (int mi in d.meshes)
@@ -109,7 +112,7 @@ namespace StreetLife
             }
         }
 
-        static void BakePart(Transform root, string name, Mesh mesh, Material mat, Vector3 pos, Quaternion rot, Vector3 scl)
+        internal static void BakePart(Transform root, string name, Mesh mesh, Material mat, Vector3 pos, Quaternion rot, Vector3 scl)
         {
             var go = new GameObject(name); go.transform.SetParent(root, false);
             go.transform.localPosition = pos; go.transform.localRotation = rot; go.transform.localScale = scl;
@@ -132,13 +135,15 @@ namespace StreetLife
             { "6b4a33", "wood" }, { "5b4a3a", "wood" }, { "5e4236", "wood" },
         };
 
-        static string RuleFor(Material src)
+        static string RuleFor(Material src) => RuleFor(src, Rules);
+
+        internal static string RuleFor(Material src, Dictionary<string, string> rules)
         {
             if (!src || !src.shader || src.shader.name.Contains("Unlit") || src.renderQueue >= 2450 || !src.HasProperty("_BaseColor")) return null;
             string hex = ColorUtility.ToHtmlStringRGB(src.GetColor("_BaseColor")).ToLowerInvariant();
             bool tex = src.HasProperty("_BaseMap") && src.GetTexture("_BaseMap");
-            if (Rules.TryGetValue(hex + (tex ? "+" : "-"), out var s)) return s;
-            return Rules.TryGetValue(hex, out s) ? s : null;
+            if (rules.TryGetValue(hex + (tex ? "+" : "-"), out var s)) return s;
+            return rules.TryGetValue(hex, out s) ? s : null;
         }
 
         static void Surfaces(MapWorld w, RailLookSet set)
@@ -181,7 +186,7 @@ namespace StreetLife
                 var s = set.Get(rule); if (s == null || !s.material) continue;
                 if (!made.TryGetValue(src, out var m)) { m = Make(s, src); made[src] = m; }
                 var mesh = MeshIO.Build(bin, wj.meshes[i], nm);
-                WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == "grass");
+                WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == "grass", s.upright);
                 var old = mf.sharedMesh; mf.sharedMesh = mesh; if (old) Destroy(old);
                 mesh.UploadMeshData(true);
                 mr.sharedMaterial = m;
@@ -207,7 +212,7 @@ namespace StreetLife
             return false;
         }
 
-        static Material Make(RailLookSet.Surface s, Material src)
+        internal static Material Make(RailLookSet.Surface s, Material src)
         {
             var m = new Material(s.material) { name = s.name + " (" + src.name + ")" };
             Color o = src.GetColor("_BaseColor"), tint = o;
@@ -226,7 +231,7 @@ namespace StreetLife
         }
 
         // every vertex is mapped along the axis its face looks down; the tangent follows the mapping so the normal map lights correctly
-        static void WorldUV(Mesh mesh, float metres, bool fromAbove)
+        internal static void WorldUV(Mesh mesh, float metres, bool fromAbove, bool upright = false)
         {
             var v = mesh.vertices; var nr = mesh.normals;
             var uv = new Vector2[v.Length]; var tan = new Vector4[v.Length];
@@ -236,6 +241,11 @@ namespace StreetLife
                 Vector3 p = v[i], q = nr[i];
                 float ax = Mathf.Abs(q.x), ay = Mathf.Abs(q.y), az = Mathf.Abs(q.z);
                 if (fromAbove || (ay >= ax && ay >= az)) { uv[i] = new Vector2(p.x * k, p.z * k); tan[i] = new Vector4(1, 0, 0, q.y >= 0 ? -1 : 1); }
+                else if (upright)
+                {   // walls with the texture turned a quarter: u runs up
+                    if (ax >= az) { uv[i] = new Vector2(p.y * k, p.z * k); tan[i] = new Vector4(0, 1, 0, q.x >= 0 ? 1 : -1); }
+                    else { uv[i] = new Vector2(p.y * k, p.x * k); tan[i] = new Vector4(0, 1, 0, q.z >= 0 ? -1 : 1); }
+                }
                 else if (ax >= az) { uv[i] = new Vector2(p.z * k, p.y * k); tan[i] = new Vector4(0, 0, 1, q.x >= 0 ? -1 : 1); }
                 else { uv[i] = new Vector2(p.x * k, p.y * k); tan[i] = new Vector4(1, 0, 0, q.z >= 0 ? 1 : -1); }
             }
