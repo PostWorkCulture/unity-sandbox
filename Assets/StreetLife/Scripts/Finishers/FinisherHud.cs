@@ -95,7 +95,7 @@ namespace StreetLife
             // you're down
             if (me.downed && me.alive && !me.InFinisher)
             {
-                float y = H * .62f, w = 280, x = HudLayout.StackX - w / 2, left = Mathf.Max(0, (1 - me.revive) * Fighter.REVIVE_TIME);
+                float y = H * .62f, w = HudLayout.StackW(280), x = HudLayout.StackX - w / 2, left = Mathf.Max(0, (1 - me.revive) * Fighter.REVIVE_TIME);
                 Shadowed(R(x, y, w, 40), "YOU'RE DOWN", big, Red);
                 Shadowed(R(x, y + 38, w, 22), "Crawl to cover · back up in " + left.ToString("0.0") + " s", sub, new Color(1, 1, 1, .9f));
                 Fill(R(x + 30, y + 64, w - 60, 8), new Color(0, 0, 0, .6f));
@@ -122,7 +122,7 @@ namespace StreetLife
             if (cTitle != null && now - cT < cDur)
             {
                 float u = now - cT, a = Mathf.Clamp01(u / .08f) * Mathf.Clamp01((cDur - u) / .25f), pop = 1 + .35f * Mathf.Max(0, 1 - u / .18f);
-                var c = cWin ? Gold : Red; float y = H * .36f, cw = HudLayout.StackW(600), cx = HudLayout.StackX - cw / 2;
+                var c = cWin ? Gold : Red; float y = HudLayout.CalloutY(H * .36f), cw = HudLayout.StackW(600), cx = HudLayout.StackX - cw / 2;
                 var m = GUI.matrix; GUIUtility.ScaleAroundPivot(Vector2.one * pop, new Vector2(HudLayout.StackX * s, (y + 22) * s));
                 Shadowed(R(cx, y, cw, 48), cTitle, big, new Color(c.r, c.g, c.b, a));
                 GUI.matrix = m;

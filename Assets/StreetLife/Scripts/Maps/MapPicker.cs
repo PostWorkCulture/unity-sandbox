@@ -106,7 +106,7 @@ namespace StreetLife
             {
                 if (!set) return;
                 if (!HudLayout.Touch) GUI.Label(new Rect(Screen.width - 268 * s, Screen.height - 172 * s, 250 * s, 20 * s), "F4: maps", new GUIStyle(small) { alignment = TextAnchor.UpperRight });   // above the ammo panel's Tab hint (HudLayout)
-                if (Application.isMobilePlatform && Press(new Rect(Screen.width / 2f + 180 * s, 10 * s, 90 * s, 34 * s), "MAPS", btn)) Toggle(true);
+                if (Application.isMobilePlatform && Press(HudLayout.MapsButton(90 * s, 34 * s), "MAPS", btn)) Toggle(true);
                 return;
             }
             GUI.depth = -10;

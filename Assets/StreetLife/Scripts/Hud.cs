@@ -250,15 +250,16 @@ namespace StreetLife
             else head = $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}";
             Shadowed(R(W / 2 - 170, 8, 340, 36), head, big, Color.white);
             Shadowed(R(W / 2 - 170, 42, 340, 20), $"{t}   First to {rm.toWin}{(rm.Deathmatch ? " kills" : "")}", center, new Color(1, 1, 1, .85f));
-            float y = HudLayout.FeedTop;   // under the score, the finisher banner, the round result and (phones) the message   // drop below the finisher's "Eliminated" banner while it shows
+            float y = HudLayout.FeedTop;   // under the score, the finisher banner, the round result and (phones) the message (HudLayout)
             for (int fi = Mathf.Max(0, rm.feed.Count - 4); fi < rm.feed.Count; fi++)   // the newest 4 (FFA gets busy)
             {
                 var it = rm.feed[fi];
                 float a = Mathf.Clamp01(6 - (Time.time - it.t)) * .65f;
-                Fill(R(HudLayout.StackX - 170, y, 340, 20), new Color(0, 0, 0, .4f * a / .65f));
-                Shadowed(R(HudLayout.StackX - 170, y, 340, 20), it.text, feedStyle, it.mine ? new Color(1, .85f, .3f, a / .65f) : new Color(1, 1, 1, a / .65f));
+                Fill(R(HudLayout.StackX - HudLayout.StackW(340) / 2, y, HudLayout.StackW(340), 20), new Color(0, 0, 0, .4f * a / .65f));
+                Shadowed(R(HudLayout.StackX - HudLayout.StackW(340) / 2, y, HudLayout.StackW(340), 20), it.text, feedStyle, it.mine ? new Color(1, .85f, .3f, a / .65f) : new Color(1, 1, 1, a / .65f));
                 y += 22;
             }
+            HudLayout.FeedBottom = y;
         }
 
         void Leaderboard(RoundManager rm)

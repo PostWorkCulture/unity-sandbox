@@ -742,8 +742,17 @@ namespace StreetLife
                 var fwd = new Vector3(Mathf.Sin(yaw), 0, Mathf.Cos(yaw));
                 var c = player.pos + Vector3.up * 1.25f;
                 var want = c + fwd * 4.2f + Vector3.up * .35f + new Vector3(fwd.z, 0, -fwd.x) * -1.3f;   // a little to the side so the panel doesn't cover them
+                // character step: slide the view left so your fighter and the weapons rack sit in the right-hand part of the
+                // screen, clear of the character panel (MenuWeaponRack works out the same right-hand side)
+                var look = c;
+                if (step == 1)
+                {
+                    var toCam = want - c; toCam.y = 0; toCam.Normalize();
+                    var shift = -Vector3.Cross(Vector3.up, -toCam).normalized * .55f;
+                    want += shift; look += shift;
+                }
                 cam.transform.position = Vector3.Lerp(cam.transform.position, want, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 4));
-                cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, Quaternion.LookRotation(c - cam.transform.position), 1 - Mathf.Exp(-Time.unscaledDeltaTime * 6));
+                cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, Quaternion.LookRotation(look - cam.transform.position), 1 - Mathf.Exp(-Time.unscaledDeltaTime * 6));
                 cam.fieldOfView = 40;
             }
             else

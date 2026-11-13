@@ -29,7 +29,7 @@ namespace StreetLife
             var perp = new Vector3(fwd.z, 0, -fwd.x);
             var toCam = (fwd * 4.2f - perp * 1.3f); toCam.y = 0; toCam.Normalize();
             var right = Vector3.Cross(Vector3.up, -toCam).normalized;   // screen right as the camera sees it
-            root.position = f.pos + right * 1.05f - toCam * .1f;
+            root.position = f.pos + right * 1.25f - toCam * .1f;   // a clear gap between the fighter and the rack
             root.rotation = Quaternion.LookRotation(toCam);
             var k = pri + "|" + sec + "|" + leth;
             if (k == shownKey) return;
