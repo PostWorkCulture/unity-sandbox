@@ -1,5 +1,5 @@
 // Railed look work: hands-off screenshots of a map from fixed viewpoints, without the HUD (an extra camera drawn to a texture).
-//   remote: call RailShots.Run <tag> [map]     (map defaults to rail)
+//   remote: call RailShots.Run <tag> [map] [high|smooth]     (map defaults to rail; the last one picks the Graphics setting for the run)
 // Plays the map, starts the match, takes every view listed in Logs/railshots.txt and leaves play mode again, restoring the
 // map pick. Shots go to Logs/rail/<tag>_<name>.png, a line per run to Logs/rail/log.txt. It refuses while play mode is on,
 // so it never cuts into another chat's test.
@@ -45,6 +45,8 @@ namespace StreetLife.EditorTools
             var parts = (arg ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             string tag = parts.Length > 0 ? parts[0] : "shot", map = parts.Length > 1 ? parts[1] : "rail";
             SessionState.SetString(Key + ".tag", tag);
+            SessionState.SetString(Key + ".gfx", parts.Length > 2 ? Settings.Graphics : "");
+            if (parts.Length > 2) Settings.Graphics = parts[2];
             SessionState.SetString(Key + ".prev", PlayerPrefs.GetString(MapSet.Pref, MapSet.Default));
             PlayerPrefs.SetString(MapSet.Pref, map); PlayerPrefs.Save();
             Directory.CreateDirectory(OutDir);
@@ -67,7 +69,9 @@ namespace StreetLife.EditorTools
 
         static void Restore()
         {
-            PlayerPrefs.SetString(MapSet.Pref, SessionState.GetString(Key + ".prev", MapSet.Default)); PlayerPrefs.Save();
+            PlayerPrefs.SetString(MapSet.Pref, SessionState.GetString(Key + ".prev", MapSet.Default));
+            string g = SessionState.GetString(Key + ".gfx", ""); if (g != "") Settings.Graphics = g;
+            PlayerPrefs.Save();
             Phase = 0;
             Log("finished, map pick back to " + PlayerPrefs.GetString(MapSet.Pref, MapSet.Default));
         }

@@ -280,6 +280,8 @@ namespace StreetLife
         readonly List<ReflectionProbe> probes = new List<ReflectionProbe>();
         int wait = 5;
         bool baked;
+        Volume bakedVolume;
+        readonly List<(Light light, float intensity)> fills = new List<(Light, float)>();
         /// how much of the baked light is used (0..1): the bake is made a little bright so this can only turn it down
         public static float BakedLight = 1f;
 
@@ -311,7 +313,10 @@ namespace StreetLife
 
         void Update()
         {
-            if (!baked && ProbeReferenceVolume.instance != null && ProbeReferenceVolume.instance.isInitialized && ProbeReferenceVolume.instance.DataHasBeenLoaded()) OnBaked();
+            // the baked light comes and goes with its scene and with the Graphics setting (the Mobile level has no probe volumes)
+            var prv = ProbeReferenceVolume.instance; var rp = UniversalRenderPipeline.asset;
+            bool on = prv != null && prv.isInitialized && prv.DataHasBeenLoaded() && rp && rp.lightProbeSystem == LightProbeSystem.ProbeVolumes;
+            if (on != baked) OnBaked(on);
             if (wait <= 0 || --wait > 0) return;
             var yard = GameObject.Find("Street reflections");   // WorldLook's probe over the whole map
             var yp = yard ? yard.GetComponent<ReflectionProbe>() : null;
@@ -321,19 +326,24 @@ namespace StreetLife
 
         // the baked bounce light has arrived: it replaces the flat hemisphere light, so the cool fill light (which reaches indoors
         // unshadowed) is turned down, and the reflections are taken again in the new light
-        void OnBaked()
+        void OnBaked(bool on)
         {
-            baked = true;
-            var prof = ScriptableObject.CreateInstance<VolumeProfile>(); prof.name = "Railed baked light";
-            var o = prof.Add<ProbeVolumesOptions>(true);
-            o.intensityMultiplier.Override(Mathf.Clamp01(BakedLight));
-            var v = new GameObject("Baked light").AddComponent<Volume>(); v.transform.SetParent(transform, false);
-            v.isGlobal = true; v.priority = 6; v.sharedProfile = prof;
-            var sun = RenderSettings.sun;
-            foreach (var l in FindObjectsByType<Light>(FindObjectsInactive.Exclude))
-                if (l.type == LightType.Directional && l != sun && l.shadows == LightShadows.None) l.intensity *= .4f;
+            baked = on;
+            if (!bakedVolume)
+            {
+                var prof = ScriptableObject.CreateInstance<VolumeProfile>(); prof.name = "Railed baked light";
+                var o = prof.Add<ProbeVolumesOptions>(true);
+                o.intensityMultiplier.Override(Mathf.Clamp01(BakedLight));
+                bakedVolume = new GameObject("Baked light").AddComponent<Volume>(); bakedVolume.transform.SetParent(transform, false);
+                bakedVolume.isGlobal = true; bakedVolume.priority = 6; bakedVolume.sharedProfile = prof;
+                var sun = RenderSettings.sun;
+                foreach (var l in FindObjectsByType<Light>(FindObjectsInactive.Exclude))
+                    if (l.type == LightType.Directional && l != sun && l.shadows == LightShadows.None) fills.Add((l, l.intensity));
+            }
+            bakedVolume.enabled = on;
+            foreach (var f in fills) if (f.light) f.light.intensity = f.intensity * (on ? .4f : 1f);
             wait = 4;
-            Debug.Log("Railed look: baked light on");
+            Debug.Log("Railed look: baked light " + (on ? "on" : "off"));
         }
     }
 }
