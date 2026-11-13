@@ -131,8 +131,8 @@ namespace StreetLife
             bool smoky = big || (cols != null && cols.Length > 2 && cols[2].grayscale < .45f);
 
             // flash
-            { ref var p = ref New(2); p.p = c + Vector3.up * .6f; p.life = .14f; p.s0 = R * 3 * .6f; p.s1 = R * 3; p.op = 1; p.c0 = Color.white; p.c1 = hotC; }
-            { ref var p = ref New(2); p.p = c; p.life = .45f; p.s0 = R * 1.4f; p.s1 = R * 2.4f; p.op = .55f; p.c0 = hotC; p.c1 = coolC * .4f; }
+            { ref var p = ref New(2); p.p = c + Vector3.up * .6f; p.life = .14f; float fs = big ? 3 : 1.8f; p.s0 = R * fs * .6f; p.s1 = R * fs; p.op = 1; p.c0 = Color.white; p.c1 = hotC; }
+            { ref var p = ref New(2); p.p = c; p.life = .45f; p.s0 = R * (big ? 1.4f : .9f); p.s1 = R * (big ? 2.4f : 1.4f); p.op = big ? .55f : .4f; p.c0 = hotC; p.c1 = coolC * .4f; }
             // shockwave ring on the ground
             if (onGround && big) { ref var p = ref New(3); p.p = new Vector3(at.x, gy + .06f, at.z); p.life = .45f; p.s0 = R * 1; p.s1 = R * 10; p.op = .95f; p.c0 = Web.Hex("#ffd8a0"); p.c1 = Web.Hex("#ff8a3a"); p.n = Vector3.up; }
             // dust ring along the ground
@@ -289,7 +289,7 @@ namespace StreetLife
                             {   // fire: white-hot, through its colour, to a dark ember, fading out over the second half
                                 float hot = Mathf.Max(0, 1 - u * 1.4f);
                                 var cc = u < .5f ? Color.Lerp(p.c0, p.c1, u / .5f) : Color.Lerp(p.c1, new Color(p.c1.r * .3f, p.c1.g * .1f, p.c1.b * .05f), (u - .5f) / .5f);
-                                cc = Color.Lerp(cc, Color.white, hot * hot * .5f);
+                                cc = Color.Lerp(cc, Color.white, hot * hot * .5f).linear;   // web colours are display (sRGB) values
                                 float al = fade * (1 - Mathf.SmoothStep(.45f, 1, u)) * .9f;
                                 col = new Color(cc.r * al * 1.6f, cc.g * al * 1.6f, cc.b * al * 1.6f, al * .55f);
                                 Quad(p.p, cr, cu, size, col, p.rot);
@@ -298,27 +298,27 @@ namespace StreetLife
                         case 1:
                             {
                                 float al = p.op * fade * Mathf.Pow(1 - u, 1.2f);
-                                var cc = Color.Lerp(p.c0, p.c1, u);
+                                var cc = Color.Lerp(p.c0, p.c1, u).linear;
                                 Quad(p.p, cr, cu, size, new Color(cc.r, cc.g, cc.b, al), p.rot);
                             }
                             break;
                         case 2:
                             {
                                 float al = p.op * (1 - u);
-                                var cc = Color.Lerp(p.c0, p.c1, u) * al; cc.a = 1;
+                                var cc = Color.Lerp(p.c0, p.c1, u).linear * al; cc.a = 1;
                                 Quad(p.p, cr, cu, size, cc, p.rot);
                             }
                             break;
                         case 3:
                             {
                                 float al = p.op * (1 - u);
-                                var cc = Color.Lerp(p.c0, p.c1, u) * al; cc.a = 1;
+                                var cc = Color.Lerp(p.c0, p.c1, u).linear * al; cc.a = 1;
                                 Quad(p.p, Vector3.right, Vector3.forward, size, cc, 0);
                             }
                             break;
                         case 4:
                             {   // spark: a streak along its velocity, bright then orange
-                                float al = 1 - u; var cc = Color.Lerp(p.c0, p.c1, u) * (al * 2.2f); cc.a = 1;
+                                float al = 1 - u; var cc = Color.Lerp(p.c0, p.c1, u).linear * (al * 2.2f); cc.a = 1;
                                 var tail = p.p - p.v * .035f;
                                 Streak(tail, p.p, p.s0, eye, cc);
                             }

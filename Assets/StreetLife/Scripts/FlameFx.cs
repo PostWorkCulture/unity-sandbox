@@ -121,7 +121,7 @@ namespace StreetLife
                 if (q.p.y < .05f) { q.p.y = .05f; q.v.y = Mathf.Abs(q.v.y) * .2f; }
                 float size = q.s0 + q.grow * Mathf.Pow(t, .85f);
                 float al = Mathf.SmoothStep(0, 1, t / .03f) * (1 - Mathf.SmoothStep(0, 1, (t - .5f) / .5f)) * .62f;
-                var c = Ramp(t);
+                var c = Ramp(t).linear;
                 Quad(q.p, cr, cu, size, new Color(c.r * al * 1.25f, c.g * al * 1.25f, c.b * al * 1.25f, al * .6f), q.rot + t * 2.4f);
             }
             Apply(fireMesh);
@@ -134,7 +134,7 @@ namespace StreetLife
                 q.v.x *= kd; q.v.z *= kd; q.v.y = q.v.y * .99f + .6f * dt; q.p += q.v * dt;
                 float size = q.s0 + q.grow * t;
                 float al = Mathf.SmoothStep(0, 1, t / .2f) * (1 - t) * .32f;
-                var c = new Color(.16f, .15f, .15f) + new Color(.18f, .18f, .18f) * t;
+                var c = (new Color(.16f, .15f, .15f) + new Color(.18f, .18f, .18f) * t).linear;
                 Quad(q.p, cr, cu, size, new Color(c.r, c.g, c.b, al), q.rot + t * 2.4f);
                 sLive = Mathf.Max(sLive, .1f);
             }

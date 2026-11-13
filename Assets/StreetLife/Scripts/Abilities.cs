@@ -10,6 +10,7 @@ namespace StreetLife
     public class Abilities : MonoBehaviour
     {
         public static Abilities I;
+        public static bool Log;   // test logging (StreetLifeTests)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot() { SceneManager.sceneLoaded -= OnScene; SceneManager.sceneLoaded += OnScene; Ensure(); }
@@ -100,6 +101,7 @@ namespace StreetLife
                 if (hitBox || hitFoe || p.life <= 0 || p.pos.y < -20)
                 {
                     var at = p.pos + d * t;
+                    if (Log) Debug.Log($"[ability] {p.id} burst at {at} foe {hitFoe} box {hitBox} life {p.life:F2}");
                     Burst(p, at, n);
                     if (p.mesh) Destroy(p.mesh.gameObject);
                     projs.RemoveAt(i); continue;
