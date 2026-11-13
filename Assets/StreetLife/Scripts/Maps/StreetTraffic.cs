@@ -160,6 +160,8 @@ namespace StreetLife
         }
 
         // ------------------------------------------------------------------ the plot: gaps in the end fences, things moved out of the road
+        readonly List<GameObject> fenceParts = new List<GameObject>();
+
         void OpenFences()
         {
             // the fences' collision walls: split each end wall round the gap (the bounds still keep fighters inside the plot)
@@ -183,7 +185,7 @@ namespace StreetLife
                 var wm = wj.meshes[i];
                 float bx0 = wm.bmin[0], bx1 = wm.bmin[0] + wm.bsize[0], bz0 = wm.bmin[2], bz1 = wm.bmin[2] + wm.bsize[2], by1 = wm.bmin[1] + wm.bsize[1];
                 if (by1 < .1f || bx0 > GAP || bx1 < -GAP || (bz1 < ZF - .8f && bz0 > -ZF + .8f)) continue;
-                if (wm.bsize[0] > 150) continue;   // the lawn
+                if (wm.bsize[0] > 150 || bz1 > ZF + 1 || bz0 < -ZF - 1) continue;   // the lawn; the lamps and bushes outside
                 var go = geo.Find("mesh" + i + "_m" + wm.mat); if (!go) { initLog += "missing mesh" + i + "; "; continue; }
                 var mf = go.GetComponent<MeshFilter>(); if (!mf) continue;
                 var m = MeshIO.Build(bin, wm, go.name);
@@ -197,8 +199,15 @@ namespace StreetLife
                 initLog += "mesh" + i + " cut " + cut + "/" + tri.Length / 3 + "; ";
                 if (cut == 0) { Destroy(m); continue; }
                 m.SetTriangles(keep, 0, true); m.UploadMeshData(true);
-                var old = mf.sharedMesh; mf.sharedMesh = m; if (old) Destroy(old);
+                // a new object rather than a swapped mesh, so the GPU Resident Drawer picks it up
+                var src = go.GetComponent<MeshRenderer>();
+                var cutGo = new GameObject(go.name + " (gap)"); cutGo.transform.SetParent(go.parent, false);
+                cutGo.AddComponent<MeshFilter>().sharedMesh = m;
+                var mr = cutGo.AddComponent<MeshRenderer>(); mr.sharedMaterial = src.sharedMaterial; mr.shadowCastingMode = src.shadowCastingMode;
+                go.gameObject.SetActive(false);
+                fenceParts.Add(cutGo);
             }
+            gameObject.AddComponent<StreetFence>().Init(mb, fenceParts);
             // gate posts either side of each gap
             var post = Lit("#f1ede4"); var cap = Lit("#3a3d45");
             foreach (float zs in new[] { -1f, 1f })
@@ -221,6 +230,11 @@ namespace StreetLife
                 { K(-30, -40), new Vector3(-30, 0, -54) }, { K(-8, -44), new Vector3(-8, 0, -58) }, { K(14, -38), new Vector3(14, 0, -52) }, { K(36, -42), new Vector3(36, 0, -56) },
                 { K(52, -41), new Vector3(56, 0, -47) }, { K(-52, 42), new Vector3(-55.5f, 0, 47.5f) },
             };
+            // Pete: no red plants. The Tripo red plant (library material 93) comes out of every room.
+            var red = Mat(93); var gone = new List<Destruction.Ent>();
+            foreach (var e in Destruction.I.ents) if (e.d.kind == "knock" && e.rends.Count > 0 && e.rends[0] && e.rends[0].sharedMaterial == red) gone.Add(e);
+            foreach (var e in gone) Destruction.I.Remove(e);
+            initLog += gone.Count + " red plants removed; ";
             foreach (var e in Destruction.I.ents)
             {
                 Vector3 to;
@@ -245,7 +259,7 @@ namespace StreetLife
             foreach (Transform ch in root)
             {
                 var r = ch.GetComponent<Renderer>(); if (!r) continue;
-                if ((r.bounds.center - ctr).sqrMagnitude < .09f) ch.position += d;
+                if ((r.bounds.center - ctr).sqrMagnitude < .09f) { ch.position += d; initLog += "outline moved; "; }
             }
         }
 
@@ -856,6 +870,21 @@ namespace StreetLife
             {
                 case "street": forceNext = parts.Length > 1 ? parts[1] : "through"; if (forceNext == "through") forceNext = "x"; return "next car in: " + forceNext;
                 case "log": return initLog;
+                case "probe":
+                    {   // which renderers cover a point (x, y, z)
+                        float F(int i) => float.Parse(parts[i], System.Globalization.CultureInfo.InvariantCulture);
+                        var pt = new Vector3(F(1), F(2), F(3)); var sb2 = new System.Text.StringBuilder();
+                        foreach (var r in Object.FindObjectsByType<Renderer>())
+                            if (r.enabled && r.gameObject.activeInHierarchy && r.bounds.Contains(pt))
+                            { var tr = r.transform; string path = tr.name; while (tr.parent) { tr = tr.parent; path = tr.name + "/" + path; } sb2.Append(path).Append(" | "); }
+                        return sb2.ToString();
+                    }
+                case "fence":
+                    {
+                        var sf = it.GetComponent<StreetFence>(); if (!sf) return "no fence";
+                        int n = parts.Length > 1 ? int.Parse(parts[1]) : 0; sf.Apply(n); if (parts.Length > 2 && parts[2] == "save") StreetFence.Saved = n;
+                        return "fence " + StreetFence.Names[n];
+                    }
                 case "go": foreach (var c in it.cars) if (c.mode == 0) c.wait = 0; return "all parked cars leaving";
                 case "cam":
                     {

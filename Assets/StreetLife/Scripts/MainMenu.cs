@@ -65,8 +65,9 @@ namespace StreetLife
             root.pickingMode = PickingMode.Ignore;
             // no UI theme: the document root has no size of its own, so pin it to the screen
             root.style.position = Position.Absolute; root.style.left = root.style.top = root.style.right = root.style.bottom = 0;
-            selMap = MapSet.Current;
+            selMap = Settings.RandomMap ? RandomId : MapSet.Current;
             { var cur = MapSet.Load() ? MapSet.Load().Get(selMap) : null; Settings.Mode = ModeKey(cur); }
+            MenuPortraits.Ready += OnPortrait;
             BuildMenu(); BuildPause(); BuildSettings();
             // hover: every button gets the white edge while the pointer is on it (no fading); it goes back to its own edge after
             root.RegisterCallback<PointerOverEvent>(e => HoverOn(ButtonOf(e.target)), TrickleDown.TrickleDown);
@@ -236,7 +237,8 @@ namespace StreetLife
                     (IsBig(id) ? bigChips : smallChips).Add(c);
                 }
             chips.style.flexDirection = FlexDirection.Column;
-            foreach (var (cap, row) in new[] { ("Big maps", bigChips), ("Small maps", smallChips) }) { if (row.childCount == 0) continue; var lab = Caps(cap); lab.style.marginTop = 4; chips.Add(lab); chips.Add(row); }
+            { var rnd = Btn("Random", () => { selMap = RandomId; RefreshMap(); }, false, 13); rnd.name = "map-" + RandomId; rnd.style.alignSelf = Align.FlexStart; rnd.style.marginBottom = 6; chips.Add(rnd); }
+            foreach (var (cap, row) in new[] { ("Big maps", bigChips), ("Small maps", smallChips) }) { if (row.childCount == 0) continue; var lab = Caps(cap); lab.style.color = Text; lab.style.marginTop = 4; chips.Add(lab); chips.Add(row); }
             if (bigChips.childCount + smallChips.childCount <= 1) { chips.style.display = DisplayStyle.None; arrows.style.display = DisplayStyle.None; }   // a one-map build (the Street Life WebGL)
             right.Add(chips);
             stepA.Add(right);
@@ -334,12 +336,13 @@ namespace StreetLife
         void RefreshMap()
         {
             var set = MapSet.Load(); var m = set ? set.Get(selMap) : null;
-            mapTitle.text = m != null ? m.title : "Street Life";
-            mapDesc.text = (m != null ? m.desc : "Suburban road, cars and front yards").ToUpperInvariant();
+            Settings.RandomMap = selMap == RandomId;
+            mapTitle.text = Settings.RandomMap ? "Random" : m != null ? m.title : "Street Life";
+            mapDesc.text = (Settings.RandomMap ? "A different map every match" : m != null ? m.desc : "Suburban road, cars and front yards").ToUpperInvariant();
             var md = m != null && !string.IsNullOrEmpty(m.mode) ? m.mode : "Duels";
             mapTag.text = ((IsBig(selMap) ? "Big map" : "Small map") + "  ·  " + (Rules.Rumble ? "Rumble" : "Duels") + "  ·  " + (Rules.Ffa ? "FFA " + Rules.FfaN : Rules.Players)).ToUpperInvariant();
             // the live map shows through when it's the one picked; another map gets its own colours until you play it
-            bool live = selMap == MapSet.Current;
+            bool live = selMap == MapSet.Current || Settings.RandomMap;
             var sw = m != null && m.swatch != null && m.swatch.Length > 0 ? m.swatch[0] : new Color(.2f, .3f, .25f);
             var thumb = live ? null : Thumb(selMap);
             mapCard.style.backgroundImage = thumb ? new StyleBackground(thumb) : new StyleBackground((Texture2D)null);
@@ -347,6 +350,7 @@ namespace StreetLife
             mapCard.style.backgroundColor = live ? new Color(0, 0, 0, .08f) : thumb ? Color.white : new Color(sw.r * .6f, sw.g * .6f, sw.b * .6f, .92f);
             if (set && set.maps != null)
                 foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; Border(b, on ? 2 : 1, on ? Sel : Line); b.style.color = on ? Text : Dim; }
+            { var rb = menu.Q<Button>("map-" + RandomId); if (rb != null) { bool on = selMap == RandomId; Border(rb, on ? 2 : 1, on ? Sel : Line); rb.style.color = on ? Text : Dim; } }
         }
 
         // ---- map pictures for the carousel: taken from the menu's own view the first time each map is shown live.
@@ -416,26 +420,47 @@ namespace StreetLife
             { "thor", "A thunder god who took up street fighting." },
             { "isaac", "The blocky classic. No frills, just a steady hand on the trigger." },
         };
+        const string RandomId = "random";
+        static string Pick(List<string> ids) => ids == null || ids.Count == 0 ? null : ids[UnityEngine.Random.Range(0, ids.Count)];
+        /// what the menu's weapons rack shows for a slot: the Simple kit under Simple rules, nothing in Rumble
+        static string RackId(string picked, string simpleKit) => Rules.Rumble ? null : Settings.Rules == "simple" && Rules.OneVOne ? simpleKit : picked;
+
         static string Bio(string id) => id != null && bios.TryGetValue(id, out var b) ? b : "";
 
         void BuildCharacters()
         {
             charGrid.Clear();
             var cs = CharacterSet.Load(); if (!cs) { charGrid.Add(L("Characters aren't set up in this project yet.", 13, Dim)); return; }
-            foreach (var c in cs.All)
-            {
-                if (!cs.Has(c.id)) continue; var id = c.id;
-                var t = new Button(() => PickCharacter(id)) { text = "" }; t.name = "ch-" + id;
-                t.style.width = 76; t.style.height = 46; Radius(t, 8); Border(t, 1, Line); t.style.marginLeft = 0; t.style.marginTop = 0; t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 3, 3);
-                t.style.backgroundColor = Chip; t.style.borderBottomWidth = 3; t.style.borderBottomColor = c.Colour; t.style.justifyContent = Justify.FlexEnd;
-                var n = L(c.name, 11, Text, true); n.style.unityTextAlign = TextAnchor.LowerCenter; n.style.whiteSpace = WhiteSpace.Normal; t.Add(n);
-                charGrid.Add(t);
-            }
+            charGrid.Add(CharTile(RandomId, "Random"));
+            foreach (var c in cs.All) { if (cs.Has(c.id)) charGrid.Add(CharTile(c.id, c.name)); }
             RefreshCharacter();
+        }
+
+        // a character box: its picture (MenuPortraits, filled in as each one is made) over the name
+        Button CharTile(string id, string name)
+        {
+            var t = new Button(() => PickCharacter(id)) { text = "" }; t.name = "ch-" + id;
+            t.style.width = 76; t.style.height = 80; Radius(t, 8); Border(t, 1, Line); t.style.marginLeft = 0; t.style.marginTop = 0; t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 0, 0);
+            t.style.backgroundColor = Chip; t.style.overflow = Overflow.Hidden;
+            var pic = new VisualElement(); pic.name = "pic"; pic.pickingMode = PickingMode.Ignore; pic.style.height = 58; pic.style.flexShrink = 0;
+            pic.style.backgroundSize = new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Cover));
+            if (id == RandomId) { var q = L("?", 30, Text, true); q.style.unityTextAlign = TextAnchor.MiddleCenter; q.style.flexGrow = 1; pic.Add(q); }
+            else { var tex = MenuPortraits.Get(id); if (tex) pic.style.backgroundImage = new StyleBackground(tex); }
+            t.Add(pic);
+            var n = L(name, 11, Text, true); n.style.unityTextAlign = TextAnchor.MiddleCenter; n.style.flexGrow = 1; n.style.whiteSpace = WhiteSpace.NoWrap; n.style.overflow = Overflow.Hidden; t.Add(n);
+            return t;
+        }
+
+        void OnPortrait(string id, Texture2D tex)
+        {
+            var pic = charGrid?.Q<Button>("ch-" + id)?.Q<VisualElement>("pic");
+            if (pic != null && tex) pic.style.backgroundImage = new StyleBackground(tex);
         }
 
         void PickCharacter(string id)
         {
+            Settings.RandomChar = id == RandomId;
+            if (Settings.RandomChar) { RefreshCharacter(); return; }
             CharacterSkin.PlayerChoice = id;
             var p = FindPlayer(); var rig = p ? p.GetComponent<CharacterRig>() : null;
             if (rig) CharacterSkin.Apply(rig, id);
@@ -445,9 +470,15 @@ namespace StreetLife
         void RefreshCharacter()
         {
             var cs = CharacterSet.Load(); if (!cs) return;
-            var mine = CharacterSkin.PlayerChoice;
-            foreach (var c in cs.All) { var b = charGrid.Q<Button>("ch-" + c.id); if (b == null) continue; bool on = c.id == mine; Border(b, on ? 3 : 1, on ? Sel : Line); if (!on) { b.style.borderBottomWidth = 3; b.style.borderBottomColor = c.Colour; } }
+            var mine = Settings.RandomChar ? RandomId : CharacterSkin.PlayerChoice;
+            foreach (var b in charGrid.Query<Button>().ToList()) { bool on = b.name == "ch-" + mine; Border(b, on ? 3 : 1, on ? Sel : Line); }
             charInfo.Clear();
+            if (mine == RandomId)
+            {
+                charInfo.Add(L("Random", 26, Text, true));
+                var rd = L("A different character every match.", 13, Dim); rd.style.whiteSpace = WhiteSpace.Normal; rd.style.marginTop = 4; charInfo.Add(rd);
+                return;
+            }
             var i = cs.Get(mine); if (i == null) return;
             charInfo.Add(L(i.name, 26, Text, true));
             var d = L(Bio(i.id), 13, Dim); d.style.whiteSpace = WhiteSpace.Normal; d.style.marginTop = 4; charInfo.Add(d);
@@ -472,11 +503,12 @@ namespace StreetLife
         {
             loadBox.Add(Caps(title));
             var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.flexWrap = Wrap.Wrap;
-            foreach (var id in ids)
+            var all = new List<string> { RandomId }; all.AddRange(ids);
+            foreach (var id in all)
             {
                 var g = GunsDb.Gun(id); var c = GunsDb.Cons(id);
-                string name = c != null ? c.name : g != null ? g.name : id;
-                string stat = c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
+                string name = id == RandomId ? "Random" : c != null ? c.name : g != null ? g.name : id;
+                string stat = id == RandomId ? "Different every match" : c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
                 bool on = id == sel; var pid = id;
                 var b = new Button(() => { WeaponShowcase.Show(pid); if (locked) return; pick(pid); PlayerPrefs.Save(); BuildLoadout(); }) { text = "" };
                 b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, on ? 2 : 1, on ? Sel : Line); Pad(b, 4, 8);
@@ -500,6 +532,12 @@ namespace StreetLife
             var p = player ? player : FindPlayer(); if (!p) return;
             bool simple = Settings.Rules == "simple" && Rules.OneVOne;
             string pri = simple ? "gar" : Settings.Primary, sec = simple ? "sword" : Settings.Secondary, leth = simple ? "grenade" : Settings.Lethal;
+            if (GunsDb.Loaded)
+            {
+                if (pri == RandomId) pri = Pick(GunsDb.Primaries);
+                if (sec == RandomId) sec = Pick(GunsDb.Secondaries);
+                if (leth == RandomId) { var ls = new List<string>(); if (GunsDb.Cons("grenade") != null) ls.Add("grenade"); foreach (var x in GunsDb.Lethals) if (GunsDb.Cons(x) != null) ls.Add(x); leth = Pick(ls); }
+            }
             if (Rules.Rumble) { pri = "fists"; sec = "fists"; }   // Rumble: fists only
             if (GunsDb.Loaded) { if (GunsDb.Gun(pri) == null) pri = "gar"; if (GunsDb.Gun(sec) == null) sec = "sword"; if (GunsDb.Cons(leth) == null) leth = "grenade"; }
             p.primary = pri; p.secondary = sec; p.lethal = leth;
@@ -632,7 +670,23 @@ namespace StreetLife
 
         void Play()
         {
-            WeaponShowcase.SetActive(false);
+            WeaponShowcase.SetActive(false); MenuWeaponRack.Hide();
+            if (Settings.RandomChar)
+            {
+                var cs = CharacterSet.Load(); var ids = new List<string>();
+                if (cs) foreach (var c in cs.All) if (cs.Has(c.id)) ids.Add(c.id);
+                if (ids.Count > 0)
+                {
+                    var id = Pick(ids); CharacterSkin.PlayerChoice = id;
+                    var p = FindPlayer(); var rig = p ? p.GetComponent<CharacterRig>() : null; if (rig) CharacterSkin.Apply(rig, id);
+                }
+            }
+            if (selMap == RandomId)
+            {
+                var set = MapSet.Load(); var ids = new List<string>();
+                if (set && set.maps != null) foreach (var m in set.maps) if (Usable(m)) ids.Add(m.id);
+                selMap = ids.Count > 0 ? Pick(ids) : MapSet.Current;
+            }
             if (selMap != MapSet.Current && MapSet.Load() && MapSet.Load().Get(selMap) != null)
             {
                 MapSet.Choice = selMap; skipOnce = true;
@@ -677,6 +731,8 @@ namespace StreetLife
         void LateUpdate()
         {
             UpdateLights();
+            if (Open && step == 1 && player) MenuWeaponRack.Show(player, RackId(Settings.Primary, "gar"), RackId(Settings.Secondary, "sword"), RackId(Settings.Lethal, "grenade"));
+            else MenuWeaponRack.Hide();
             if (!Open) return;
             var cam = Camera.main; if (!cam) return;
             orbit += Time.unscaledDeltaTime * .05f;
@@ -701,7 +757,7 @@ namespace StreetLife
             }
         }
 
-        void OnDestroy() { WeaponShowcase.SetActive(false); if (Paused) Time.timeScale = 1; Open = false; Paused = false; }
+        void OnDestroy() { MenuPortraits.Ready -= OnPortrait; MenuWeaponRack.Hide(); WeaponShowcase.SetActive(false); if (Paused) Time.timeScale = 1; Open = false; Paused = false; }
     }
 
     /// Saved player settings (PlayerPrefs), applied at every scene load and whenever they change.
@@ -730,6 +786,8 @@ namespace StreetLife
             int hz = Mathf.Max(60, Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value));
             Application.targetFrameRate = Mathf.Min(Fps, hz);
         }
+        public static bool RandomMap { get => PlayerPrefs.GetInt(P + "randomMap", 0) == 1; set => PlayerPrefs.SetInt(P + "randomMap", value ? 1 : 0); }
+        public static bool RandomChar { get => PlayerPrefs.GetInt(P + "randomChar", 0) == 1; set => PlayerPrefs.SetInt(P + "randomChar", value ? 1 : 0); }
         public static string Touch { get => PlayerPrefs.GetString(P + "touch", "auto"); set => PlayerPrefs.SetString(P + "touch", value); }
         public static string Graphics
         {

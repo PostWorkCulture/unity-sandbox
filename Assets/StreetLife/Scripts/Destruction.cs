@@ -74,6 +74,14 @@ namespace StreetLife
             }
         }
 
+        /// Take something out of the map for good, boxes and all (maps chat: Street Life's red plants).
+        public void Remove(Ent e)
+        {
+            ents.Remove(e); knocks.Remove(e); cars.Remove(e); anims.Remove(e);
+            foreach (var b in e.boxes) { BoxWorld.Disable(b); byBox.Remove(b); NavGrid.Dynamic.Remove(b); }
+            if (e.t) Destroy(e.t.gameObject);
+        }
+
         public void ResetAll()
         {
             foreach (var e in ents)
