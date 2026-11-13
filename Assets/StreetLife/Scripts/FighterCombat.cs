@@ -49,6 +49,7 @@ namespace StreetLife
         {
             if (!alive || amount <= 0) return 0;
             if (by != null && by != this && by.team == team) return 0;   // no friendly fire
+            if (DownedHit(amount, by, head, out var downedTaken)) return downedTaken;   // finishers: hits while down or being finished
             float soak = Mathf.Min(armor, amount); armor -= soak;
             float taken = Mathf.Min(hp, amount - soak);
             hp -= taken;
@@ -56,7 +57,7 @@ namespace StreetLife
             lastHitTime = Time.time;
             if (by != null) { lastHitFrom = by.pos; by.damageDealt += taken + soak; damagedBy[by] = Time.time; }
             Damaged?.Invoke(taken + soak, by);
-            if (hp <= 0.001f) Die(by, head);
+            if (hp <= 0.001f && !GoDown(by, head)) Die(by, head);   // finishers: down first
             return taken + soak;
         }
 
@@ -73,6 +74,6 @@ namespace StreetLife
         public void NoteShot() { shots++; lastShotTime = Time.time; lastShotPos = pos; }
         public void NoteHit(bool head) { hits++; if (head) headshots++; }
 
-        void TickCombat(float dt) { }
+        void TickCombat(float dt) { TickDowned(dt); /* finishers */ }
     }
 }

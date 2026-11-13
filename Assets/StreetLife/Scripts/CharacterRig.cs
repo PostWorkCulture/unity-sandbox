@@ -1,5 +1,6 @@
 // Builds Wednesday from the parts exported from the web game (torso, head, arms with elbows, legs with knees,
 // hair and chain) and drives a simple procedural run cycle. The full foot-planting animation comes in phase 5.
+// Owned by the weapons/characters chat from phase 4 (the match chat added the tint and the knocked-out topple).
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace StreetLife
         float phase, runBlend, airBlend, landKick, lean;
         bool visible = true;
         public bool Built => root;
+        public bool Visible => visible;
 
         void Start() { Build(); }
 
@@ -29,9 +31,16 @@ namespace StreetLife
             var cj = JsonUtility.FromJson<CharJson>(charJson.text);
             var bin = charBin.bytes;
             var made = new Transform[cj.nodes.Length];
+            var skip = new bool[cj.nodes.Length];
             for (int i = 0; i < cj.nodes.Length; i++)
             {
                 var n = cj.nodes[i];
+                // the export caught the M4 Wednesday was holding (a hidden low-poly copy in the right hand, and the held model under the
+                // upper body, mirrored); weapons are built separately now (WeaponPose), so leave both out
+                if (n.parent >= 0 && skip[n.parent]) { skip[i] = true; continue; }
+                bool zeroScale = n.scl[0] == 0 && n.scl[1] == 0 && n.scl[2] == 0;
+                bool heldGun = n.scl[0] < 0 && string.IsNullOrEmpty(n.name) && n.parent >= 0 && cj.nodes[n.parent].name == "upIn";
+                if (zeroScale || heldGun) { skip[i] = true; continue; }
                 var go = new GameObject(string.IsNullOrEmpty(n.name) ? "part" + i : n.name);
                 var t = go.transform;
                 t.SetParent(n.parent >= 0 ? made[n.parent] : transform, false);

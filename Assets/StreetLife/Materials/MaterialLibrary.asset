@@ -243,10 +243,6 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 5d049bc7539b7f248a1ca746de6574e3, type: 2}
   - {fileID: 2100000, guid: 6235503de1678f34998db12fcd036ae2, type: 2}
   - {fileID: 2100000, guid: 23d225862eb621847929350bd72d69a3, type: 2}
-  - {fileID: 2100000, guid: e12b227e68547b9408494d566f902ff7, type: 2}
-  - {fileID: 2100000, guid: 53c0cec94dd94824abecc9e7a3a19bde, type: 2}
-  - {fileID: 2100000, guid: ab1a7708e134ac84bae6497cb3167813, type: 2}
-  - {fileID: 2100000, guid: 5218fe3f11410d14392859068797971f, type: 2}
   character:
   - {fileID: 2100000, guid: 803304e35478ac24481affd8cf75764f, type: 2}
   - {fileID: 2100000, guid: ec7d8b1281d818b498d1ac544279d678, type: 2}
@@ -266,4 +262,4 @@ MonoBehaviour:
   guns: []
   unlitBase: {fileID: 2100000, guid: 299add25613231245ad8f160f23b2059, type: 2}
   lineBase: {fileID: 2100000, guid: c1ab8692e32e7fa478a33e8c831c9c09, type: 2}
-  dataStamp: 0f0a6a38f9d09bbbc9bfe45e77122f6d
+  dataStamp: b20183e6f2616ff3b9829811640df071

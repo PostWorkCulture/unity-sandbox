@@ -1,5 +1,7 @@
 // Over-the-shoulder camera, ported from the web game's Duels camera: shoulder offset to the right, pulls in
 // closer and lower indoors, never clips through walls (five probe rays), eases back out, FOV 70 (+8 indoors), aim zoom.
+// From phase 4 (weapons/characters chat): each gun's own aim zoom and aim-in time, the first-person sniper scope,
+// easing into the eyes for first-person aim, and camera shake from blasts and hits.
 using UnityEngine;
 
 namespace StreetLife
@@ -9,6 +11,7 @@ namespace StreetLife
     {
         public Fighter target;
         public CharacterRig rig;
+        public Weapons weapons;
         [Tooltip("Aim-down-sights field of view (the M4's zoom in the web game)")]
         public float adsFov = 33f;
         public float adsZoomTime = .26f;
@@ -28,6 +31,11 @@ namespace StreetLife
             var f = target;
             Vector3 dir = f.Aim, right = f.Right, up = Vector3.up;
             Vector3 head = f.VisualHead;
+
+            // the gun decides the zoom: each one has its own aim field of view and aim-in time; snipers go to a first-person scope
+            var g = weapons ? weapons.G : null;
+            bool scoped = g != null && f.ads && g.Sniper && f.alive;
+            float raise = weapons ? weapons.vmRaise : 0;
 
             bool ceiling = BoxWorld.Ray(head, up, 3.2f) >= 0;
             indoor = Damp(indoor, ceiling ? 1 : 0, 6, dt);
@@ -50,12 +58,24 @@ namespace StreetLife
             use = Mathf.Max(.35f, use);
             camUse = float.IsNaN(camUse) || use < camUse ? use : Damp(camUse, use, 7, dt);
             Vector3 cp = pivot + d * camUse; if (cp.y < .3f) cp.y = .3f;
+            Vector3 look = head + right * sh + dir * 60f;
+            bool show = camUse > 1.0f;
+            Vector3 fp = head + new Vector3(0, .12f, 0) + dir * .3f;   // the eyes
+            if (scoped) { cp = fp; look = head + dir * 60f; show = false; }
+            else if (raise > 0)
+            {   // first-person aim: ease into the eyes
+                float e = raise * raise * (3 - 2 * raise);
+                cp = Vector3.Lerp(cp, fp, e); look = Vector3.Lerp(look, head + dir * 60f, e); if (e > .12f) show = false;
+            }
+            if (GunFx.Shake > 0) { float s = GunFx.Shake * .25f; cp += new Vector3(Random.Range(-s, s), Random.Range(-s, s), Random.Range(-s, s)); }
             transform.position = cp;
-            transform.LookAt(head + right * sh + dir * 60f);
-            if (rig) rig.SetVisible(camUse > 1.0f);
+            transform.LookAt(look);
+            if (rig) rig.SetVisible(show);
 
-            float fov = f.ads ? adsFov : 70 + 8 * ind;
-            cam.fieldOfView = Damp(cam.fieldOfView, fov, f.ads ? 3.2f / adsZoomTime : 10, dt);
+            float zoom = g != null && g.zoom > 0 ? g.zoom : adsFov;
+            float fov = scoped || f.ads ? zoom : 70 + 8 * ind;
+            float rate = scoped ? 30 : f.ads ? (g != null && g.ads > 0 ? 3.2f / g.ads : 3.2f / adsZoomTime) : 10;
+            cam.fieldOfView = Damp(cam.fieldOfView, fov, rate, dt);
         }
     }
 }

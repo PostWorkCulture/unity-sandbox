@@ -54,6 +54,7 @@ namespace StreetLife
         void Update()
         {
             if (!BoxWorld.Loaded || !alive) return;
+            if (FinisherHold()) return;   // finishers: a finishing move drives this fighter
             acc = Mathf.Min(acc + Time.deltaTime, SIM * 4);
             while (acc >= SIM - 1e-6f)
             {
@@ -74,6 +75,7 @@ namespace StreetLife
             if (onLadder != null) ads = false;
             UpdCrouch(crouchOn, dt);
             float spd = (ads ? adsMoveSpeed : 11.25f) * MOVE_MUL;
+            DownedMove(ref spd);   // finishers: crawling pace while down
             Physics(dt, wx, wz, inJump, spd, inJumpPress);
             TickStam(dt);
             TickCombat(dt);
@@ -95,7 +97,7 @@ namespace StreetLife
 
         void Physics1(float dt, float wx, float wz, bool jump, float speed, bool jumpPress)
         {
-            if (BoxWorld.Ladders.Count > 0 && LadderStep(dt, wx, wz, jump)) return;
+            if (BoxWorld.Ladders.Count > 0 && !downed && LadderStep(dt, wx, wz, jump)) return;
             Depen();
             speed *= charSpeed * 1.2f;
             if (crouching) { speed *= .5f; jump = false; }
