@@ -153,6 +153,14 @@ namespace StreetLife
                 br.ResetForRound(PickStyle(f));
                 f.displayName = string.IsNullOrEmpty(f.characterName) ? "Bot" : f.characterName;   // a bot goes by its character
             }
+            // two bots can roll the same character: number the repeats so the feed and leaderboard stay readable
+            var seen = new Dictionary<string, int>();
+            foreach (var f in fighters)
+            {
+                if (f == player) continue;
+                seen.TryGetValue(f.displayName, out int n); seen[f.displayName] = n + 1;
+                if (n > 0) f.displayName += " " + (n + 1);
+            }
             PickTargets(true);
             timer = roundTime; lastWinner = -1;
             SetFrozen(true);

@@ -230,11 +230,16 @@ namespace StreetLife
                 { K(-30, -40), new Vector3(-30, 0, -54) }, { K(-8, -44), new Vector3(-8, 0, -58) }, { K(14, -38), new Vector3(14, 0, -52) }, { K(36, -42), new Vector3(36, 0, -56) },
                 { K(52, -41), new Vector3(56, 0, -47) }, { K(-52, 42), new Vector3(-55.5f, 0, 47.5f) },
             };
-            // Pete: no red plants. The Tripo red plant (library material 93) comes out of every room.
+            // Pete: no red plants or trees. The Tripo red plant (library material 93) comes out of every room, and the purple tree goes.
             var red = Mat(93); var gone = new List<Destruction.Ent>();
-            foreach (var e in Destruction.I.ents) if (e.d.kind == "knock" && e.rends.Count > 0 && e.rends[0] && e.rends[0].sharedMaterial == red) gone.Add(e);
+            var purple = Mat(2);   // the dark red-purple spiky tree outside the fence
+            foreach (var e in Destruction.I.ents)
+            {
+                var m0 = e.rends.Count > 0 && e.rends[0] ? e.rends[0].sharedMaterial : null;
+                if ((e.d.kind == "knock" && m0 == red) || (e.d.kind == "tree" && m0 == purple)) gone.Add(e);
+            }
             foreach (var e in gone) Destruction.I.Remove(e);
-            initLog += gone.Count + " red plants removed; ";
+            initLog += gone.Count + " red plants and trees removed; ";
             foreach (var e in Destruction.I.ents)
             {
                 Vector3 to;
@@ -441,7 +446,7 @@ namespace StreetLife
             r.Bezier(p0, p0 + t0 * 9, q - h * 9, q);
             float sStreet = r.Len;
             // what this visit is for
-            string force = forceNext; forceNext = "";
+            string force = forceNext == "deliver" && !c.truck ? "" : forceNext; if (force != "") forceNext = "";
             bool anyoneOnRoad = false; foreach (var f in fighters) if (f && f.alive && Mathf.Abs(f.pos.x) < 8 && Mathf.Abs(f.pos.z) < ZF - 1) anyoneOnRoad = true;
             Spot free = null; foreach (var sp in spots) if (sp.owner == null && sp.hz == h.z && (free == null || Random.value < .5f)) free = sp;
             c.deliver = c.truck && (force == "deliver" || (force == "" && Random.value < .6f));
@@ -625,7 +630,7 @@ namespace StreetLife
                     if (!crossed) continue;
                     float p = .26f; int inStreet = 0; foreach (var o in cars) if (o.mode == 2 || o.mode == 3) inStreet++;
                     if (quietT > 25) p = .75f;
-                    if (forceNext != "") p = 1;
+                    if (forceNext != "" && (forceNext != "deliver" || c.truck)) p = 1;
                     if (inStreet >= 2 || StreetBlocked(north)) p = 0;
                     if (Random.value < p) { c.s = sd; EnterStreet(c, north); break; }
                 }
@@ -904,7 +909,7 @@ namespace StreetLife
             }
             var sb = new System.Text.StringBuilder();
             foreach (var c in it.cars)
-                sb.Append(c.name).Append(' ').Append(new[] { "parked", "ring", "route", "unloading", "wrecked" }[c.mode]).Append(c.reckless ? " RECKLESS" : "").Append(c.deliver ? " deliver" : "").Append(c.toPark ? " to park" : "")
+                sb.Append(c.name).Append(' ').Append(new[] { "parked", "ring", "route", "unloading", "wrecked" }[c.mode]).Append(c.mode == 1 ? c.loopI.ToString() : c.mode == 2 ? "->" + c.nextLoop : "").Append(c.reckless ? " RECKLESS" : "").Append(c.deliver ? " deliver" : "").Append(c.toPark ? " to park" : "")
                   .Append(" at ").Append(c.pos.x.ToString("0.0")).Append(',').Append(c.pos.z.ToString("0.0")).Append(" v ").Append(c.v.ToString("0.0")).Append(c.mode == 0 ? " wait " + c.wait.ToString("0") : "").Append(" | ");
             return sb.ToString();
         }
