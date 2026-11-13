@@ -100,6 +100,16 @@ namespace StreetLife.EditorTools
                     try { StreetLifeBuild.PublishSite(); } finally { StreetLifeBuild.Quiet = false; }
                     Say("publish: " + StreetLifeBuild.LastResult.Replace('\n', ' '));
                     break;
+                case "call":
+                    {   // call Type.Method [arg]: a public static string Method(string) in StreetLife.EditorTools or StreetLife
+                        var sp2 = arg.IndexOf(' '); var name = sp2 < 0 ? arg : arg.Substring(0, sp2); var a2 = sp2 < 0 ? "" : arg.Substring(sp2 + 1);
+                        var dot = name.LastIndexOf('.'); var tn = name.Substring(0, dot); var mn = name.Substring(dot + 1);
+                        System.Type t = null;
+                        foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies()) { t = asm.GetType("StreetLife.EditorTools." + tn) ?? asm.GetType("StreetLife." + tn) ?? asm.GetType(tn); if (t != null) break; }
+                        var m = t?.GetMethod(mn, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                        Say(m == null ? "no method " + name : name + ": " + m.Invoke(null, new object[] { a2 }));
+                        break;
+                    }
                 case "build-windows":
                     StreetLifeBuild.Quiet = true;
                     try { StreetLifeBuild.BuildWindows(); } finally { StreetLifeBuild.Quiet = false; }
