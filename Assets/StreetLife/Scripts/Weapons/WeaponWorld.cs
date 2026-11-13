@@ -50,13 +50,13 @@ namespace StreetLife
         {
             Equip();
             Projectiles.Clear();
-            foreach (var w in Object.FindObjectsByType<Weapons>(FindObjectsSortMode.None)) w.ResetKit();
+            foreach (var w in Object.FindObjectsByType<Weapons>()) w.ResetKit();
         }
 
         /// give weapons to any fighter that hasn't got them yet (the bot is made after the scene loads)
         void Equip()
         {
-            foreach (var f in Object.FindObjectsByType<Fighter>(FindObjectsSortMode.None))
+            foreach (var f in Object.FindObjectsByType<Fighter>())
             {
                 if (f.GetComponent<Weapons>()) continue;
                 var pc = f.GetComponent<PlayerController>();

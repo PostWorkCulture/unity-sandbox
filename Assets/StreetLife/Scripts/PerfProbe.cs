@@ -3,6 +3,7 @@
 // (window.slPerf) so the side-by-side comparison page can read them.
 using System.Runtime.InteropServices;
 using UnityEngine;
+using Unity.Profiling;
 
 namespace StreetLife
 {
@@ -11,7 +12,7 @@ namespace StreetLife
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (FindFirstObjectByType<PerfProbe>()) return;
+            if (FindAnyObjectByType<PerfProbe>()) return;
             var go = new GameObject("PerfProbe"); DontDestroyOnLoad(go); go.AddComponent<PerfProbe>();
             UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.Enable();
             // phones default to 30 fps: run at the screen's own rate (120 Hz on the S24), and don't dim mid-match
@@ -36,6 +37,20 @@ namespace StreetLife
         public static float ReadyAt = -1;        // seconds since the engine started, when the first match frame ran
         public static float Avg, Low1, Ms;
         GUIStyle st;
+        ProfilerRecorder dc, bt, sp, tri, gc, mem;
+        float fileT = 3;
+
+        void OnEnable()
+        {
+            dc = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Draw Calls Count");
+            bt = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Batches Count");
+            sp = ProfilerRecorder.StartNew(ProfilerCategory.Render, "SetPass Calls Count");
+            tri = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Triangles Count");
+            gc = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "GC Allocated In Frame");
+            mem = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "Total Used Memory");
+        }
+        void OnDisable() { dc.Dispose(); bt.Dispose(); sp.Dispose(); tri.Dispose(); gc.Dispose(); mem.Dispose(); }
+        string RenderStats() => $"{dc.LastValue} draws  {bt.LastValue} batches  {sp.LastValue} set-pass  {tri.LastValue / 1000}k tris  {gc.LastValue / 1024} KB GC/frame  {mem.LastValue / 1048576} MB";
 
         void Update()
         {
@@ -47,6 +62,13 @@ namespace StreetLife
             // phones: a three-finger tap
             var ts = UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches;
             if (ts.Count == 3) { bool began = false; foreach (var t in ts) if (t.phase == UnityEngine.InputSystem.TouchPhase.Began) began = true; if (began) show = !show; }
+            // in the editor, leave the numbers where the Cowork chats can read them
+            if (Application.isEditor && (fileT -= dt) <= 0)
+            {
+                fileT = 5; Calc();
+                try { System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Logs", "streetlife-perf.txt"),
+                    $"{System.DateTime.Now:HH:mm:ss} {Avg:F0} fps (1% low {Low1:F0}) {Ms:F1} ms  {RenderStats()}  {Screen.width}x{Screen.height}\n"); } catch { }
+            }
             sendT -= dt;
             if (sendT <= 0)
             {
@@ -73,10 +95,10 @@ namespace StreetLife
         {
             if (!show) return;
             if (st == null) st = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.UpperLeft, fontSize = 14 };
-            GUI.Box(new Rect(Screen.width - 250, 10, 240, 112),
+            GUI.Box(new Rect(Screen.width - 250, 10, 240, 136),
                 $"Unity {Application.unityVersion}  {SystemInfo.graphicsDeviceType}\n" +
                 $"{Avg:F0} fps avg   {Low1:F0} fps 1% low\n{Ms:F1} ms a frame (last 10 s)\n" +
-                $"playable after {ReadyAt:F1} s (engine start)\n{Screen.width}x{Screen.height}  {SystemInfo.deviceModel}", st);
+                $"playable after {ReadyAt:F1} s (engine start)\n{Screen.width}x{Screen.height}  {SystemInfo.deviceModel}\n{dc.LastValue} draws  {bt.LastValue} batches  {tri.LastValue / 1000}k tris", st);
         }
     }
 }

@@ -43,7 +43,7 @@ namespace StreetLife
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (I || !FindFirstObjectByType<MapBuilder>()) return;
+            if (I || !FindAnyObjectByType<MapBuilder>()) return;
             var go = new GameObject("Finishers");
             go.AddComponent<Finishers>(); go.AddComponent<FinisherLate>(); go.AddComponent<FinisherHud>();
         }
@@ -221,7 +221,7 @@ namespace StreetLife
         void Scan()
         {
             Fighters.Clear();
-            Fighters.AddRange(FindObjectsByType<Fighter>(FindObjectsSortMode.None));
+            Fighters.AddRange(FindObjectsByType<Fighter>());
             Player = null;
             foreach (var f in Fighters)
             {
@@ -307,7 +307,7 @@ namespace StreetLife
         {
             if (!scenery.HasValue)
             {
-                var mb = Object.FindFirstObjectByType<MapBuilder>(); Bounds b = default; bool any = false;
+                var mb = Object.FindAnyObjectByType<MapBuilder>(); Bounds b = default; bool any = false;
                 if (mb) foreach (var r in mb.GetComponentsInChildren<MeshRenderer>()) { if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds); }
                 if (!any || b.size.x < 1) { var d = BoxWorld.Bounds; b = new Bounds(new Vector3((d.x0 + d.x1) / 2, 0, (d.z0 + d.z1) / 2), new Vector3(d.x1 - d.x0 + 40, 100, d.z1 - d.z0 + 40)); }
                 scenery = b;

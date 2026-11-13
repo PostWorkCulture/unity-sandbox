@@ -41,6 +41,7 @@ namespace StreetLife
         public float hp, treeH, kw, kh, kd, brk, heavy, hz;
         public bool shove, boom, wood, ball;
         public float[] keys, ppos, prot, pscl, wheels;
+        public int[] lod1;   // per mesh: a lighter distance version's record, or -1
     }
     [Serializable] public class DynJson { public WDyn[] entities; public WMesh[] meshes; public float period; }
 

@@ -52,7 +52,7 @@ namespace StreetLife
         {
             applied.Clear();
             var set = CharacterSet.Load(); if (!set) return;
-            foreach (var rig in UnityEngine.Object.FindObjectsByType<CharacterRig>(FindObjectsSortMode.None))
+            foreach (var rig in UnityEngine.Object.FindObjectsByType<CharacterRig>())
                 if (rig.GetComponent<PlayerController>()) Apply(rig, PlayerChoice);
             if (!UnityEngine.Object.FindAnyObjectByType<CharacterPicker>()) new GameObject("Character picker").AddComponent<CharacterPicker>();
         }

@@ -8,7 +8,7 @@ namespace StreetLife
 {
     public class TownLife : MonoBehaviour
     {
-        public static void Ensure() { if (!FindFirstObjectByType<TownLife>()) new GameObject("TownLife").AddComponent<TownLife>(); }
+        public static void Ensure() { if (!FindAnyObjectByType<TownLife>()) new GameObject("TownLife").AddComponent<TownLife>(); }
 
         const float Z_LIM = 23f;
         class Bird { public Transform t, w0, w1; public float ph; }

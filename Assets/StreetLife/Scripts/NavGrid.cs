@@ -40,7 +40,7 @@ namespace StreetLife
 
         public static void Build()
         {
-            Nodes.Clear(); Ready = false;
+            Nodes.Clear(); Ready = false; blocked = null;   // maps chat: a rebuild for another map must not read the old map's flags
             var bd = BoxWorld.Bounds; var B = BoxWorld.Boxes;
             X0 = bd.x0; Z0 = bd.z0;
             W = Mathf.CeilToInt((bd.x1 - bd.x0) / CS); H = Mathf.CeilToInt((bd.z1 - bd.z0) / CS);
@@ -65,7 +65,7 @@ namespace StreetLife
                     float cx = X0 + (ix + .5f) * CS, cz = Z0 + (iz + .5f) * CS;
                     if (cx < bd.x0 + Fighter.R || cx > bd.x1 - Fighter.R || cz < bd.z0 + Fighter.R || cz > bd.z1 - Fighter.R) continue;
                     var near = bucket[Mathf.Clamp(Mathf.FloorToInt((cx - X0) / BK), 0, bw - 1) + Mathf.Clamp(Mathf.FloorToInt((cz - Z0) / BK), 0, bh - 1) * bw];
-                    cand.Clear(); cand.Add(0);
+                    cand.Clear(); if (!MapRules.Drop(cx, cz)) cand.Add(0);   // maps chat: no ground over open edges or deep water
                     if (near != null) foreach (var i in near) { var b = B[i]; if (b.x0 <= cx && b.x1 >= cx && b.z0 <= cz && b.z1 >= cz && b.y1 > .05f) cand.Add(b.y1); }
                     cand.Sort();
                     float last = -99;

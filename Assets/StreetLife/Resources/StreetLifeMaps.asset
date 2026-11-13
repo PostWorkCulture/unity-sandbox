@@ -1,0 +1,147 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8670948c745932428ca2ec089043e29, type: 3}
+  m_Name: StreetLifeMaps
+  m_EditorClassIdentifier: Assembly-CSharp::StreetLife.MapSet
+  maps:
+  - id: street
+    title: Street Life
+    desc: 'A suburban street: houses you can climb and go into, a corner shop, a garage, cars that drive up and down.'
+    mode: Duels
+    swatch:
+    - {r: 0.3529412, g: 0.68235296, b: 0.27450982, a: 1}
+    - {r: 0.9098039, g: 0.88235295, b: 0.827451, a: 1}
+    - {r: 0.9098039, g: 0.27450982, b: 0.22745098, a: 1}
+    mapJson: {fileID: 4900000, guid: ee15a85d47b020049962f2a3fc5c0d90, type: 3}
+    mapBin: {fileID: 4900000, guid: f772ee37784394648a40e82ca4727bae, type: 3}
+    dynJson: {fileID: 4900000, guid: 627e28c65f4ab9149a21b0578970133d, type: 3}
+    dynBin: {fileID: 4900000, guid: ffa03eb8900218c4d91a9cc3f82029c2, type: 3}
+    extrasJson: {fileID: 0}
+    extrasBin: {fileID: 0}
+    envJson: {fileID: 0}
+    library: {fileID: 11400000, guid: 16563d876b1fb824e83aaff8bbdf9d19, type: 2}
+  - id: rail
+    title: Railed
+    desc: Small freight yard split by a live line, with a footbridge over it
+    mode: Duels
+    swatch:
+    - {r: 0.6901961, g: 0.65882355, b: 0.59607846, a: 1}
+    - {r: 0.95686275, g: 0.7607843, b: 0.16862746, a: 1}
+    - {r: 0.64705884, g: 0.32941177, b: 0.22745098, a: 1}
+    mapJson: {fileID: 4900000, guid: 575cbeef00d5f6c468a5cc6c49be943f, type: 3}
+    mapBin: {fileID: 4900000, guid: baefed9ba7b3cd54eb0b058500f0d909, type: 3}
+    dynJson: {fileID: 4900000, guid: 13a84ad1db2f84d4083f36a7976aec83, type: 3}
+    dynBin: {fileID: 4900000, guid: f566455ddfa154f4ba5f129d2c125ffa, type: 3}
+    extrasJson: {fileID: 4900000, guid: 211430efc4cf5474ca2ef85bcc6e5db0, type: 3}
+    extrasBin: {fileID: 4900000, guid: 27ce8960772ce194f8e04b1ad383d49d, type: 3}
+    envJson: {fileID: 4900000, guid: 9149740ae4ee86e4ca63edc3a7136c8d, type: 3}
+    library: {fileID: 11400000, guid: 181607e7f2e74ba4299d7651506f4863, type: 2}
+  - id: wreck
+    title: Beach Please
+    desc: 'A sleek, upmarket beach: glass-walled pavilions, a lit Tiki Bar, two glass-railed jetties and loungers along the shore'
+    mode: Duels
+    swatch:
+    - {r: 0.9529412, g: 0.8862745, b: 0.7019608, a: 1}
+    - {r: 0.18431373, g: 0.6901961, b: 0.8, a: 1}
+    - {r: 0.43137255, g: 0.27450982, b: 0.15686275, a: 1}
+    mapJson: {fileID: 4900000, guid: a9269295fc3d04d458b7d37c4acabb2f, type: 3}
+    mapBin: {fileID: 4900000, guid: 15d6a19e187381240a5bbdbf2aeff023, type: 3}
+    dynJson: {fileID: 4900000, guid: ddf603c8e3cfaea418de6ec603328055, type: 3}
+    dynBin: {fileID: 4900000, guid: 61ebfbe4b0bbc2d46a3a35f9a498d420, type: 3}
+    extrasJson: {fileID: 4900000, guid: 7394aa973af3b5244910373a8d870249, type: 3}
+    extrasBin: {fileID: 4900000, guid: 88199db649e9a344aa23480a0b84274e, type: 3}
+    envJson: {fileID: 4900000, guid: ba69eea3098a2f04a810b34a5b714480, type: 3}
+    library: {fileID: 11400000, guid: 911b9510618c3024c9f34a76c65006cc, type: 2}
+  - id: arena
+    title: Arena
+    desc: An open floor with a few pillars and a colourful cross ramp in the middle
+    mode: 1v1
+    swatch:
+    - {r: 0.8509804, g: 0.8627451, b: 0.88235295, a: 1}
+    - {r: 0.9098039, g: 0.27450982, b: 0.22745098, a: 1}
+    - {r: 0.18431373, g: 0.49803922, b: 0.8784314, a: 1}
+    mapJson: {fileID: 4900000, guid: ac07d773851b77b43b88f5d142894f11, type: 3}
+    mapBin: {fileID: 4900000, guid: a60453378d0e74a4b96b9267713fded5, type: 3}
+    dynJson: {fileID: 4900000, guid: b92a16de327a5de488f90e51197b5fef, type: 3}
+    dynBin: {fileID: 4900000, guid: 6cfe33841b8e8ea41a570c453d9fea7b, type: 3}
+    extrasJson: {fileID: 4900000, guid: 626516110e493184f888362a7507bdb1, type: 3}
+    extrasBin: {fileID: 4900000, guid: 384330a8db2117743aa513d0c558e406, type: 3}
+    envJson: {fileID: 4900000, guid: 37da18e64f959bd40a2a02cdbd300a83, type: 3}
+    library: {fileID: 11400000, guid: dc83613f454a3c248ab73865846b60ba, type: 2}
+  - id: skyhigh
+    title: Sky High
+    desc: 'A helipad on top of a skyscraper at golden hour: air-con units, water tanks and a long way down'
+    mode: 1v1
+    swatch:
+    - {r: 1, g: 0.6392157, b: 0.36078432, a: 1}
+    - {r: 0.22745098, g: 0.24313726, b: 0.27058825, a: 1}
+    - {r: 0.95686275, g: 0.7607843, b: 0.16862746, a: 1}
+    mapJson: {fileID: 4900000, guid: caff0dfedb08a534383043b0a9e4d69a, type: 3}
+    mapBin: {fileID: 4900000, guid: ef8fbbce3b65eb846b411869be7b5961, type: 3}
+    dynJson: {fileID: 4900000, guid: 353a308ab9c818645a449ea50839730e, type: 3}
+    dynBin: {fileID: 4900000, guid: 05c16a5b15c5a74418c510de18aa4da4, type: 3}
+    extrasJson: {fileID: 4900000, guid: d8c097a0edf8956439406fcb34be0495, type: 3}
+    extrasBin: {fileID: 4900000, guid: fd161f6f28931ca4c9e100b9946273f7, type: 3}
+    envJson: {fileID: 4900000, guid: d04d876f09f26924c881c50abea61297, type: 3}
+    library: {fileID: 11400000, guid: a06ef8c69cb4e29418ba42cc773aeec5, type: 2}
+  - id: lagoon
+    title: Lagoon
+    desc: 'Two pavilions on stilts over a turquoise lagoon, joined by two wide walkways: one tiki bar a side to hide behind, the shop under a thatched canopy, palm islands at sunset'
+    mode: 1v1
+    swatch:
+    - {r: 0.18431373, g: 0.8156863, b: 0.78431374, a: 1}
+    - {r: 0.72156864, g: 0.50980395, b: 0.3137255, a: 1}
+    - {r: 1, g: 0.62352943, b: 0.7137255, a: 1}
+    mapJson: {fileID: 4900000, guid: eac68d3a84827b24e83a9cda7dadde42, type: 3}
+    mapBin: {fileID: 4900000, guid: f0e17b7abc64a454e9d9efd23d0c59cd, type: 3}
+    dynJson: {fileID: 4900000, guid: bcd32b3fcfe0bfd47a24a5b344a59f8e, type: 3}
+    dynBin: {fileID: 4900000, guid: a2846539845a6f94c99f509b6a8bcf4b, type: 3}
+    extrasJson: {fileID: 4900000, guid: 7f48316c78fc44244aa45ffb6a4c487c, type: 3}
+    extrasBin: {fileID: 4900000, guid: b8182471c8dd15846b6465edce0d6dcc, type: 3}
+    envJson: {fileID: 4900000, guid: e5aa34a40bad71345a54fdb7cd68cb22, type: 3}
+    library: {fileID: 11400000, guid: 76726eacfd340a544b45e69175851f80, type: 2}
+  - id: house
+    title: The House
+    desc: Room-to-room fights round the furniture
+    mode: Rumble
+    swatch:
+    - {r: 0.7882353, g: 0.6039216, b: 0.35686275, a: 1}
+    - {r: 0.9529412, g: 0.9372549, b: 0.9019608, a: 1}
+    - {r: 0.9098039, g: 0.27450982, b: 0.22745098, a: 1}
+    mapJson: {fileID: 4900000, guid: 995191154187787429aa3e27e3994476, type: 3}
+    mapBin: {fileID: 4900000, guid: 90e487221d430074fb789d5b24514456, type: 3}
+    dynJson: {fileID: 4900000, guid: 3280010ab58692245ad96d200e668240, type: 3}
+    dynBin: {fileID: 4900000, guid: 9c64c40676df31d44b769ae44e4765fe, type: 3}
+    extrasJson: {fileID: 4900000, guid: f542a3a830fa6f84da0806e6791737dd, type: 3}
+    extrasBin: {fileID: 4900000, guid: 39df6c34c39614b45b5db57d009d8536, type: 3}
+    envJson: {fileID: 4900000, guid: 96dc94aaa52d4c645b21ca34c11ebd9f, type: 3}
+    library: {fileID: 11400000, guid: c652d7c1f2857d4499a890648bf8c213, type: 2}
+  - id: yard
+    title: Backyard
+    desc: 'Small fenced garden: shed, pool and a trampoline'
+    mode: Rumble
+    swatch:
+    - {r: 0.37254903, g: 0.69803923, b: 0.29411766, a: 1}
+    - {r: 0.6901961, g: 0.47843137, b: 0.2901961, a: 1}
+    - {r: 0.5568628, g: 0.7921569, b: 0.9019608, a: 1}
+    mapJson: {fileID: 4900000, guid: 238ac50d2effec148b8ee0c7eabda57d, type: 3}
+    mapBin: {fileID: 4900000, guid: 1f7ce5480aa3ded4d84ec29d314ae559, type: 3}
+    dynJson: {fileID: 4900000, guid: 4ceb2c28483a4664c9cda04e09a30820, type: 3}
+    dynBin: {fileID: 4900000, guid: 5688dd00d3ab2694abb6fcb26ce472d2, type: 3}
+    extrasJson: {fileID: 4900000, guid: bdacebbd9be3fa9479ee8c39dbe80ed6, type: 3}
+    extrasBin: {fileID: 4900000, guid: 2ea24df93e47dd94f9d91c4e222ec684, type: 3}
+    envJson: {fileID: 4900000, guid: a39a78b8ee7c8f140804725c04d0fdc3, type: 3}
+    library: {fileID: 11400000, guid: 9fe4d101a0dd1f840b2b5890dcefc52d, type: 2}
+  sky: {fileID: 4800000, guid: 8cd3de07cad307141b19dd0c8a4609a0, type: 3}
+  cloud: {fileID: 4800000, guid: 668de6dfee6224543a969878e002a544, type: 3}
+  ground: {fileID: 4800000, guid: 7bca6e5a177121448bb655b94216a0ab, type: 3}
+  water: {fileID: 4800000, guid: f48f5ec01ac5be04d8aa9f333cc01b87, type: 3}

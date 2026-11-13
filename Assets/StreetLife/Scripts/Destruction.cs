@@ -195,7 +195,7 @@ namespace StreetLife
             Sfx.Play("explode", at, 1f, 26);
             if (maxDamage > 0)
             {
-                if (fighters.Length == 0 || Time.frameCount % 60 == 0) fighters = FindObjectsByType<Fighter>(FindObjectsSortMode.None);
+                if (fighters.Length == 0 || Time.frameCount % 60 == 0) fighters = FindObjectsByType<Fighter>();
                 foreach (var f in fighters)
                 {
                     if (!f || !f.alive) continue;
@@ -536,6 +536,7 @@ namespace StreetLife
         // Until the weapons arrive: F6 shoots whatever is under the crosshair (40 damage), F7 sets off a blast there (F3 is the character picker).
         void DebugKeys()
         {
+            if (!Application.isEditor) return;   // editor-only test keys now that weapons are in
             var kb = UnityEngine.InputSystem.Keyboard.current; var cam = Camera.main;
             if (kb == null || !cam) return;
             bool shoot = kb.f6Key.wasPressedThisFrame, boom = kb.f7Key.wasPressedThisFrame;
@@ -551,7 +552,7 @@ namespace StreetLife
         {
             DebugKeys();
             float dt = Time.deltaTime;
-            if (Time.frameCount % 30 == 0 || fighters.Length == 0) fighters = FindObjectsByType<Fighter>(FindObjectsSortMode.None);
+            if (Time.frameCount % 30 == 0 || fighters.Length == 0) fighters = FindObjectsByType<Fighter>();
             foreach (var e in ents) if ((e.d.kind == "tree" || e.d.kind == "play") && e.st >= 1 && e.st < 4) UpdFalling(e, dt);
             UpdCars(dt);
             UpdKnocks(dt);

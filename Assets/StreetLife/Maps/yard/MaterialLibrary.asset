@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83c93ee5ba1365449aa0007869ef7897, type: 3}
+  m_Name: MaterialLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::StreetLife.MaterialLibrary
+  map:
+  - {fileID: 2100000, guid: 16794c9c4f9f0534284fde6d9a2cbd90, type: 2}
+  - {fileID: 2100000, guid: d748c2077908d9e4eb97cbfeda295879, type: 2}
+  - {fileID: 2100000, guid: 23af4bd67dc99874a83bedb085dcf953, type: 2}
+  - {fileID: 2100000, guid: 6f9c7391472f7184794e566ff72f2d32, type: 2}
+  - {fileID: 2100000, guid: d56cfd7265a996c47a1529a5dfaa730c, type: 2}
+  - {fileID: 2100000, guid: 4eb59b9547a35d14f9550c3c338df2ae, type: 2}
+  - {fileID: 2100000, guid: c87fa2c84e67e324b9f0b2d14a6b7b8c, type: 2}
+  - {fileID: 2100000, guid: cdd7d2c087e4e4a4fa84753abbcffe6e, type: 2}
+  - {fileID: 2100000, guid: 3ef60133ddb0b204d8fa33b67c1972c4, type: 2}
+  - {fileID: 2100000, guid: 31b7df116d804a94b86a210fd86e5527, type: 2}
+  - {fileID: 2100000, guid: 442d226bf4b02354c8b8dd4d10d5ad9e, type: 2}
+  - {fileID: 2100000, guid: c0a61e58ff131e547aa1ad941000cebf, type: 2}
+  - {fileID: 2100000, guid: d788dc6def81a0340992399b633a7b59, type: 2}
+  - {fileID: 2100000, guid: 94b2003951226e147a728dc5a9647998, type: 2}
+  - {fileID: 2100000, guid: 857c62e41692803489ac609d0164b4f1, type: 2}
+  - {fileID: 2100000, guid: 679592e0f0d3ad14caf5249fc369ade5, type: 2}
+  - {fileID: 2100000, guid: 30665e9d5ac6dad4095f38fd6c9ec64d, type: 2}
+  - {fileID: 2100000, guid: 86afa567a4438c84986178e1587d8ea3, type: 2}
+  - {fileID: 2100000, guid: d6ce56ad055aefe498ba0e03d599c62b, type: 2}
+  - {fileID: 2100000, guid: b929ff38aabd1f94facf3f2f77a25ede, type: 2}
+  character: []
+  guns: []
+  unlitBase: {fileID: 2100000, guid: 299add25613231245ad8f160f23b2059, type: 2}
+  lineBase: {fileID: 2100000, guid: c1ab8692e32e7fa478a33e8c831c9c09, type: 2}
+  dataStamp: 35c68cf26e488fbf8c9325c1c5d08451

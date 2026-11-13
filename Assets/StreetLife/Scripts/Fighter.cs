@@ -84,12 +84,14 @@ namespace StreetLife
         // ---------------------------------------------------------------- physics
         void Physics(float dt, float wx, float wz, bool jump, float speed, bool jumpPress)
         {
+            if (EdgeFallStep(dt)) return;   // maps chat: falling off an open edge
             if (stamLock) speed *= .75f;
             speed *= moveMul;
             float v = Mathf.Max(HorizontalSpeed, speed * 1.25f * charSpeed) + Mathf.Abs(vel.y) * .5f;
             int n = Mathf.Min(5, Mathf.Max(1, Mathf.Max(Mathf.CeilToInt(dt * 60 - .05f), Mathf.CeilToInt(v * dt / .45f))));
             if (n == 1) Physics1(dt, wx, wz, jump, speed, jumpPress);
             else for (int i = 0; i < n; i++) Physics1(dt / n, wx, wz, jump, speed, i == 0 && jumpPress);
+            if (EdgeAfterMove()) return;   // maps chat: open edges aren't clamped to the map
             var bd = BoxWorld.Bounds;
             pos.x = Mathf.Clamp(pos.x, bd.x0 + R, bd.x1 - R);
             pos.z = Mathf.Clamp(pos.z, bd.z0 + R, bd.z1 - R);
@@ -117,6 +119,7 @@ namespace StreetLife
             if (!MoveAxis(0, vel.z * dt)) vel.z = 0;
             // average of start and end velocity: exact for constant gravity, so jump height is the same at any frame rate
             float ny = pos.y + (grounded ? vel.y : (vy0 + vel.y) / 2) * dt, sup = 0;
+            if (MapDropHere()) sup = -1e9f;   // maps chat: no floor here
             var B = BoxWorld.Boxes; float r8 = R * .8f;
             for (int i = 0; i < B.Count; i++)
             {
@@ -145,6 +148,7 @@ namespace StreetLife
 
         bool MoveAxis(float dx, float dz)
         {
+            if (EdgeBlock(pos.x + dx, pos.z + dz)) return false;   // maps chat: Lagoon bots stay on the boards
             float nx = pos.x + dx, nz = pos.z + dz, lift = 0, H = Hh;
             float allow = grounded ? STEP : vel.y < 6 ? AIR_STEP : 0;
             var B = BoxWorld.Boxes;
@@ -166,6 +170,7 @@ namespace StreetLife
                 if (Overlaps(b, pos.x, pos.z, pos.y, H) && b.y0 < pos.y + H * .5f) continue;
                 return false;
             }
+            if (EdgeFree()) { pos.x = nx; pos.z = nz; pos.y += lift; return true; }   // maps chat: open edges
             var bd = BoxWorld.Bounds;
             pos.x = Mathf.Clamp(nx, bd.x0 + R, bd.x1 - R);
             pos.z = Mathf.Clamp(nz, bd.z0 + R, bd.z1 - R);

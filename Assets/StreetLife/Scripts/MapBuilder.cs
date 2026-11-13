@@ -19,6 +19,7 @@ namespace StreetLife
 
         void OnEnable()
         {
+            MapSet.Apply(this);   // maps chat: swap in the chosen map's data (play mode only)
             if (!mapJson || !mapBin || !library) return;
             var w = JsonUtility.FromJson<WorldJson>(mapJson.text);
             BoxWorld.Load(w);
@@ -49,7 +50,9 @@ namespace StreetLife
                 var wm = w.meshes[i];
                 var go = new GameObject("mesh" + i + "_m" + wm.mat);
                 go.transform.SetParent(geo, false);
-                go.AddComponent<MeshFilter>().sharedMesh = MeshIO.Build(bin, wm, go.name);
+                var sm = MeshIO.Build(bin, wm, go.name);
+                go.AddComponent<MeshFilter>().sharedMesh = sm;
+                if (Application.isPlaying) sm.UploadMeshData(true);
                 var mr = go.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = wm.mat >= 0 && wm.mat < library.map.Length ? library.map[wm.mat] : library.unlitBase;
                 var m = mr.sharedMaterial;
@@ -84,21 +87,60 @@ namespace StreetLife
                 var ws = d.scl != null && d.scl.Length == 3 ? V(d.scl) : Vector3.one;
                 var ps = parent.lossyScale;
                 t.localScale = new Vector3(ws.x / Mathf.Max(1e-4f, ps.x), ws.y / Mathf.Max(1e-4f, ps.y), ws.z / Mathf.Max(1e-4f, ps.z));
+                // its meshes, plus lighter distance versions (LOD1) for the heavy ones, and a cut-off for small things far away
+                var lod0 = new System.Collections.Generic.List<Renderer>(); var lod1 = new System.Collections.Generic.List<Renderer>();
+                bool hasLod = d.lod1 != null && d.meshes != null && d.lod1.Length == d.meshes.Length;
                 if (d.meshes != null)
-                    foreach (var mi in d.meshes)
+                    for (int k = 0; k < d.meshes.Length; k++)
                     {
-                        if (mi < 0 || mi >= dj.meshes.Length) continue;
-                        var wm = dj.meshes[mi];
-                        var mgo = new GameObject("m" + mi); mgo.transform.SetParent(t, false);
-                        mgo.AddComponent<MeshFilter>().sharedMesh = MeshIO.Build(bin, wm, mgo.name);
-                        var mr = mgo.AddComponent<MeshRenderer>();
-                        mr.sharedMaterial = wm.mat >= 0 && wm.mat < library.map.Length ? library.map[wm.mat] : library.unlitBase;
-                        bool transparent = mr.sharedMaterial && mr.sharedMaterial.renderQueue >= 3000;
-                        mr.shadowCastingMode = wm.cast && !transparent ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
+                        var r0 = Part(dj, bin, d.meshes[k], t, "m"); if (!r0) continue;
+                        lod0.Add(r0);
+                        var r1 = hasLod && d.lod1[k] >= 0 ? Part(dj, bin, d.lod1[k], t, "lod") : null;
+                        lod1.Add(r1 ? r1 : r0);
                     }
+                Lods(d, t, lod0, lod1, hasLod);
                 made.Add(t);
             }
             if (Application.isPlaying) Destruction.Init(root, dj, made);
+            WorldLook.Ensure(gen);
+        }
+
+        static bool MobileQuality => QualitySettings.names.Length > 0 && QualitySettings.names[QualitySettings.GetQualityLevel()].Contains("Mobile");
+
+        Renderer Part(DynJson dj, byte[] bin, int mi, Transform t, string prefix)
+        {
+            if (mi < 0 || mi >= dj.meshes.Length) return null;
+            var wm = dj.meshes[mi];
+            var mgo = new GameObject(prefix + mi); mgo.transform.SetParent(t, false);
+            var mesh = MeshIO.Build(bin, wm, mgo.name);
+            mgo.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = mgo.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = wm.mat >= 0 && wm.mat < library.map.Length ? library.map[wm.mat] : library.unlitBase;
+            bool transparent = mr.sharedMaterial && mr.sharedMaterial.renderQueue >= 3000;
+            mr.shadowCastingMode = wm.cast && !transparent ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
+            if (Application.isPlaying) mesh.UploadMeshData(true);   // GPU copy only: nothing reads these on the CPU
+            return mr;
+        }
+
+        // LOD1 under 12% of screen height; small loose things and furniture vanish under 0.8% (a few pixels).
+        // On phones and in the browser, things smaller than 1.2 m don't cast shadows.
+        static void Lods(WDyn d, Transform t, System.Collections.Generic.List<Renderer> lod0, System.Collections.Generic.List<Renderer> lod1, bool hasLod)
+        {
+            if (lod0.Count == 0 || d.kind == "anim") return;
+            var b = lod0[0].bounds; foreach (var r in lod0) b.Encapsulate(r.bounds);
+            bool small = b.size.magnitude < 1.2f;
+            if (small && MobileQuality) foreach (var r in lod0) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            bool cull = d.kind == "knock" || d.kind == "prop" || d.kind == "chip" || d.kind == "drum" || d.kind == "glass";
+            if (!hasLod && !cull) return;
+            var lg = t.gameObject.AddComponent<LODGroup>();
+            float cutoff = cull ? .008f : 0f;
+            if (hasLod)
+            {
+                foreach (var r in lod1) if (!lod0.Contains(r)) r.shadowCastingMode = lod0[0].shadowCastingMode;
+                lg.SetLODs(new[] { new LOD(.12f, lod0.ToArray()), new LOD(cutoff, lod1.ToArray()) });
+            }
+            else lg.SetLODs(new[] { new LOD(cutoff, lod0.ToArray()) });
+            lg.RecalculateBounds();
         }
 
         static Vector3 V(float[] a) => a != null && a.Length >= 3 ? new Vector3(a[0], a[1], a[2]) : Vector3.zero;

@@ -48,7 +48,7 @@ namespace StreetLife
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (Instance || !FindFirstObjectByType<MapBuilder>()) return;
+            if (Instance || !FindAnyObjectByType<MapBuilder>()) return;
             new GameObject("Match").AddComponent<RoundManager>();
         }
 
@@ -58,7 +58,7 @@ namespace StreetLife
         void Setup()
         {
             if (!NavGrid.Ready && BoxWorld.Loaded) NavGrid.Build();
-            foreach (var fi in FindObjectsByType<Fighter>(FindObjectsSortMode.None))
+            foreach (var fi in FindObjectsByType<Fighter>())
                 if (fi.GetComponent<PlayerController>()) player = fi;
             if (!player) { Debug.LogWarning("Street Life: no player found"); enabled = false; return; }
             player.team = 0; player.isBot = false; player.displayName = "You";

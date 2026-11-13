@@ -133,7 +133,7 @@ namespace StreetLife
             if (note != null && now < noteT) Shadowed(R(W / 2 - 300, H - 120, 600, 22), note, sub, Gold);
             if (!hud) hud = FindAnyObjectByType<Hud>();
             if (hud && hud.showHelp)
-                Shadowed(R(W / 2 - 330, H - 70, 660, 20), "Finishers: F finishes a downed enemy (firing stops yours).  Test: F9 downs the bot, Shift+F9 downs you, F10 next move: " + (Finishers.ForceMove == "" ? "Random" : Finishers.ForceMove), small, new Color(1, 1, 1, .85f));
+                Shadowed(R(W / 2 - 330, H - 72, 660, 20), "F finishes a downed enemy (firing stops yours)" + (Application.isEditor ? "   ·   test: F9 downs the bot, Shift+F9 downs you, F10 next move: " + (Finishers.ForceMove == "" ? "Random" : Finishers.ForceMove) : ""), small, new Color(1, 1, 1, .85f));
         }
     }
 }

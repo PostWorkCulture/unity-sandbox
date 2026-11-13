@@ -10,6 +10,7 @@ namespace StreetLife
     {
         public Fighter fighter;
         public bool showHelp = true;
+        bool helpPinned, helpOff;
         public bool drawCrosshair = true;   // the weapon HUD draws its own
         bool showBot;
         float fps, fpsT; int frames;
@@ -22,7 +23,8 @@ namespace StreetLife
             frames++; fpsT += Time.unscaledDeltaTime;
             if (fpsT >= .5f) { fps = frames / fpsT; frames = 0; fpsT = 0; }
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.f1Key.wasPressedThisFrame) showHelp = !showHelp;
+            if (kb != null && kb.f1Key.wasPressedThisFrame) { helpPinned = !(helpPinned || showHelp); helpOff = !helpPinned; }
+            showHelp = helpPinned || (!helpOff && Time.timeSinceLevelLoad < 15f);   // shown for the first 15 s, then F1
             if (kb != null && kb.f2Key.wasPressedThisFrame) showBot = !showBot;
         }
 
@@ -43,7 +45,7 @@ namespace StreetLife
             label = new GUIStyle(GUI.skin.label) { fontSize = fs(14), fontStyle = FontStyle.Bold };
             small = new GUIStyle(GUI.skin.label) { fontSize = fs(12) };
             center = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter };
-            big = new GUIStyle(center) { fontSize = fs(30) };
+            big = new GUIStyle(center) { fontSize = fs(25) };
             huge = new GUIStyle(center) { fontSize = fs(72) };
             feedStyle = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         }
@@ -74,11 +76,13 @@ namespace StreetLife
                 Banners(rm, W, H);
                 if (showBot && rm.botBrain) GUI.Label(R(18, 120, 520, 60), $"Bot: {rm.botBrain.Style.name} ({rm.botBrain.Dif.name}), {rm.botBrain.Mode}", small);
             }
-            GUI.Label(R(W - 90, H - 28, 80, 20), Mathf.RoundToInt(fps) + " fps", small);
-            if (showHelp)
-                GUI.Label(R(W / 2 - 330, H - 46, 660, 40),
-                    "Click to lock the mouse, Esc frees it.  WASD move, Space jump (again in the air: double jump), right mouse aim, C crouch, walk into a ladder to climb.\n" +
-                    "F1 hides this.  F2 shows the bot's secret style.  F3 picks characters.  Until weapons arrive: F6 shoots at the crosshair, F7 sets off a blast there.", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
+            if (showHelp && !(TouchControls.I && TouchControls.I.Showing))
+            {
+                Fill(R(W / 2 - 470, H - 50, 940, 44), new Color(0, 0, 0, .35f));
+                GUI.Label(R(W / 2 - 470, H - 48, 940, 44),
+                    "WASD move · Space jump (again for a double jump) · Left click fire · Right click aim · C crouch · walk into a ladder to climb · Esc frees the mouse\n" +
+                    "Tab weapons and shop · F3 characters · F2 bot's style · F8 frame rate · F1 shows this again", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
+            }
         }
 
         // ------------------------------------------------------------------ vitals
@@ -193,9 +197,9 @@ namespace StreetLife
         {
             int me = fighter.team, them = 1 - me;
             string t = rm.state == RoundManager.State.Fight || rm.state == RoundManager.State.RoundEnd ? $"{Mathf.FloorToInt(Mathf.Max(0, rm.timer) / 60)}:{Mathf.FloorToInt(Mathf.Max(0, rm.timer) % 60):00}" : "";
-            Fill(R(W / 2 - 120, 10, 240, 46), new Color(0, 0, 0, .45f));
-            Shadowed(R(W / 2 - 120, 8, 240, 30), $"YOU  {rm.score[me]}  :  {rm.score[them]}  BOT", big, Color.white);
-            Shadowed(R(W / 2 - 120, 36, 240, 18), $"{t}   First to {rm.toWin}", center, new Color(1, 1, 1, .85f));
+            Fill(R(W / 2 - 130, 8, 260, 58), new Color(0, 0, 0, .45f));
+            Shadowed(R(W / 2 - 130, 8, 260, 36), $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}", big, Color.white);
+            Shadowed(R(W / 2 - 130, 42, 260, 20), $"{t}   First to {rm.toWin}", center, new Color(1, 1, 1, .85f));
             float y = 62;
             foreach (var it in rm.feed)
             {
