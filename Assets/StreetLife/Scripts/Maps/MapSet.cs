@@ -54,6 +54,7 @@ namespace StreetLife
                 if (e == null || !e.IsStreet) { if (id != Default) Debug.LogWarning("Street Life maps: no data for '" + id + "', playing Street Life"); }
                 Current = Default; CurrentEntry = set ? set.Get(Default) : null;
                 MapRules.Set(Default);
+                if (CurrentEntry != null && CurrentEntry.envJson) MapWorld.Create(mb, CurrentEntry, set);   // Street Life's sky and clouds
                 return;
             }
             Current = e.id; CurrentEntry = e;

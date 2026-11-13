@@ -91,6 +91,10 @@ namespace StreetLife
         void Slow(float k) => Finishers.SlowMoFor(k, a, v);
         void Vig(float k) => Finishers.VigFor(k, a, v);
         Vector3 Hand(Fighter f, bool left) => FinisherPose.Hand(f, left);
+        static readonly string[] SPLASH = { "#ffffff", "#dff3ff", "#bfe6f5" };
+        static Waterside Water { get { var w = MapWorld.I; return w ? w.GetComponent<Waterside>() : null; } }
+        static float WaterY(float x, float z) { var w = Water; return w ? w.WaterY(x, z) : MapRules.DeepWater ? MapRules.LagoonWaterY(x, z, Time.timeSinceLevelLoad) : MapRules.BeachWaterY(x, z, Time.timeSinceLevelLoad); }
+        static void Splash(float x, float z, float size) { var w = Water; if (w) w.Splash(x, z, size); }
         void TintV(Color c, float k, float smooth = -1) { var p = FinisherPose.Of(v); if (p) p.Tint(c, k, smooth); }
 
         static readonly string[] DUST = { "#c9bfae", "#9a8f80" }, RUBBLE3 = { "#8a7f72", "#6e665c", "#a89c8a" }, RUBBLE4 = { "#8a7f72", "#6e665c", "#a89c8a", "#4a4540" },
@@ -120,6 +124,8 @@ namespace StreetLife
                 float h = BoxWorld.Ray(o, d, 12, out int ix);
                 if (h >= 0 && ix >= 0 && BoxWorld.Boxes[ix].y1 - v0.y > Fighter.STEP) m = Mathf.Min(m, h - Fighter.R - .05f);
             }
+            // and never out over a roof edge, open water or a drop
+            m = Mathf.Min(m, FinGeo.FloorRun(v0, -fwd * sgn, 12) - Fighter.R * .5f);
             m = Mathf.Max(0, m);
             if (sgn > 0) ffwd = m; else fback = m;
             return m;
@@ -261,13 +267,26 @@ namespace StreetLife
                 }
             }
             bool over = FinGeo.OverMap(v.pos.x, v.pos.z);
-            if (!wallAt.HasValue && !over && (v.pos.y < v0.y - 25 || t - P.t0 > 3.5f))
+            float gs = over ? FinGeo.SurfaceAt(v.pos.x, v.pos.z, prev.y - SC + .2f) : FinGeo.NONE;
+            // deep water (Lagoon): into the lagoon with a splash, and gone (web: M.waterY)
+            if (!wallAt.HasValue && MapRules.DeepWater && gs <= FinGeo.NONE + 1)
             {
-                // off the edge of the world: gone (web: the abyss)
+                float wy = WaterY(v.pos.x, v.pos.z);
+                if (v.pos.y + .6f < wy)
+                {
+                    done = gone = abyss = true; imp = v.pos; var pose = FinisherPose.Of(v); if (pose) pose.Hidden = true;
+                    Splash(v.pos.x, v.pos.z, 2.2f); Splash(v.pos.x + .6f, v.pos.z + .4f, 1.4f);
+                    FinisherFx.Emit(new Vector3(v.pos.x, wy + .1f, v.pos.z), 30, 6, .22f, .7f, 14, SPLASH, 6);
+                    Sfx.Play("splash", v.pos, 1, 30); Shake(.4f);
+                    Say(big, sub, lose); dur = Mathf.Max(dur, t + .9f); return true;
+                }
+            }
+            if (!wallAt.HasValue && gs <= FinGeo.NONE + 1 && (v.pos.y < v0.y - 25 || t - P.t0 > 3.5f))
+            {
+                // off the edge of the world (past Sky High's roof, beyond the scenery): gone (web: the abyss)
                 done = gone = abyss = true; imp = v.pos; var pose = FinisherPose.Of(v); if (pose) pose.Hidden = true;
                 Shake(.3f); Say(big, sub, lose); dur = Mathf.Max(dur, t + .8f); return true;
             }
-            float gs = over ? FinGeo.SurfaceAt(v.pos.x, v.pos.z, prev.y - SC + .2f) : -1000;
             Vector3? hit = null; bool wall = false;
             if (wallAt.HasValue) { hit = wallAt; wall = true; }
             else if ((P.v.y < 0 && v.pos.y <= gs) || t - P.t0 > 4) hit = new Vector3(v.pos.x, Mathf.Max(gs, v.pos.y), v.pos.z);
@@ -275,6 +294,11 @@ namespace StreetLife
             done = true; var c = hit.Value; float fl = !wall ? gs : FinGeo.GroundAt(c.x, c.z, c.y);
             onHit?.Invoke(c, wall);
             Shake(1.1f); Slow(.5f); Vig(.25f); imp = c;
+            if (!wall && MapRules.Wade(c.x, c.z) && fl < .3f)
+            {
+                Splash(c.x, c.z, 2.4f); Splash(c.x + .5f, c.z - .4f, 1.5f); Sfx.Play("splash", c, .9f, 30);
+                FinisherFx.Emit(new Vector3(c.x, WaterY(c.x, c.z) + .1f, c.z), 26, 6, .2f, .6f, 14, SPLASH, 5);
+            }
             if (!wall)
             {
                 v.pos = new Vector3(v.pos.x, fl, v.pos.z);
@@ -345,7 +369,7 @@ namespace StreetLife
                 {
                     var (s, f) = spots[i]; var d = FinisherProps.DogMesh(cols[i]); obj.Add(d.g.gameObject);
                     d.T = C + side * s * 1.05f * SC + fwd * f * 1.0f * SC;
-                    d.@out = (side * s * .75f + fwd * f * .65f).normalized; d.st = d.T + d.@out * 13;
+                    d.@out = (side * s * .75f + fwd * f * .65f).normalized; d.st = d.T + d.@out * Mathf.Max(3, FinGeo.FloorRun(new Vector3(d.T.x, v0.y, d.T.z), d.@out, 13));
                     d.face = Mathf.Atan2(-d.@out.x, -d.@out.z); d.i = i; d.g.position = d.st; d.g.gameObject.SetActive(false); dogs[i] = d;
                 }
             }
@@ -463,7 +487,7 @@ namespace StreetLife
             if (t < .35f) vDown = false;
             if (fall == null)
             {
-                float ch = 2.6f * EaseIn(Seg(t, .95f, 2.5f)); float nx = v0.x - fwd.x * ch, nz = v0.z - fwd.z * ch;
+                float ch = Mathf.Min(2.6f * EaseIn(Seg(t, .95f, 2.5f)), FreeLine(1)); float nx = v0.x - fwd.x * ch, nz = v0.z - fwd.z * ch;
                 v.vel = new Vector3((nx - v.pos.x) / Mathf.Max(dt, 1e-3f), 0, (nz - v.pos.z) / Mathf.Max(dt, 1e-3f)); v.pos = new Vector3(nx, v0.y, nz); v.grounded = true;
             }
             if (t < .8f) { SetAtt(L(dA, 1.15f, EaseIO(Seg(t, .2f, .6f))), dt); a.yaw = yaw0; }
@@ -666,8 +690,8 @@ namespace StreetLife
                     {
                         float away = Mathf.Atan2(fwd.x, fwd.z); var o = v.pos + up * .9f; float by = away, bl = -1;
                         foreach (var da in new[] { 0f, .35f, -.35f, .7f, -.7f, 1.05f, -1.05f, 1.4f, -1.4f })
-                        { float y = away + da; float h = BoxWorld.Ray(o, Fwd(y), 10); float Lh = h >= 0 ? h - .9f : 10; if (bl < 0 || Lh > bl + .4f) { by = y; bl = Lh; } }
-                        fd = by; fL = Mathf.Clamp(bl, 1, 1.8f); fs = v.pos;
+                        { float y = away + da; float h = BoxWorld.Ray(o, Fwd(y), 10); float Lh = Mathf.Min(h >= 0 ? h - .9f : 10, FinGeo.FloorRun(v.pos, Fwd(y), 10) - .4f); if (bl < 0 || Lh > bl + .4f) { by = y; bl = Lh; } }
+                        fd = by; fL = Mathf.Clamp(bl, .4f, 1.8f); fs = v.pos;
                     }
                     float u = Seg(t, .75f, 1.35f), d = fL * u, zig = Mathf.Sin(u * 6) * .25f * Mathf.Min(1, u * 3);
                     var dir = Fwd(fd.Value); var perp = new Vector3(dir.z, 0, -dir.x);

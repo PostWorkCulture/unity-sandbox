@@ -384,8 +384,11 @@ namespace StreetLife
         Vector3 ThrowFrom() => F.Eye + F.Forward * .7f + new Vector3(0, -.2f, 0);
 
         /// heading toward whatever the crosshair is on, elevation from where you're looking, plus a lob
+        /// set for one call by bots (BotExtras): throw along this direction instead of the fixed bot lob
+        [System.NonSerialized] public Vector3? throwDirOverride;
         Vector3 ThrowDir()
         {
+            if (throwDirOverride.HasValue) return throwDirOverride.Value;
             var cam = Camera.main;
             if (isPlayer && cam)
             {

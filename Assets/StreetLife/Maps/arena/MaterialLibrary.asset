@@ -141,4 +141,4 @@ MonoBehaviour:
   guns: []
   unlitBase: {fileID: 2100000, guid: 299add25613231245ad8f160f23b2059, type: 2}
   lineBase: {fileID: 2100000, guid: c1ab8692e32e7fa478a33e8c831c9c09, type: 2}
-  dataStamp: 1a095e81b430a501e1dbb58f350d6ccb
+  dataStamp: f89cc841ca45cb72738a97daf3366162

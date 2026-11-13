@@ -80,7 +80,7 @@ namespace StreetLife
             {
                 Fill(R(W / 2 - 470, H - 50, 940, 44), new Color(0, 0, 0, .35f));
                 GUI.Label(R(W / 2 - 470, H - 48, 940, 44),
-                    "WASD move · Space jump (again for a double jump) · Left click fire · Right click aim · C crouch · walk into a ladder to climb · Esc frees the mouse\n" +
+                    "WASD move · Space jump (again for a double jump) · Left click fire · Right click aim · C crouch · G ability · walk into a ladder to climb · Esc frees the mouse\n" +
                     "Tab weapons and shop · F3 characters · F2 bot's style · F8 frame rate · F1 shows this again", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
             }
         }
@@ -93,6 +93,29 @@ namespace StreetLife
             Bar(x, y + 22, 230, 12, fighter.armor / 100f, new Color(.25f, .6f, 1f));
             Bar(x, y + 38, 230, 12, fighter.stam / Fighter.STAM_MAX, fighter.stamLock ? new Color(.45f, .3f, .55f) : new Color(.62f, .38f, 1f));
             Shadowed(R(x, y - 22, 300, 20), fighter.characterName + "   " + Mathf.CeilToInt(fighter.hp), label, Color.white);
+            AbilityChip(x + 242, y - 2, H);
+        }
+
+        /// the character ability: name, G, and the cooldown filling up; status timers above it
+        void AbilityChip(float x, float y, float H)
+        {
+            if (!Fighter.AbilitiesOn || !fighter.alive) return;
+            float cd = fighter.AbilityCooldown, left = Mathf.Max(0, fighter.abilT); bool ready = left <= 0 && !fighter.downed;
+            Fill(R(x, y, 150, 54), new Color(0, 0, 0, .55f));
+            if (!ready) Fill(R(x + 2, y + 2, 146 * (1 - left / Mathf.Max(.1f, cd)), 50), new Color(1, 1, 1, .12f));
+            else Fill(R(x, y, 3, 54), new Color(1f, .78f, .1f, .95f));
+            Shadowed(R(x + 10, y + 4, 140, 22), fighter.AbilityName, label, ready ? Color.white : new Color(1, 1, 1, .55f));
+            Shadowed(R(x + 10, y + 27, 140, 22), ready ? (TouchControls.I && TouchControls.I.Showing ? "ready" : "G  ready") : Mathf.CeilToInt(left) + "s", small, ready ? new Color(1f, .82f, .3f) : new Color(1, 1, 1, .6f));
+            string st = fighter.shieldT > 0 ? "Shield " + Mathf.CeilToInt(fighter.shieldT) + "s" : fighter.thornT > 0 ? "Thorns " + Mathf.CeilToInt(fighter.thornT) + "s" : fighter.ghostT > 0 ? "Vanished " + Mathf.CeilToInt(fighter.ghostT) + "s" : fighter.zipT > 0 ? "Sprint " + Mathf.CeilToInt(fighter.zipT) + "s" : fighter.boostT > 0 ? "Jetpack" : null;
+            if (st != null) Shadowed(R(x, y - 22, 200, 20), st, small, new Color(.75f, .95f, 1f));
+            if (fighter.slowT > 0) FrostEdges(Mathf.Clamp01(fighter.slowT / 1.5f));
+        }
+
+        void FrostEdges(float k)
+        {
+            float W = Screen.width / s, H = Screen.height / s; var c = new Color(.75f, .92f, 1f, .22f * k);
+            for (int i = 0; i < 6; i++) { float t = 6 + i * 7; var ci = new Color(c.r, c.g, c.b, c.a * (1 - i / 6f));
+                Fill(R(0, i * t / 6, W, t / 6), ci); Fill(R(0, H - (i + 1) * t / 6, W, t / 6), ci); Fill(R(i * t / 6, 0, t / 6, H), ci); Fill(R(W - (i + 1) * t / 6, 0, t / 6, H), ci); }
         }
 
         void Crosshair(float W, float H)
@@ -264,7 +287,7 @@ namespace StreetLife
                             Shadowed(R(x0 + i * 150, H / 2 - 10, 150, 50), v[i], big, Color.white);
                             Shadowed(R(x0 + i * 150, H / 2 + 36, 150, 24), k[i], center, new Color(1, 1, 1, .8f));
                         }
-                        Shadowed(R(0, H / 2 + 100, W, 30), $"Enter: rematch   (starts by itself in {Mathf.CeilToInt(rm.stateT)} s)", center, new Color(1, 1, 1, .85f));
+                        Shadowed(R(0, H / 2 + 100, W, 30), $"{(TouchControls.I && TouchControls.I.Showing ? "Tap Rematch" : "Enter: rematch")}   (starts by itself in {Mathf.CeilToInt(rm.stateT)} s)", center, new Color(1, 1, 1, .85f));
                     }
                     break;
             }

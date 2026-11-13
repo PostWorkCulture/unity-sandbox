@@ -29,11 +29,11 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 04430357cf3e34d4d99551ee6363b0f5, type: 3}
+        m_Texture: {fileID: 2800000, guid: 2e6cbc212fe6bb04593b1c9100e66f3d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 04430357cf3e34d4d99551ee6363b0f5, type: 3}
+        m_Texture: {fileID: 2800000, guid: 2e6cbc212fe6bb04593b1c9100e66f3d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -55,11 +55,11 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 0
     m_Colors:
-    - _BaseColor: {r: 0.18039216, g: 0.9019608, b: 0.8392157, a: 0.45}
-    - _Color: {r: 0.18039212, g: 0.9019608, b: 0.8392157, a: 0.45}
+    - _BaseColor: {r: 1, g: 0.8117647, b: 0.5411765, a: 0.38}
+    - _Color: {r: 1, g: 0.8117647, b: 0.5411765, a: 0.38}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &6346748762362776814
+--- !u!114 &8673436703909207403
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}

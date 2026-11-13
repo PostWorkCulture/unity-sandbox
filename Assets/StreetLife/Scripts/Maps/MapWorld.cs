@@ -1,6 +1,8 @@
 // Maps chat: everything a map needs beyond what MapBuilder builds (created by MapSet.Apply when the map isn't Street Life):
-//  - its atmosphere: the web game's sky gradient, sun and fill light, hemisphere ambient, fog, the far box clouds;
-//  - its extras: vertex-coloured ground (Map Ground shader), sea or lagoon water (Map Water shader), instanced crowds;
+//  - its atmosphere: the web game's sky gradient, sun and fill light, hemisphere ambient and fog, plus Unity's own drifting
+//    cloud layer in the sky shader and a per-map colour mood (Street Life too: it gets a MapWorld for the sky alone);
+//  - its extras: vertex-coloured ground (Map Ground shader), sea or lagoon water (Map Water shader; the beach's sea is
+//    generated here, dense near the shore and coarse far out), instanced crowds;
 //  - its rules: trains and the live rail (RailYard), wading and sea sounds (Waterside), open edges ("MAN DOWN"),
 //    edge glass that smashes when you walk into it (Sky High).
 // Runs before RoundManager (order -60) so the trains' boxes are in the world before the bots' nav grid is built.
@@ -42,7 +44,9 @@ namespace StreetLife
             try { extras = entry.extrasJson ? JsonUtility.FromJson<ExtrasJson>(entry.extrasJson.text) : null; } catch (System.Exception ex) { Debug.LogError("Street Life maps: extras.json: " + ex.Message); }
             bin = entry.extrasBin ? entry.extrasBin.bytes : null;
             ApplyEnv();
-            if (extras != null && bin != null) { BuildGround(); BuildClouds(); BuildCrowd(); }
+            Mood();
+            if (extras != null && bin != null) { BuildGround(); BuildCrowd(); }
+            if (entry.id == "wreck") BuildBeachSea();
             if (extras != null && extras.trains != null && extras.trains.Length > 0 || extras != null && extras.glow != null && extras.glow.Length > 0)
                 gameObject.AddComponent<RailYard>().Init(this);
             if (MapRules.Wading || MapRules.DeepWater) gameObject.AddComponent<Waterside>().Init(this);
@@ -62,38 +66,72 @@ namespace StreetLife
                 m.SetFloat("_Ex", s.ex); m.SetColor("_Glow", Hex.ToColor(s.glow)); m.SetFloat("_GlowA", s.glowA);
                 m.SetColor("_Disc", Hex.ToColor(s.disc)); m.SetFloat("_DiscCos", s.discCos);
                 if (s.sd != null && s.sd.Length == 3) m.SetVector("_SunDir", new Vector4(s.sd[0], s.sd[1], s.sd[2], 0));
+                var look = Look(entry.id);
+                m.SetFloat("_CloudCover", look.cover); m.SetColor("_CloudLit", look.lit); m.SetColor("_CloudShade", look.shade); m.SetFloat("_CloudAlpha", look.alpha);
+                if (env.global != null) foreach (var g in env.global) if (g.type == "DirectionalLight") { m.SetColor("_SunCol", Hex.ToColor(g.color)); break; }
                 RenderSettings.skybox = m;
             }
-            WLight hemi = null, sun = null, fill = null;
-            if (env.global != null)
-                foreach (var g in env.global)
+            // Lighting is set RELATIVE to the scene, never from the web game's raw numbers: the scene's sun, fill, ambient and fog are
+            // what the match chat tuned for Street Life (exposure, character lighting), so each map only scales and tints them by how
+            // its web game lights differ from Street Life's. Street Life itself keeps the scene's lighting untouched; and the ambient is
+            // kept exactly as it was before the sky changed (a new skybox must never darken the characters).
+            var probe = RenderSettings.ambientProbe;
+            Color aSky = RenderSettings.ambientSkyColor, aEq = RenderSettings.ambientEquatorColor, aGnd = RenderSettings.ambientGroundColor, aFlat = RenderSettings.ambientLight;
+            var mode = RenderSettings.ambientMode;
+            if (!entry.IsStreet)
+            {
+                Split(env, out var hemi, out var sun, out var fill);
+                EnvJson street = null;
+                var se = set ? set.Get("street") : null;
+                if (se != null && se.envJson) try { street = JsonUtility.FromJson<EnvJson>(se.envJson.text); } catch { }
+                Split(street, out var sHemi, out var sSun, out var sFill);
+                var sl = RenderSettings.sun;
+                if (!sl) foreach (var l in FindObjectsByType<Light>(FindObjectsInactive.Exclude)) if (l.type == LightType.Directional && l.shadows != LightShadows.None) { sl = l; break; }
+                if (sl && sun != null)
                 {
-                    if (g.type == "HemisphereLight") hemi = g;
-                    else if (g.type == "DirectionalLight") { if (sun == null) sun = g; else if (fill == null) fill = g; }
+                    sl.color = Hex.ToColor(sun.color);
+                    if (sSun != null && sSun.intensity > 0) sl.intensity *= sun.intensity / sSun.intensity;
+                    sl.transform.rotation = LookDir(sun, sl.transform.forward);
                 }
-            var sl = RenderSettings.sun;
-            if (!sl) foreach (var l in FindObjectsByType<Light>(FindObjectsInactive.Exclude)) if (l.type == LightType.Directional && l.shadows != LightShadows.None) { sl = l; break; }
-            if (sl && sun != null)
-            {
-                sl.color = Hex.ToColor(sun.color); sl.intensity = sun.intensity / Mathf.PI;
-                sl.transform.rotation = LookDir(sun, sl.transform.forward);
+                if (fill != null)
+                    foreach (var l in FindObjectsByType<Light>(FindObjectsInactive.Exclude))
+                        if (l.type == LightType.Directional && l != sl)
+                        {
+                            l.color = Hex.ToColor(fill.color);
+                            if (sFill != null && sFill.intensity > 0) l.intensity *= fill.intensity / sFill.intensity;
+                            l.transform.rotation = LookDir(fill, l.transform.forward); break;
+                        }
+                if (hemi != null && sHemi != null)
+                {
+                    float k = sHemi.intensity > 0 ? hemi.intensity / sHemi.intensity : 1;
+                    Color tSky = Ratio(Hex.ToColor(hemi.color), Hex.ToColor(sHemi.color)) * k, tGnd = Ratio(Hex.ToColor(hemi.ground), Hex.ToColor(sHemi.ground)) * k;
+                    Color tMid = Color.Lerp(tSky, tGnd, .5f);
+                    aSky *= tSky; aEq *= tMid; aGnd *= tGnd; aFlat *= tMid;
+                    for (int c = 0; c < 3; c++) { float t = c == 0 ? tMid.r : c == 1 ? tMid.g : tMid.b; for (int i = 0; i < 9; i++) probe[c, i] *= t; }
+                }
+                if (env.fog != null && !string.IsNullOrEmpty(env.fog.color) && RenderSettings.fog)
+                {
+                    RenderSettings.fogColor = Hex.ToColor(env.fog.color);
+                    if (RenderSettings.fogMode == FogMode.Linear) { RenderSettings.fogStartDistance = env.fog.near; RenderSettings.fogEndDistance = env.fog.far; }
+                }
             }
-            if (fill != null)
-                foreach (var l in FindObjectsByType<Light>(FindObjectsInactive.Exclude))
-                    if (l.type == LightType.Directional && l != sl) { l.color = Hex.ToColor(fill.color); l.intensity = fill.intensity / Mathf.PI; l.transform.rotation = LookDir(fill, l.transform.forward); break; }
-            if (hemi != null)
-            {
-                RenderSettings.ambientMode = AmbientMode.Trilight;
-                float hi = hemi.intensity / Mathf.PI; Color sky = Hex.ToColor(hemi.color), gnd = Hex.ToColor(hemi.ground);
-                RenderSettings.ambientSkyColor = sky * hi; RenderSettings.ambientEquatorColor = Color.Lerp(sky, gnd, .5f) * hi; RenderSettings.ambientGroundColor = gnd * hi;
-            }
-            if (env.fog != null && !string.IsNullOrEmpty(env.fog.color))
-            {
-                RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear; RenderSettings.fogColor = Hex.ToColor(env.fog.color);
-                RenderSettings.fogStartDistance = env.fog.near; RenderSettings.fogEndDistance = env.fog.far;
-            }
-            DynamicGI.UpdateEnvironment();
+            RenderSettings.ambientMode = mode;
+            RenderSettings.ambientSkyColor = aSky; RenderSettings.ambientEquatorColor = aEq; RenderSettings.ambientGroundColor = aGnd; RenderSettings.ambientLight = aFlat;
+            RenderSettings.ambientProbe = probe;   // no DynamicGI.UpdateEnvironment: that would rebuild the ambient from the new sky
         }
+
+        static void Split(EnvJson e, out WLight hemi, out WLight sun, out WLight fill)
+        {
+            hemi = sun = fill = null;
+            if (e == null || e.global == null) return;
+            foreach (var g in e.global)
+            {
+                if (g.type == "HemisphereLight") hemi = g;
+                else if (g.type == "DirectionalLight") { if (sun == null) sun = g; else if (fill == null) fill = g; }
+            }
+        }
+
+        static Color Ratio(Color a, Color b) => new Color(b.r > .01f ? a.r / b.r : 1, b.g > .01f ? a.g / b.g : 1, b.b > .01f ? a.b / b.b : 1, 1);
 
         static Quaternion LookDir(WLight l, Vector3 fallback)
         {
@@ -103,6 +141,99 @@ namespace StreetLife
                 if (d.sqrMagnitude > 1e-6f) return Quaternion.LookRotation(d.normalized);
             }
             return Quaternion.LookRotation(fallback);
+        }
+
+        // ------------------------------------------------------------------ per-map look: cloud layer and colour mood
+        struct LookSet { public float cover, alpha, temp, contrast, sat, bloom, ev; public Color lit, shade; }
+        static LookSet Look(string id)
+        {
+            // ev: the web game draws with no tone mapping (three r158 default), while the shared profile uses ACES, which puts mid grey
+            // about 0.8 stops lower; +0.6 brings the mid tones (and dark clothes such as Wednesday's) back to the web game's brightness
+            // and leaves ACES's softer highlights.
+            var l = new LookSet { cover = .52f, alpha = .95f, lit = Color.white, shade = new Color(.62f, .68f, .78f), bloom = -1, ev = .6f };
+            switch (id)
+            {
+                case "wreck": l.cover = .45f; l.temp = 3; break;                                                         // bright beach day
+                case "rail": l.cover = .55f; break;
+                case "skyhigh": l.cover = .55f; l.lit = new Color(1f, .8f, .62f); l.shade = new Color(.55f, .38f, .45f); l.temp = 10; l.sat = 8; break;   // golden hour
+                case "lagoon": l.cover = .52f; l.lit = new Color(1f, .82f, .86f); l.shade = new Color(.55f, .42f, .62f); l.temp = 6; l.sat = 10; break; // sunset
+                case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 8; l.bloom = .7f; l.ev = .45f; break; // night
+                case "house": case "yard": l.cover = .5f; break;
+            }
+            return l;
+        }
+
+        // a global volume on top of the shared one (priority 5) that nudges the shared look for the map: warmer, more saturated,
+        // more contrast or more bloom. Values are the shared profile's plus the map's change, so the match chat's look stays the base.
+        void Mood()
+        {
+            var l = Look(entry.id);
+            if (l.temp == 0 && l.sat == 0 && l.contrast == 0 && l.bloom < 0 && l.ev == 0) return;
+            VolumeProfile shared = null;
+            foreach (var vol in FindObjectsByType<Volume>(FindObjectsInactive.Exclude)) if (vol.isGlobal && vol.sharedProfile) { shared = vol.sharedProfile; break; }
+            float baseTemp = 0, baseSat = 0, baseCon = 0, baseEv = 0;
+            if (shared)
+            {
+                if (shared.TryGet<UnityEngine.Rendering.Universal.WhiteBalance>(out var wb0) && wb0.temperature.overrideState) baseTemp = wb0.temperature.value;
+                if (shared.TryGet<UnityEngine.Rendering.Universal.ColorAdjustments>(out var ca0)) { if (ca0.saturation.overrideState) baseSat = ca0.saturation.value; if (ca0.contrast.overrideState) baseCon = ca0.contrast.value; if (ca0.postExposure.overrideState) baseEv = ca0.postExposure.value; }
+            }
+            var prof = ScriptableObject.CreateInstance<VolumeProfile>(); prof.name = "Mood " + entry.id;
+            if (l.temp != 0) prof.Add<UnityEngine.Rendering.Universal.WhiteBalance>(true).temperature.Override(baseTemp + l.temp);
+            if (l.sat != 0 || l.contrast != 0 || l.ev != 0)
+            {
+                var ca = prof.Add<UnityEngine.Rendering.Universal.ColorAdjustments>(true);
+                if (l.ev != 0) ca.postExposure.Override(baseEv + l.ev);
+                if (l.sat != 0) ca.saturation.Override(baseSat + l.sat);
+                if (l.contrast != 0) ca.contrast.Override(baseCon + l.contrast);
+            }
+            if (l.bloom >= 0) prof.Add<UnityEngine.Rendering.Universal.Bloom>(true).intensity.Override(l.bloom);
+            var v = new GameObject("Map mood").AddComponent<Volume>(); v.transform.SetParent(transform, false);
+            v.isGlobal = true; v.priority = 5; v.sharedProfile = prof;
+        }
+
+        // Beach Please: the sea as one grid, dense where the waves run up the sand (0.7 m) and coarser further out (up to 40 m),
+        // coloured like the web game's (pale turquoise shallows, mid blue, deep blue) and moved by the Map Water shader.
+        void BuildBeachSea()
+        {
+            if (!set || !set.water) return;
+            var xs = Steps(8, 700, 60, .7f, 1.08f, 40f); var zs = Sym(320, 70, 1.2f, 1.1f, 40f);
+            int nx = xs.Count, nz = zs.Count; var v = new Vector3[nx * nz]; var col = new Color[nx * nz]; var nr = new Vector3[nx * nz];
+            Color sh = Hex.ToColor("#7fe6da").linear, mid = Hex.ToColor("#22a9c8").linear, dp = Hex.ToColor("#0f4f86").linear;
+            for (int j = 0; j < nz; j++)
+                for (int i = 0; i < nx; i++)
+                {
+                    float x = xs[i], z = zs[j], d = x - MapRules.Shore(-z); int k = j * nx + i;
+                    v[k] = new Vector3(x, .28f, z); nr[k] = Vector3.up;
+                    var c = Color.Lerp(sh, mid, Mathf.Clamp01(d / 18)); if (d > 18) c = Color.Lerp(c, dp, Mathf.Clamp01((d - 18) / 120)); c.a = 1; col[k] = c;
+                }
+            var idx = new int[(nx - 1) * (nz - 1) * 6]; int t = 0;
+            for (int j = 0; j < nz - 1; j++)
+                for (int i = 0; i < nx - 1; i++)
+                {
+                    int a = j * nx + i, b = a + 1, c2 = a + nx, d2 = c2 + 1;
+                    idx[t++] = a; idx[t++] = c2; idx[t++] = b; idx[t++] = b; idx[t++] = c2; idx[t++] = d2;
+                }
+            var mesh = new Mesh { name = "beach sea", indexFormat = v.Length > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16 };
+            mesh.vertices = v; mesh.normals = nr; mesh.colors = col; mesh.triangles = idx;
+            var b2 = mesh.bounds; b2.Expand(new Vector3(0, 2, 0)); mesh.bounds = b2;
+            var go = new GameObject("Beach sea"); go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>(); mr.shadowCastingMode = ShadowCastingMode.Off;
+            var m = new Material(set.water) { name = "Water wreck" }; m.SetFloat("_Mode", 0); m.renderQueue = 3000; mr.sharedMaterial = m;
+        }
+
+        // from a to b: step s0 up to `until`, then growing by `grow` each step up to `max`
+        static List<float> Steps(float a, float b, float until, float s0, float grow, float max)
+        {
+            var l = new List<float>(); float x = a, s = s0;
+            while (x < b) { l.Add(x); if (x >= until) s = Mathf.Min(max, s * grow); x += s; }
+            l.Add(b); return l;
+        }
+        static List<float> Sym(float half, float inner, float s0, float grow, float max)
+        {
+            var pos = Steps(0, half, inner, s0, grow, max); var l = new List<float>();
+            for (int i = pos.Count - 1; i > 0; i--) l.Add(-pos[i]);
+            l.AddRange(pos); return l;
         }
 
         // ------------------------------------------------------------------ extras
@@ -142,25 +273,6 @@ namespace StreetLife
         }
 
         static Bounds Grow(Bounds b) { b.Expand(new Vector3(0, 2, 0)); return b; }   // the waves move the surface up and down
-
-        void BuildClouds()
-        {
-            if (env == null || env.env == null || env.env.clouds == null || env.env.clouds.Length == 0) return;
-            var root = new GameObject("Clouds").transform; root.SetParent(transform, false);
-            var mats = new Dictionary<int, Material>();
-            foreach (var id in env.env.clouds)
-            {
-                int mid = extras.meshes[id].mat;
-                if (!mats.TryGetValue(mid, out var m))
-                {
-                    var src = MapMat(mid);
-                    m = set.cloud ? new Material(set.cloud) : src;
-                    if (set.cloud && src && src.HasProperty("_BaseColor")) m.SetColor("_BaseColor", src.GetColor("_BaseColor"));
-                    mats[mid] = m;
-                }
-                var go = MeshObject(id, root, m); go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
-            }
-        }
 
         void BuildCrowd()
         {
@@ -263,6 +375,7 @@ namespace StreetLife
         void QuietTownLife()
         {
             var tl = FindAnyObjectByType<TownLife>(); if (!tl) return;
+            if (entry.id == "street") return;
             if (entry.id != "rail" && entry.id != "wreck") { tl.gameObject.SetActive(false); return; }
             foreach (Transform c in tl.transform) if (c.name == "butterfly") c.gameObject.SetActive(false);
         }

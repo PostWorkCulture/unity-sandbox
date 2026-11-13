@@ -91,10 +91,16 @@ namespace StreetLife
 
         // ------------------------------------------------------------------ public hooks for weapons
         /// A bullet / sword hit on box `boxIndex` (from BoxWorld.Ray). Returns true if something here took the hit.
+        /// Something broke: kind is glass, prop, drum, car, tree or play; by is who did it (null if unknown).
+        /// For stats and achievements (progression chat).
+        public static event System.Action<string, Fighter> Broken;
+        static Fighter curBy;
+        static void Report(string kind) { try { Broken?.Invoke(kind, curBy); } catch (System.Exception ex) { Debug.LogException(ex); } }
+
         public static bool Hit(int boxIndex, float dmg, Vector3 at, Vector3 dir, Fighter by = null)
         {
             if (!I || !I.byBox.TryGetValue(boxIndex, out var e) || !e.alive) return false;
-            I.Damage(e, dmg, at, dir);
+            curBy = by; try { I.Damage(e, dmg, at, dir); } finally { curBy = null; }
             return true;
         }
 
@@ -103,7 +109,8 @@ namespace StreetLife
         public static void Blast(Vector3 at, float radius, Fighter by = null, float maxDamage = 0)
         {
             if (!I) return;
-            I.DoBlast(at, radius, by, maxDamage);
+            var prevBy = curBy; curBy = by ?? curBy;
+            try { I.DoBlast(at, radius, by, maxDamage); } finally { curBy = prevBy; }
         }
 
         /// Bullets passing close to loose items knock them about (and wear down breakable ones).
@@ -159,6 +166,7 @@ namespace StreetLife
             foreach (var i in e.boxes) BoxWorld.Disable(i);
             e.t.gameObject.SetActive(false);
             bool glass = e.d.kind == "glass" || e.d.prop == "glass";
+            Report(glass ? "glass" : e.d.boom ? "drum" : "prop");
             string snd = !string.IsNullOrEmpty(e.d.snd) ? e.d.snd : e.d.prop == "bush" ? "bush" : e.d.prop == "bin" ? "bin" : "crate";
             Sfx.Play(snd, c, glass ? 1.35f : 1f, glass ? 22 : 18);
             var away = new Vector3(c.x - at.x, 0, c.z - at.z); if (away.sqrMagnitude < 1e-4f) away = Random.insideUnitSphere; away.y = 0; away.Normalize();
@@ -279,6 +287,7 @@ namespace StreetLife
         {
             if (!e.alive || e.st != 0) return;
             e.alive = false; e.st = 1; e.stT = 0;
+            Report(e.d.kind);
             var p = e.t.position; var d = new Vector3(p.x - at.x, 0, p.z - at.z); if (d.sqrMagnitude < 1e-4f) d = new Vector3(Random.value - .5f, 0, Random.value - .5f); d.Normalize();
             e.axis = Vector3.Cross(Vector3.up, d);   // tips away from the shot
             foreach (var i in e.boxes) BoxWorld.Disable(i);
@@ -358,6 +367,7 @@ namespace StreetLife
         {
             if (e.burnt) return;
             e.burnt = true; e.v = 0; e.carState = "dead"; e.burnT = 0;
+            Report("car");
             // the shell settles 30 cm (burst tyres) and stays as cover
             foreach (var i in e.boxes) { var bx = BoxWorld.Boxes[i]; bx.y0 -= .3f; bx.y1 -= .3f; BoxWorld.Set(i, bx); }
             e.t.position += Vector3.down * .3f;
@@ -470,6 +480,7 @@ namespace StreetLife
             e.bhp -= dmg;
             if (e.bhp > 0) return;
             e.alive = false; e.t.gameObject.SetActive(false);
+            Report("prop");
             var p = e.t.position;
             Sfx.Play("crate", p, .8f, 14);
             BreakFx.I.Chunks(p, new Vector3(e.d.kw, e.d.kh, e.d.kd), Vector3.up, new[] { BaseColor(e), C("#d8dbe2"), C("#55585f") }, 8, p.y - e.d.kh / 2, 1.2f);

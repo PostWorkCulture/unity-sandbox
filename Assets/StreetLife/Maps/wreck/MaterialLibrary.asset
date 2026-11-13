@@ -164,17 +164,8 @@ MonoBehaviour:
   - {fileID: 2100000, guid: a5e1369681323b3429633ad0668bec9a, type: 2}
   - {fileID: 2100000, guid: 4e179db61253c824584b2f9636b5f600, type: 2}
   - {fileID: 2100000, guid: a58e6061131e3d147ba00291b5d3b357, type: 2}
-  - {fileID: 2100000, guid: 5413d8d6f0bf51649a81d78c83cc84c2, type: 2}
-  - {fileID: 2100000, guid: 5b39a6f55b4d6d247a0ac019c85793a1, type: 2}
-  - {fileID: 2100000, guid: b565d70fd112dc847bc90dc8988478d0, type: 2}
-  - {fileID: 2100000, guid: db2b001511a54a4469b3516f9a12eef0, type: 2}
-  - {fileID: 2100000, guid: dc21b891eb7567c4aa425b85f2cabb21, type: 2}
-  - {fileID: 2100000, guid: 16dc8f5b31ceba64a8b6ff6dc9ce8719, type: 2}
-  - {fileID: 2100000, guid: e0604f3536c0bdc47a37e345c350140a, type: 2}
-  - {fileID: 2100000, guid: b2db2c65e2a802d4399e29c714c22214, type: 2}
-  - {fileID: 2100000, guid: c2c5f43970e6aec47889c3e2081acc0c, type: 2}
   character: []
   guns: []
   unlitBase: {fileID: 2100000, guid: 299add25613231245ad8f160f23b2059, type: 2}
   lineBase: {fileID: 2100000, guid: c1ab8692e32e7fa478a33e8c831c9c09, type: 2}
-  dataStamp: 50ee0f588c8e4c348633614bdb115aeb
+  dataStamp: d75c7541cdd49b902e6ade1709a8bc76

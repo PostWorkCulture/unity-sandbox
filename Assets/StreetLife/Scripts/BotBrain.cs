@@ -36,7 +36,13 @@ namespace StreetLife
         // aim
         float aimYaw, aimPitch, errScale = 1, errYaw, errPitch, errT, burstShots, pauseT, hesitate, triggerT; bool aimHead;
 
-        void Awake() { f = GetComponent<Fighter>(); }
+        void Awake() { f = GetComponent<Fighter>(); if (!GetComponent<BotExtras>()) gameObject.AddComponent<BotExtras>(); }
+
+        // read by BotExtras (abilities, lethals)
+        public bool Sees => sees;
+        public float LostT => lostT;
+        public Vector3? LastSeen => lastSeen;
+        public float StuckT => stuckT;
 
         public string DebugInfo => $"{styleId} {Mode} sees:{sees} path:{(path == null ? -1 : path.Count)} ix:{pathIx} stuck:{stuckT:F1} ladder:{(f.onLadder != null)} wp:{(path != null && pathIx < path.Count ? NavGrid.Nodes[path[pathIx]].p.ToString() : "-")} {(path != null && pathIx > 0 && pathIx < path.Count ? NavGrid.EdgeBetween(path[pathIx - 1], path[pathIx], out _).ToString() : "")}";
 
@@ -67,7 +73,8 @@ namespace StreetLife
         void Perceive(float dt)
         {
             bool was = sees;
-            sees = target.alive && (NavGrid.Los(Eye, Body(target)) || NavGrid.Los(Eye, target.Head));
+            bool ghosted = target.ghostT > 0 && Flat(target.pos - f.pos).magnitude > 8;   // Vanish: unseen beyond 8 m
+            sees = target.alive && !ghosted && !(f.blindT > 0) && (NavGrid.Los(Eye, Body(target)) || NavGrid.Los(Eye, target.Head));
             if (sees) { seeT += dt; lostT = 0; lastSeen = target.pos; if (!was) OnFirstSight(); }
             else { seeT = 0; lostT += dt; }
             // hearing: shots give away where you are; being hit tells it roughly where from

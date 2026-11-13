@@ -127,12 +127,8 @@ MonoBehaviour:
   - {fileID: 2100000, guid: c76a74bf00de39c4cb35d0b17a2131fe, type: 2}
   - {fileID: 2100000, guid: 59762eb36e2db444bbcaa4337b9cea6f, type: 2}
   - {fileID: 2100000, guid: 27612421e103b7a47a2fcc8f8912ba39, type: 2}
-  - {fileID: 2100000, guid: 8d3d4f67ea1493c44afe1dc6e4f1a1c7, type: 2}
-  - {fileID: 2100000, guid: ee9d3bb01c13e894fbaf0361cad0f5a8, type: 2}
-  - {fileID: 2100000, guid: c8419c96e260a644e947606aff479a2e, type: 2}
-  - {fileID: 2100000, guid: 48c9775a299d0794ebae9bbab4544969, type: 2}
   character: []
   guns: []
   unlitBase: {fileID: 2100000, guid: 299add25613231245ad8f160f23b2059, type: 2}
   lineBase: {fileID: 2100000, guid: c1ab8692e32e7fa478a33e8c831c9c09, type: 2}
-  dataStamp: 39f69178cd088646543b98074d7d290c
+  dataStamp: 0af50c3abaffd50bec98fe08b84e87ed

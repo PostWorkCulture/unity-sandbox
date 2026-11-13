@@ -100,6 +100,11 @@ namespace StreetLife.EditorTools
                     try { StreetLifeBuild.PublishSite(); } finally { StreetLifeBuild.Quiet = false; }
                     Say("publish: " + StreetLifeBuild.LastResult.Replace('\n', ' '));
                     break;
+                case "build-windows":
+                    StreetLifeBuild.Quiet = true;
+                    try { StreetLifeBuild.BuildWindows(); } finally { StreetLifeBuild.Quiet = false; }
+                    Say("windows: " + StreetLifeBuild.LastResult.Replace('\n', ' '));
+                    break;
                 case "build-android":
                     StreetLifeBuild.Quiet = true;
                     try { StreetLifeBuild.BuildAndroid(); } finally { StreetLifeBuild.Quiet = false; }

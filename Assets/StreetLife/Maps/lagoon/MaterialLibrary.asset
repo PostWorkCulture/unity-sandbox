@@ -98,10 +98,8 @@ MonoBehaviour:
   - {fileID: 2100000, guid: bfafaeadbabe0c84ebe343273ef7d3d6, type: 2}
   - {fileID: 2100000, guid: 9e40f137223dbba4aa40d33b61421e7d, type: 2}
   - {fileID: 2100000, guid: 1837465891a8d0048941e5fa6aa3932a, type: 2}
-  - {fileID: 2100000, guid: 80ed5b7528ad594428f116d69093d639, type: 2}
-  - {fileID: 2100000, guid: 4ae43b0e2fe855a46acfaf139a1a7e74, type: 2}
   character: []
   guns: []
   unlitBase: {fileID: 2100000, guid: 299add25613231245ad8f160f23b2059, type: 2}
   lineBase: {fileID: 2100000, guid: c1ab8692e32e7fa478a33e8c831c9c09, type: 2}
-  dataStamp: 37033b8a792b753783dc7a2e3937b4d2
+  dataStamp: 59e94f0d20f26c03d80162b351e67259

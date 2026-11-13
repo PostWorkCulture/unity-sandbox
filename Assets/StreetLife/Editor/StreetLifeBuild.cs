@@ -100,6 +100,24 @@ namespace StreetLife.EditorTools
             Dlg("Street Life", $"Pushed to the gh-pages branch.\n\nIf this is the first time: on GitHub open the repo's Settings > Pages and choose 'Deploy from a branch', gh-pages, / (root).\n\nThen: {site}", "OK");
         }
 
+        /// Windows desktop: 64-bit, the "PC" quality level, into Builds/Windows/StreetLife.exe (Mono, so no extra module is needed).
+        [MenuItem("Street Life/Build/Windows (desktop)")]
+        public static void BuildWindows()
+        {
+            var nb = NamedBuildTarget.Standalone;
+            PlayerSettings.productName = "Street Life"; PlayerSettings.companyName = "PostWorkCulture";
+            PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
+            PlayerSettings.defaultIsNativeResolution = true; PlayerSettings.runInBackground = true;
+            PlayerSettings.SetScriptingBackend(nb, ScriptingImplementation.Mono2x);
+            var outDir = Path.Combine(ProjectDir, "Builds", "Windows"); Directory.CreateDirectory(outDir);
+            var exe = Path.Combine(outDir, "StreetLife.exe");
+            var report = Build(BuildTarget.StandaloneWindows64, BuildTargetGroup.Standalone, exe);
+            if (report == null) return;
+            long bytes = Directory.GetFiles(outDir, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length);
+            Dlg("Street Life", $"Windows build: {bytes / 1048576f:F0} MB in Builds/Windows, {report.summary.totalTime.TotalMinutes:F1} min ({PlayerSettings.GetScriptingBackend(nb)}). Run StreetLife.exe.", "OK");
+            if (!Quiet) EditorUtility.RevealInFinder(exe);
+        }
+
         [MenuItem("Street Life/Build/Android APK (S24)")]
         public static void BuildAndroid()
         {

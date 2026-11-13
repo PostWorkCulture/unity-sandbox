@@ -13,7 +13,7 @@ namespace StreetLife.EditorTools
     public static class MapsSetup
     {
         const string Root = "Assets/StreetLife", MapsDir = Root + "/Maps", SetPath = Root + "/Resources/StreetLifeMaps.asset";
-        const string Version = "maps-v1";   // bump when the material setup itself changes
+        const string Version = "maps-v2";   // bump when the material setup itself changes
         // menu order and which web game menu each map comes from
         static readonly string[] Order = { "street", "rail", "wreck", "arena", "skyhigh", "lagoon", "house", "yard" };
         static readonly Dictionary<string, string> Mode = new Dictionary<string, string> {
@@ -95,6 +95,7 @@ namespace StreetLife.EditorTools
                 desc = "A suburban street: houses you can climb and go into, a corner shop, a garage, cars that drive up and down.",
                 swatch = new[] { Hex.ToColor("#5aae46"), Hex.ToColor("#e8e1d3"), Hex.ToColor("#e8463a") },
                 mapJson = Load(Root + "/Data/map.json"), mapBin = Load(Root + "/Data/map.bytes"), dynJson = Load(Root + "/Data/dyn.json"), dynBin = Load(Root + "/Data/dyn.bytes"),
+                envJson = Load(MapsDir + "/street/env.json"),   // sky, sun and fog only: the map data stays the match chat's
                 library = main
             };
             var all = new Dictionary<string, MapSet.Entry> { { "street", street } };
@@ -132,26 +133,36 @@ namespace StreetLife.EditorTools
         static TextAsset Load(string path) => AssetDatabase.LoadAssetAtPath<TextAsset>(path);
 
         // ------------------------------------------------------------------ textures and materials (as StreetLifeSetup does for Street Life)
+        // textures used by more than one map live once in Maps/Shared/Textures; materials.json names them with "file"
+        [System.Serializable] class TexFile { public int id; public string file; }
+        [System.Serializable] class TexFiles { public TexFile[] textures; }
+        static string TexPath(Dictionary<int, string> files, string folder, int id) => files.TryGetValue(id, out var f) && !string.IsNullOrEmpty(f) ? f : folder + "/t" + id + ".png";
+
         static Texture2D[] ImportTextures(MatJson mj, string folder)
         {
             var arr = new Texture2D[mj.textures.Length];
+            var files = new Dictionary<int, string>();
+            var tf = JsonUtility.FromJson<TexFiles>(File.ReadAllText(folder.Substring(0, folder.LastIndexOf('/')) + "/materials.json"));
+            if (tf != null && tf.textures != null) foreach (var t in tf.textures) if (!string.IsNullOrEmpty(t.file)) files[t.id] = t.file;
             AssetDatabase.StartAssetEditing();
             try
             {
                 foreach (var t in mj.textures)
                 {
-                    var path = folder + "/t" + t.id + ".png";
+                    var path = TexPath(files, folder, t.id);
                     if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) continue;
+                    if (files.ContainsKey(t.id) && ti.userData == "maps-shared") continue;   // a shared texture: set up once by the first map that uses it
                     ti.textureType = TextureImporterType.Default; ti.sRGBTexture = true; ti.mipmapEnabled = true; ti.alphaIsTransparency = true;
                     ti.wrapModeU = t.wrapS == "clamp" ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
                     ti.wrapModeV = t.wrapT == "clamp" ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
                     ti.filterMode = t.point ? FilterMode.Point : FilterMode.Trilinear; ti.anisoLevel = t.point ? 0 : 8;
                     ti.maxTextureSize = 2048; ti.textureCompression = TextureImporterCompression.CompressedHQ;
+                    if (files.ContainsKey(t.id)) ti.userData = "maps-shared";
                     ti.SaveAndReimport();
                 }
             }
             finally { AssetDatabase.StopAssetEditing(); }
-            foreach (var t in mj.textures) if (t.id >= 0 && t.id < arr.Length) arr[t.id] = AssetDatabase.LoadAssetAtPath<Texture2D>(folder + "/t" + t.id + ".png");
+            foreach (var t in mj.textures) if (t.id >= 0 && t.id < arr.Length) arr[t.id] = AssetDatabase.LoadAssetAtPath<Texture2D>(TexPath(files, folder, t.id));
             return arr;
         }
 

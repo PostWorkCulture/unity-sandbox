@@ -15,10 +15,10 @@ namespace StreetLife
             if (FindAnyObjectByType<PerfProbe>()) return;
             var go = new GameObject("PerfProbe"); DontDestroyOnLoad(go); go.AddComponent<PerfProbe>();
             UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.Enable();
-            // phones default to 30 fps: run at the screen's own rate (120 Hz on the S24), and don't dim mid-match
+            // phones default to 30 fps: run at the chosen rate (Settings.Fps, 60 by default), and don't dim mid-match
             if (Application.isMobilePlatform && Application.platform != RuntimePlatform.WebGLPlayer)
             {
-                Application.targetFrameRate = Mathf.Max(60, Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value));
+                Settings.ApplyFps();   // the Frame rate setting: 60 / 90 / 120, capped at the screen's rate
                 Screen.sleepTimeout = SleepTimeout.NeverSleep;
             }
         }

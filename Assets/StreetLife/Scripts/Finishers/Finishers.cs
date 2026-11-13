@@ -302,17 +302,34 @@ namespace StreetLife
         }
 
         /// Is (x,z) over the map's ground at all? (Beyond the scenery a thrown body falls away.)
-        static Bounds? scenery;
+        static Bounds? scenery; static MapBuilder sceneryOf;
         public static bool OverMap(float x, float z)
         {
-            if (!scenery.HasValue)
+            var mb = Object.FindAnyObjectByType<MapBuilder>();
+            if (!scenery.HasValue || sceneryOf != mb)
             {
-                var mb = Object.FindAnyObjectByType<MapBuilder>(); Bounds b = default; bool any = false;
-                if (mb) foreach (var r in mb.GetComponentsInChildren<MeshRenderer>()) { if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds); }
+                Bounds b = default; bool any = false;
+                void Add(Component root) { if (root) foreach (var r in root.GetComponentsInChildren<MeshRenderer>()) { if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds); } }
+                Add(mb); Add(MapWorld.I);
                 if (!any || b.size.x < 1) { var d = BoxWorld.Bounds; b = new Bounds(new Vector3((d.x0 + d.x1) / 2, 0, (d.z0 + d.z1) / 2), new Vector3(d.x1 - d.x0 + 40, 100, d.z1 - d.z0 + 40)); }
-                scenery = b;
+                scenery = b; sceneryOf = mb;
             }
             var s = scenery.Value; return x > s.min.x && x < s.max.x && z > s.min.z && z < s.max.z;
+        }
+        /// No ground at all here: past Sky High's roof, or the Lagoon's open water (the maps chat's MapRules.Drop).
+        public static bool NoGround(float x, float z) => MapRules.Drop(x, z);
+        public const float NONE = -1e4f;
+
+        /// How far you can walk from `from` along `dir` (flat) and stay on the same floor (within .6 m of from.y), up to max:
+        /// stops at a roof edge, open water or a drop, so nobody in a move walks out over nothing.
+        public static float FloorRun(Vector3 from, Vector3 dir, float max)
+        {
+            for (float s = .25f; s <= max; s += .25f)
+            {
+                float x = from.x + dir.x * s, z = from.z + dir.z * s, h = SurfaceAt(x, z, from.y + .3f);
+                if (Mathf.Abs(h - from.y) > .6f) return Mathf.Max(0, s - .25f);
+            }
+            return max;
         }
         public static void ForgetMap() { scenery = null; }
 
@@ -320,6 +337,7 @@ namespace StreetLife
         public static float SurfaceAt(float x, float z, float y)
         {
             float best = 0, bd = y + .7f >= 0 ? y : (0 - y) * 4;
+            if (NoGround(x, z)) { best = NONE; bd = 1e9f; }      // only box tops (Sky High's roof, the boardwalks), or nothing
             var B = Boxes;
             for (int i = 0; i < B.Count; i++)
             {
@@ -334,7 +352,7 @@ namespace StreetLife
         /// web groundAt: the floor under a point (a little above it counts).
         public static float GroundAt(float x, float z, float y)
         {
-            float best = 0; var B = Boxes; float lim = y + .5f;
+            float best = NoGround(x, z) ? NONE : 0; var B = Boxes; float lim = y + .5f;
             for (int i = 0; i < B.Count; i++)
             {
                 var b = B[i];
@@ -347,7 +365,7 @@ namespace StreetLife
         /// Is there a floor at (x,z) within 5 cm of h?
         public static bool FloorAt(float x, float z, float h)
         {
-            if (Mathf.Abs(h) < .05f) { if (!Covered(x, z, h)) return true; }
+            if (Mathf.Abs(h) < .05f && !NoGround(x, z)) { if (!Covered(x, z, h)) return true; }
             var B = Boxes;
             for (int i = 0; i < B.Count; i++)
             {

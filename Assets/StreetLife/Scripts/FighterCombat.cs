@@ -40,6 +40,7 @@ namespace StreetLife
             alive = true; armor = 0; inFire = false; lastBy = null; damagedBy.Clear();
             Place(p, yawRad);
             hp = hpMax;
+            ResetAbility();
         }
 
         public void ResetStats() { kills = deaths = assists = shots = hits = headshots = 0; damageDealt = 0; }
@@ -49,6 +50,7 @@ namespace StreetLife
         {
             if (!alive || amount <= 0) return 0;
             if (by != null && by != this && by.team == team) return 0;   // no friendly fire
+            amount = AbilityDamage(amount, by, out var reflect);   // abilities: shield, thorn armour, vanish ends
             if (DownedHit(amount, by, head, out var downedTaken)) return downedTaken;   // finishers: hits while down or being finished
             float soak = Mathf.Min(armor, amount); armor -= soak;
             float taken = Mathf.Min(hp, amount - soak);
@@ -58,6 +60,7 @@ namespace StreetLife
             if (by != null) { lastHitFrom = by.pos; by.damageDealt += taken + soak; damagedBy[by] = Time.time; }
             Damaged?.Invoke(taken + soak, by);
             if (hp <= 0.001f && !GoDown(by, head)) Die(by, head);   // finishers: down first
+            ReflectThorns(by, reflect);
             return taken + soak;
         }
 
@@ -74,6 +77,6 @@ namespace StreetLife
         public void NoteShot() { shots++; lastShotTime = Time.time; lastShotPos = pos; }
         public void NoteHit(bool head) { hits++; if (head) headshots++; }
 
-        void TickCombat(float dt) { TickDowned(dt); /* finishers */ }
+        void TickCombat(float dt) { TickDowned(dt); /* finishers */ TickAbility(dt); }
     }
 }

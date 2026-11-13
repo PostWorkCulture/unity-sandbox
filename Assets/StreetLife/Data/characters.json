@@ -1,6 +1,6 @@
 {
- "source": "imok 1v1 d60032c",
- "exported": "2026-11-12T19:53:39.076Z",
+ "source": "imok 1v1 ",
+ "exported": "2026-11-13T13:29:40.594Z",
  "characters": [
   {
    "id": "wednesday",
@@ -254,6 +254,36 @@
    "killFx": [
     "Lightning",
     "Brick burst"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "dida",
+   "name": "Dida",
+   "desc": "Little one in her unicorn jumper",
+   "ability": "Sprint",
+   "cooldown": 9,
+   "hp": 100,
+   "speed": 1,
+   "color": "#9b5bd6",
+   "killFx": [
+    "Balloon",
+    "Rainbow beam"
+   ],
+   "hasModel": true
+  },
+  {
+   "id": "lia",
+   "name": "Lia",
+   "desc": "Cool in denim shorts and a gold chain",
+   "ability": "Sprint",
+   "cooldown": 9,
+   "hp": 100,
+   "speed": 1,
+   "color": "#4f7fc8",
+   "killFx": [
+    "Disco",
+    "Firework"
    ],
    "hasModel": true
   },

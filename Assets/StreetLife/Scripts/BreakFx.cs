@@ -78,6 +78,7 @@ namespace StreetLife
         /// The explosion: a flash of light, a fireball that billows and darkens, a ring of dust, then a smoke column.
         public void Boom(Vector3 at, float radius)
         {
+            if (BoomFx.Play(at, radius, null, true)) return;   // the full explosion (BoomFx.cs)
             var go = new GameObject("Boom"); go.transform.position = at + Vector3.up * .3f;
             var l = go.AddComponent<Light>(); l.type = LightType.Point; l.color = new Color(1f, .7f, .35f); l.range = radius * 4; l.intensity = 8;
             StartCoroutine(FadeLight(l, .5f));

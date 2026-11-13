@@ -1,7 +1,8 @@
-// The front end, styled after the web game's menu (dark panels, cyan selections, pink-to-purple call to action):
+// The front end: monochrome (black panels, white type and selections), one red-orange accent on Play:
 //   1  Mode & map: bot difficulty, 1v1 rules, the map (all eight, from the maps chat's MapSet), with the live map slowly
 //      circling behind the menu.
 //   2  Character: every character (characters chat), dressed on your own fighter live in front of the camera.
+//   3  Loadout: primary, secondary and lethal (Normal rules; Simple shows the fixed kit), put on your fighter at Play.
 //   Play: starts the match (a different map reloads the scene there first and goes straight in).
 // Esc in a match pauses: Resume, Settings, Main menu. Settings (gear): look and aim sensitivity, music and effects volume,
 // graphics (High = the PC quality level, Smooth = the lighter one phones and the browser use), frame-rate readout.
@@ -23,9 +24,10 @@ namespace StreetLife
         static bool skipOnce;   // set before a reload for a new map: go straight into the match afterwards
 
         // ---- palette (the web game's)
-        static readonly Color Bg = new Color32(17, 18, 24, 235), Panel = new Color32(27, 30, 38, 240), Line = new Color32(46, 51, 63, 255),
-            Chip = new Color32(36, 40, 51, 255), Text = new Color32(236, 238, 245, 255), Dim = new Color32(150, 156, 176, 255),
-            Cyan = new Color32(63, 214, 245, 255), Pink = new Color32(255, 61, 127, 255), Purple = new Color32(124, 92, 255, 255), Ink = new Color32(16, 20, 28, 255);
+        // Monochrome: black panels, white type and selections, one accent (Accent) used sparingly: Play, the "1v1" mark, the map underline.
+        static readonly Color Bg = new Color32(6, 6, 6, 235), Panel = new Color32(10, 10, 10, 238), Line = new Color32(70, 70, 70, 255),
+            Chip = new Color32(32, 32, 32, 255), Text = new Color32(245, 245, 245, 255), Dim = new Color32(138, 138, 138, 255),
+            Sel = new Color32(255, 255, 255, 255), Accent = new Color32(255, 59, 48, 255), AccentDeep = new Color32(214, 34, 26, 255), Ink = new Color32(0, 0, 0, 255);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -35,7 +37,7 @@ namespace StreetLife
             new GameObject("Main menu").AddComponent<MainMenu>();
         }
 
-        UIDocument doc; VisualElement root, menu, pause, settings, mapCard, charGrid, charInfo, stepA, stepB;
+        UIDocument doc; VisualElement root, menu, pause, settings, mapCard, charGrid, charInfo, stepA, stepB, stepC, loadBox;
         Label mapTitle, mapDesc, mapTag;
         int step; string selMap; float orbit;
         readonly List<Behaviour> hidden = new List<Behaviour>();
@@ -64,9 +66,10 @@ namespace StreetLife
             // no UI theme: the document root has no size of its own, so pin it to the screen
             root.style.position = Position.Absolute; root.style.left = root.style.top = root.style.right = root.style.bottom = 0;
             selMap = MapSet.Current;
+            { var cur = MapSet.Load() ? MapSet.Load().Get(selMap) : null; Settings.Mode = ModeKey(cur); }
             BuildMenu(); BuildPause(); BuildSettings();
             Show(Open ? menu : null);
-            if (Open) Enter(); else player = FindPlayer();
+            if (Open) Enter(); else { player = FindPlayer(); ApplyLoadout(); }
         }
 
         // ================================================================== building blocks
@@ -89,7 +92,7 @@ namespace StreetLife
         {
             if (gradient) return gradient;
             gradient = new Texture2D(256, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-            for (int i = 0; i < 256; i++) gradient.SetPixel(i, 0, Color.Lerp(Pink, Purple, i / 255f));
+            for (int i = 0; i < 256; i++) gradient.SetPixel(i, 0, Color.Lerp(Accent, AccentDeep, i / 255f));
             gradient.Apply(); return gradient;
         }
 
@@ -100,7 +103,7 @@ namespace StreetLife
             Radius(b, primary ? 10 : 8); Border(b, primary ? 2 : 1, primary ? new Color(0, 0, 0, .35f) : Line); Pad(b, primary ? 12 : 8, primary ? 40 : 16);
             b.style.marginLeft = b.style.marginRight = 0; b.style.marginTop = b.style.marginBottom = 0;
             b.style.flexShrink = 0; b.style.whiteSpace = WhiteSpace.NoWrap;
-            if (primary) { b.style.backgroundImage = new StyleBackground(Gradient()); b.style.backgroundColor = Pink; b.style.fontSize = 20; }
+            if (primary) { b.style.backgroundImage = new StyleBackground(Gradient()); b.style.backgroundColor = Accent; b.style.fontSize = 20; }
             else b.style.backgroundColor = Chip;
             b.RegisterCallback<PointerEnterEvent>(_ => b.style.opacity = .85f);
             b.RegisterCallback<PointerLeaveEvent>(_ => b.style.opacity = 1f);
@@ -112,7 +115,7 @@ namespace StreetLife
         {
             var bar = new VisualElement(); bar.style.flexDirection = FlexDirection.Row; bar.style.backgroundColor = Chip; Radius(bar, 9); Pad(bar, 3, 3);
             var buttons = new List<Button>();
-            void Refresh() { for (int i = 0; i < buttons.Count; i++) { bool on = values[i] == get(); buttons[i].style.backgroundColor = on ? Cyan : new Color(0, 0, 0, 0); buttons[i].style.color = on ? Ink : Dim; } }
+            void Refresh() { for (int i = 0; i < buttons.Count; i++) { bool on = values[i] == get(); buttons[i].style.backgroundColor = on ? Sel : new Color(0, 0, 0, 0); buttons[i].style.color = on ? Ink : Dim; } }
             for (int i = 0; i < labels.Length; i++)
             {
                 var v = values[i];
@@ -130,7 +133,7 @@ namespace StreetLife
             var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.alignItems = Align.Center; row.style.justifyContent = Justify.SpaceBetween; row.style.marginBottom = 10;
             row.Add(L(name, 15, Text));
             var box = new VisualElement(); box.style.flexDirection = FlexDirection.Row; box.style.alignItems = Align.Center;
-            var val = L("", 15, Cyan, true); val.style.width = 70; val.style.unityTextAlign = TextAnchor.MiddleCenter;
+            var val = L("", 15, Sel, true); val.style.width = 70; val.style.unityTextAlign = TextAnchor.MiddleCenter;
             int Index() { float v = get(); int best = 0; for (int i = 1; i < steps.Length; i++) if (Mathf.Abs(steps[i] - v) < Mathf.Abs(steps[best] - v)) best = i; return best; }
             void Refresh() => val.text = fmt(steps[Index()]);
             box.Add(Btn("<", () => { set(steps[Mathf.Max(0, Index() - 1)]); Refresh(); }));
@@ -160,7 +163,7 @@ namespace StreetLife
             // top bar: imok 1v1 + settings
             var top = new VisualElement(); top.style.flexDirection = FlexDirection.Row; top.style.justifyContent = Justify.SpaceBetween; top.style.alignItems = Align.Center; top.style.marginBottom = 12;
             var title = new VisualElement(); title.style.flexDirection = FlexDirection.Row; title.style.alignItems = Align.FlexEnd;
-            var imok = L("imok", 38, Text); imok.style.marginRight = 10; title.Add(imok); title.Add(L("1v1", 38, Pink));
+            var imok = L("imok", 38, Text); imok.style.marginRight = 10; title.Add(imok); title.Add(L("1v1", 38, Accent));
             var unity = L("  Unity edition", 14, Dim); unity.style.marginBottom = 8; title.Add(unity);
             top.Add(title);
             top.Add(Btn("Settings", () => Show(settings, menu)));
@@ -174,22 +177,22 @@ namespace StreetLife
             stepA = new VisualElement(); stepA.style.flexGrow = 1; stepA.style.flexDirection = FlexDirection.Row; stepA.pickingMode = PickingMode.Ignore;
             var left = Card(330); left.style.marginRight = 16; left.style.alignSelf = Align.FlexStart;
             left.Add(StepHead(1, "Mode & map"));
-            left.Add(Caps("Mode")); left.Add(Segmented(new[] { "Duels  ·  1v1" }, new[] { "duel" }, () => "duel", _ => { }));
-            left.Add(Caps("1v1 rules")); left.Add(Segmented(new[] { "Normal", "Simple" }, new[] { "normal", "simple" }, () => Settings.Rules, v => Settings.Rules = v));
+            left.Add(Caps("Mode")); left.Add(Segmented(new[] { "Duels", "1v1" }, new[] { "duels", "1v1" }, () => Settings.Mode, SetMode));
+            left.Add(Caps("Rules")); left.Add(Segmented(new[] { "Normal", "Simple" }, new[] { "normal", "simple" }, () => Settings.Rules, v => Settings.Rules = v));
             left.Add(Caps("Bots")); left.Add(Segmented(new[] { "Easy", "Normal", "Hard", "Extreme" }, new[] { "easy", "normal", "hard", "extreme" }, () => Settings.Difficulty, v => Settings.Difficulty = v));
-            var hint = L("Normal rules: any loadout (Tab in a match) and every bot style.\nSimple: M4, sword and grenade; no sniper bots.", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal;
+            var hint = L("Normal: pick your own loadout (step 3, or Tab in a match) and every bot style.\nSimple: M4, sword and grenade for both; no sniper bots.", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal;
             left.Add(hint);
             stepA.Add(left);
 
             var right = new VisualElement(); right.style.flexGrow = 1; right.pickingMode = PickingMode.Ignore;
-            mapCard = new VisualElement(); mapCard.style.flexGrow = 1; Radius(mapCard, 16); Border(mapCard, 2, Cyan); mapCard.pickingMode = PickingMode.Ignore;
+            mapCard = new VisualElement(); mapCard.style.flexGrow = 1; Radius(mapCard, 16); Border(mapCard, 2, Sel); mapCard.pickingMode = PickingMode.Ignore;
             mapCard.style.justifyContent = Justify.FlexEnd; Pad(mapCard, 26, 30);
             var arrows = new VisualElement(); arrows.style.position = Position.Absolute; arrows.style.left = 14; arrows.style.right = 14; arrows.style.top = new Length(45, LengthUnit.Percent);
             arrows.style.flexDirection = FlexDirection.Row; arrows.style.justifyContent = Justify.SpaceBetween; arrows.pickingMode = PickingMode.Ignore;
             arrows.Add(Round("<", () => StepMap(-1))); arrows.Add(Round(">", () => StepMap(1)));
             mapCard.Add(arrows);
             mapTag = L("", 12, Text, true); mapTag.style.alignSelf = Align.FlexStart; mapTag.style.letterSpacing = 1.5f; Radius(mapTag, 5); Pad(mapTag, 3, 8);
-            mapTag.style.backgroundImage = new StyleBackground(Gradient());
+            mapTag.style.backgroundColor = Sel; mapTag.style.color = Ink;
             mapTitle = L("", 64, Text); mapTitle.style.marginTop = 6;
             var bar = new VisualElement(); bar.style.height = 4; bar.style.width = 300; Radius(bar, 2); bar.style.backgroundImage = new StyleBackground(Gradient()); bar.style.marginTop = 2; bar.style.marginBottom = 10;
             mapDesc = L("", 15, Text, true); mapDesc.style.letterSpacing = 2;
@@ -212,7 +215,7 @@ namespace StreetLife
 
             // ---- step 2: character
             stepB = new VisualElement(); stepB.style.flexGrow = 1; stepB.style.flexDirection = FlexDirection.Row; stepB.pickingMode = PickingMode.Ignore;
-            var grid = Card(420); grid.style.alignSelf = Align.Stretch;
+            var grid = Card(460); grid.style.alignSelf = Align.FlexStart; grid.style.overflow = Overflow.Hidden;
             grid.Add(StepHead(2, "Character"));
             charGrid = new VisualElement(); charGrid.style.flexDirection = FlexDirection.Row; charGrid.style.flexWrap = Wrap.Wrap; charGrid.style.marginTop = 12;
             grid.Add(charGrid);
@@ -222,10 +225,19 @@ namespace StreetLife
             body.Add(stepB);
             BuildCharacters();
 
+            // ---- step 3: loadout (Normal rules; Simple shows the fixed kit)
+            stepC = new VisualElement(); stepC.style.flexGrow = 1; stepC.style.flexDirection = FlexDirection.Row; stepC.pickingMode = PickingMode.Ignore;
+            var lc = Card(640); lc.style.alignSelf = Align.FlexStart; lc.style.overflow = Overflow.Hidden;
+            lc.Add(StepHead(3, "Loadout"));
+            loadBox = new VisualElement(); lc.Add(loadBox);
+            stepC.Add(lc);
+            var gap3 = new VisualElement(); gap3.style.flexGrow = 1; gap3.pickingMode = PickingMode.Ignore; stepC.Add(gap3);
+            body.Add(stepC);
+
             // ---- bottom: back / next or play
             var bottom = new VisualElement(); bottom.style.flexDirection = FlexDirection.Row; bottom.style.justifyContent = Justify.Center; bottom.style.alignItems = Align.Center; bottom.style.marginTop = 14;
-            var back = Btn("Back", () => SetStep(0)); back.name = "back"; back.style.marginRight = 14;
-            var next = Btn("Character", () => { if (step == 0) SetStep(1); else Play(); }, true); next.name = "next";
+            var back = Btn("Back", () => SetStep(Mathf.Max(0, step - 1))); back.name = "back"; back.style.marginRight = 14;
+            var next = Btn("Character", () => { if (step < 2) SetStep(step + 1); else Play(); }, true); next.name = "next";
             bottom.Add(back); bottom.Add(next);
             menu.Add(bottom);
             SetStep(0); RefreshMap();
@@ -234,7 +246,7 @@ namespace StreetLife
         VisualElement StepHead(int n, string text)
         {
             var h = new VisualElement(); h.style.flexDirection = FlexDirection.Row; h.style.alignItems = Align.Center;
-            var dot = L(n.ToString(), 14, Ink, true); dot.style.width = dot.style.height = 26; Radius(dot, 13); dot.style.backgroundColor = Cyan; dot.style.unityTextAlign = TextAnchor.MiddleCenter; dot.style.marginRight = 10;
+            var dot = L(n.ToString(), 14, Ink, true); dot.style.width = dot.style.height = 26; Radius(dot, 13); dot.style.backgroundColor = Sel; dot.style.unityTextAlign = TextAnchor.MiddleCenter; dot.style.marginRight = 10;
             h.Add(dot); h.Add(L(text, 20, Text)); return h;
         }
 
@@ -249,8 +261,10 @@ namespace StreetLife
             step = s;
             stepA.style.display = s == 0 ? DisplayStyle.Flex : DisplayStyle.None;
             stepB.style.display = s == 1 ? DisplayStyle.Flex : DisplayStyle.None;
+            stepC.style.display = s == 2 ? DisplayStyle.Flex : DisplayStyle.None;
+            if (s == 2) BuildLoadout();
             var back = menu.Q<Button>("back"); if (back != null) back.style.visibility = s == 0 ? Visibility.Hidden : Visibility.Visible;
-            var next = menu.Q<Button>("next"); if (next != null) next.text = s == 0 ? "Character" : "Play";
+            var next = menu.Q<Button>("next"); if (next != null) next.text = s == 0 ? "Character" : s == 1 ? "Loadout" : "Play";
         }
 
         void StepMap(int d)
@@ -260,9 +274,27 @@ namespace StreetLife
             for (int k = 0; k < set.maps.Length; k++)
             {
                 i = (i + d + set.maps.Length) % set.maps.Length; var m = set.maps[i];
-                if (m != null && (m.IsStreet || (m.mapJson && m.library))) break;
+                if (Usable(m) && ModeKey(m) == Settings.Mode) break;
             }
             selMap = set.maps[i].id; RefreshMap();
+        }
+
+        static bool Usable(MapSet.Entry m) => m != null && (m.IsStreet || (m.mapJson && m.library));
+        /// Duels maps vs everything else (1v1, plus the Rumble maps, which are played here as 1v1)
+        static string ModeKey(MapSet.Entry m) => m == null || string.IsNullOrEmpty(m.mode) || m.mode.IndexOf("duel", StringComparison.OrdinalIgnoreCase) >= 0 ? "duels" : "1v1";
+
+        void SetMode(string v)
+        {
+            Settings.Mode = v;
+            var set = MapSet.Load(); if (!set || set.maps == null) { RefreshMap(); return; }
+            var cur = set.Get(selMap);
+            if (cur == null || ModeKey(cur) != v)
+            {
+                var live = set.Get(MapSet.Current);
+                if (Usable(live) && ModeKey(live) == v) selMap = live.id;
+                else foreach (var m in set.maps) if (Usable(m) && ModeKey(m) == v) { selMap = m.id; break; }
+            }
+            RefreshMap();
         }
 
         void RefreshMap()
@@ -271,7 +303,7 @@ namespace StreetLife
             mapTitle.text = m != null ? m.title : "Street Life";
             mapDesc.text = (m != null ? m.desc : "Suburban road, cars and front yards").ToUpperInvariant();
             var md = m != null && !string.IsNullOrEmpty(m.mode) ? m.mode : "Duels";
-            mapTag.text = (md.IndexOf("1v1", System.StringComparison.OrdinalIgnoreCase) >= 0 ? md : md + "  ·  1v1").ToUpperInvariant();
+            mapTag.text = (md.IndexOf("rumble", StringComparison.OrdinalIgnoreCase) >= 0 ? "Rumble map  ·  1v1" : md).ToUpperInvariant();
             // the live map shows through when it's the one picked; another map gets its own colours until you play it
             bool live = selMap == MapSet.Current;
             var sw = m != null && m.swatch != null && m.swatch.Length > 0 ? m.swatch[0] : new Color(.2f, .3f, .25f);
@@ -280,7 +312,7 @@ namespace StreetLife
             mapCard.style.backgroundSize = new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Cover));
             mapCard.style.backgroundColor = live ? new Color(0, 0, 0, .08f) : thumb ? Color.white : new Color(sw.r * .6f, sw.g * .6f, sw.b * .6f, .92f);
             if (set && set.maps != null)
-                foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; Border(b, on ? 2 : 1, on ? Cyan : Line); b.style.color = on ? Text : Dim; }
+                foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; b.style.display = ModeKey(e) == Settings.Mode ? DisplayStyle.Flex : DisplayStyle.None; Border(b, on ? 2 : 1, on ? Sel : Line); b.style.color = on ? Text : Dim; }
         }
 
         // ---- map pictures for the carousel: taken from the menu's own view the first time each map is shown live.
@@ -300,18 +332,19 @@ namespace StreetLife
             return t;
         }
 
+        const int ThumbW = 1600, ThumbH = 900;   // Editor/MenuThumbImport.cs keeps them unscaled, uncompressed and without mipmaps
         float thumbT = 3.5f;
         void MaybeTakeThumb()
         {
             if (!Open || step != 0 || thumbT <= 0 || (thumbT -= Time.unscaledDeltaTime) > 0) return;
             var id = MapSet.Current;
-            if (Resources.Load<Texture2D>("StreetLife/MapThumbs/" + id)) return;
+            var have = Resources.Load<Texture2D>("StreetLife/MapThumbs/" + id); if (have && have.width >= ThumbW) return;   // older, smaller pictures are retaken
             if (!Application.isEditor) { try { if (System.IO.File.Exists(DeviceThumb(id))) return; } catch { return; } }
             var cam = Camera.main; if (!cam) return;
-            var rt = RenderTexture.GetTemporary(960, 540, 24, RenderTextureFormat.ARGB32);
+            var rt = RenderTexture.GetTemporary(ThumbW, ThumbH, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 4);
             var old = cam.targetTexture; cam.targetTexture = rt; cam.Render(); cam.targetTexture = old;
             var prev = RenderTexture.active; RenderTexture.active = rt;
-            var tex = new Texture2D(960, 540, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 960, 540), 0, 0); tex.Apply();
+            var tex = new Texture2D(ThumbW, ThumbH, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, ThumbW, ThumbH), 0, 0); tex.Apply();
             RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
             var png = tex.EncodeToPNG();
             try
@@ -327,6 +360,30 @@ namespace StreetLife
             thumbs[id] = tex;
         }
 
+        // a general line about each character (abilities are gone, so no ability text)
+        static readonly Dictionary<string, string> bios = new Dictionary<string, string>
+        {
+            { "wednesday", "The original. Quick, cool-headed and always first off the mark." },
+            { "crusty", "A grizzled old salt who has seen every street fight going." },
+            { "angel", "Light on her feet, with a halo she earned the hard way." },
+            { "antihero", "Plays by their own rules and is never quite the good guy." },
+            { "jet", "A thrill-seeker who lives for speed and big air." },
+            { "ghost", "Here one second, gone the next. Nobody sees Starscreen coming." },
+            { "dracula", "Centuries old, impeccably dressed and always hungry." },
+            { "astronaut", "Back from orbit and still not used to gravity." },
+            { "lilpink", "Sweet on the outside, ruthless the moment the round starts." },
+            { "brute", "A giant bruiser: a step slower, but very hard to put down." },
+            { "blaze", "Hot-headed and loud. Leaves scorch marks wherever they go." },
+            { "blink", "Twitchy, unpredictable and impossible to pin down." },
+            { "tank", "Armoured up, a little slower, and fond of anything that burns." },
+            { "frost", "Cold, calm and precise. She keeps her distance and waits." },
+            { "patch", "Patches up friends and takes out everyone else." },
+            { "thorn", "Spiked, stubborn and painful to hit." },
+            { "thor", "A thunder god who took up street fighting." },
+            { "isaac", "The blocky classic. No frills, just a steady hand on the trigger." },
+        };
+        static string Bio(string id) => id != null && bios.TryGetValue(id, out var b) ? b : "";
+
         void BuildCharacters()
         {
             charGrid.Clear();
@@ -335,9 +392,9 @@ namespace StreetLife
             {
                 if (!cs.Has(c.id)) continue; var id = c.id;
                 var t = new Button(() => PickCharacter(id)) { text = "" }; t.name = "ch-" + id;
-                t.style.width = 88; t.style.height = 58; Radius(t, 9); Border(t, 1, Line); t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 4, 4);
-                t.style.backgroundColor = Color.Lerp(Chip, c.Colour, .55f); t.style.justifyContent = Justify.FlexEnd;
-                var n = L(c.name, 12, Text, true); n.style.unityTextAlign = TextAnchor.LowerCenter; n.style.whiteSpace = WhiteSpace.Normal; t.Add(n);
+                t.style.width = 76; t.style.height = 46; Radius(t, 8); Border(t, 1, Line); t.style.marginLeft = 0; t.style.marginTop = 0; t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 3, 3);
+                t.style.backgroundColor = Chip; t.style.borderBottomWidth = 3; t.style.borderBottomColor = c.Colour; t.style.justifyContent = Justify.FlexEnd;
+                var n = L(c.name, 11, Text, true); n.style.unityTextAlign = TextAnchor.LowerCenter; n.style.whiteSpace = WhiteSpace.Normal; t.Add(n);
                 charGrid.Add(t);
             }
             RefreshCharacter();
@@ -355,13 +412,87 @@ namespace StreetLife
         {
             var cs = CharacterSet.Load(); if (!cs) return;
             var mine = CharacterSkin.PlayerChoice;
-            foreach (var c in cs.All) { var b = charGrid.Q<Button>("ch-" + c.id); if (b == null) continue; bool on = c.id == mine; Border(b, on ? 3 : 1, on ? Cyan : Line); }
+            foreach (var c in cs.All) { var b = charGrid.Q<Button>("ch-" + c.id); if (b == null) continue; bool on = c.id == mine; Border(b, on ? 3 : 1, on ? Sel : Line); if (!on) { b.style.borderBottomWidth = 3; b.style.borderBottomColor = c.Colour; } }
             charInfo.Clear();
             var i = cs.Get(mine); if (i == null) return;
             charInfo.Add(L(i.name, 26, Text, true));
-            var d = L(i.desc ?? "", 13, Dim); d.style.whiteSpace = WhiteSpace.Normal; d.style.marginTop = 4; charInfo.Add(d);
-            if (!string.IsNullOrEmpty(i.ability)) { var a = L("Ability (E): " + i.ability + (i.cooldown > 0 ? $"  ·  {i.cooldown:0} s" : ""), 13, Cyan); a.style.marginTop = 8; charInfo.Add(a); }
+            var d = L(Bio(i.id), 13, Dim); d.style.whiteSpace = WhiteSpace.Normal; d.style.marginTop = 4; charInfo.Add(d);
             var s = L($"Speed x{(i.speed > 0 ? i.speed : 1):0.##}   ·   {(i.hp > 0 ? i.hp : 100):0} HP", 13, Dim); s.style.marginTop = 4; charInfo.Add(s);
+        }
+
+        // ---- step 3: loadout (saved in Settings; given to your fighter when the match starts)
+        void BuildLoadout()
+        {
+            loadBox.Clear();
+            if (!GunsDb.Loaded) { loadBox.Add(L("Weapons aren't set up in this project yet.", 13, Dim)); return; }
+            bool simple = Settings.Rules == "simple";
+            if (simple) { var n = L("Simple rules: everyone gets the M4, sword and grenade. Switch to Normal rules on step 1 to pick your own.", 12, Dim); n.style.whiteSpace = WhiteSpace.Normal; n.style.marginTop = 8; loadBox.Add(n); }
+            Section("Primary", GunsDb.Primaries, simple ? "gar" : Settings.Primary, id => Settings.Primary = id, simple);
+            Section("Secondary", GunsDb.Secondaries, simple ? "sword" : Settings.Secondary, id => Settings.Secondary = id, simple);
+            var leth = new List<string>(); if (GunsDb.Cons("grenade") != null) leth.Add("grenade");
+            foreach (var id in GunsDb.Lethals) if (GunsDb.Cons(id) != null) leth.Add(id);
+            Section("Lethal", leth, simple ? "grenade" : Settings.Lethal, id => Settings.Lethal = id, simple);
+        }
+
+        void Section(string title, List<string> ids, string sel, Action<string> pick, bool locked)
+        {
+            loadBox.Add(Caps(title));
+            var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.flexWrap = Wrap.Wrap;
+            foreach (var id in ids)
+            {
+                var g = GunsDb.Gun(id); var c = GunsDb.Cons(id);
+                string name = c != null ? c.name : g != null ? g.name : id;
+                string stat = c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
+                bool on = id == sel; var pid = id;
+                var b = new Button(() => { if (locked) return; pick(pid); PlayerPrefs.Save(); BuildLoadout(); }) { text = "" };
+                b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, on ? 2 : 1, on ? Sel : Line); Pad(b, 4, 8);
+                b.style.marginLeft = b.style.marginTop = 0; b.style.marginRight = b.style.marginBottom = 7;
+                b.style.backgroundColor = on ? Sel : Chip; b.style.justifyContent = Justify.Center; b.style.alignItems = Align.FlexStart;
+                if (locked && !on) b.style.opacity = .35f;
+                var nl = L(name, 12, on ? Ink : Text, true); nl.style.overflow = Overflow.Hidden; b.Add(nl);
+                var sl = L(stat, 10, on ? new Color(0, 0, 0, .65f) : Dim); sl.style.overflow = Overflow.Hidden; sl.style.marginTop = 2; b.Add(sl);
+                row.Add(b);
+            }
+            loadBox.Add(row);
+        }
+
+        static string GunStatLine(GunStat g) => g.IsMelee ? Mathf.RoundToInt(g.dmg) + " dmg · " + g.reach + " m reach"
+            : g.IsProj ? Mathf.RoundToInt(g.direct > 0 ? g.direct : g.dmg) + " dmg · " + Mathf.RoundToInt(g.mag) + " rnd"
+            : Mathf.RoundToInt(g.dmg) + (g.Pellets > 1 ? "x" + g.Pellets : "") + " dmg · " + Mathf.RoundToInt(60f / Mathf.Max(.01f, g.rate)) + " rpm";
+
+        /// put the saved loadout (or the Simple kit) on your fighter; RoundStarted's ResetKit then fills the ammo
+        void ApplyLoadout()
+        {
+            var p = player ? player : FindPlayer(); if (!p) return;
+            bool simple = Settings.Rules == "simple";
+            string pri = simple ? "gar" : Settings.Primary, sec = simple ? "sword" : Settings.Secondary, leth = simple ? "grenade" : Settings.Lethal;
+            if (GunsDb.Loaded) { if (GunsDb.Gun(pri) == null) pri = "gar"; if (GunsDb.Gun(sec) == null) sec = "sword"; if (GunsDb.Cons(leth) == null) leth = "grenade"; }
+            p.primary = pri; p.secondary = sec; p.lethal = leth;
+            var w = p.GetComponent<Weapons>(); if (w && GunsDb.Loaded) w.ResetKit();
+        }
+
+        // ---- soft studio lights on your fighter for the character and loadout steps (the map's own light can leave them in shadow)
+        Light keyL, fillL, rimL;
+        Light MakeLight(string n, float intensity, Color c)
+        {
+            var go = new GameObject(n); go.transform.SetParent(transform);
+            var l = go.AddComponent<Light>(); l.type = LightType.Point; l.range = 9; l.intensity = intensity; l.color = c; l.shadows = LightShadows.None; l.enabled = false;
+            return l;
+        }
+
+        void UpdateLights()
+        {
+            var cam = Camera.main;
+            bool on = Open && step >= 1 && player && cam;
+            // maps chat: key 8 -> 4.5 and fill 3 -> 1.8; at 8 the face went past the bloom threshold and glowed (HDR ~1.9 on white skin)
+            if (!keyL) { keyL = MakeLight("Menu key light", 4.5f, new Color(1f, .97f, .93f)); fillL = MakeLight("Menu fill light", 1.8f, new Color(.88f, .92f, 1f)); rimL = MakeLight("Menu rim light", 6f, Color.white); }
+            keyL.enabled = fillL.enabled = rimL.enabled = on; if (!on) return;
+            var c = player.pos + Vector3.up * 1.2f;
+            var toCam = cam.transform.position - c; toCam.y = 0; if (toCam.sqrMagnitude < 1e-4f) toCam = Vector3.forward; toCam.Normalize();
+            var side = Vector3.Cross(Vector3.up, toCam);
+            keyL.transform.position = c + toCam * 2.2f + side * 1.4f + Vector3.up * 1f;
+            fillL.transform.position = c + toCam * 2.4f - side * 1.8f + Vector3.up * .2f;
+            rimL.transform.position = c - toCam * 1.6f + Vector3.up * 1.6f;
         }
 
         // ================================================================== pause and settings
@@ -402,7 +533,26 @@ namespace StreetLife
             c.Add(Caps("Frame rate readout"));
             c.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => PerfProbe.Show ? "on" : "off", v => PerfProbe.Show = v == "on"));
             var done = Btn("Done", () => Show(backTo), true); done.style.marginTop = 18; c.Add(done);
-            settings.Add(c);
+            if (Application.isMobilePlatform || Application.isEditor)
+            {
+                // phone controls, in a second card beside the first (a phone screen is too short for one long list)
+                var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.alignItems = Align.FlexStart;
+                var c2 = Card(400); c2.style.marginLeft = 16;
+                var t2 = L("Phone controls", 28, Text, true); t2.style.marginBottom = 16; c2.Add(t2);
+                c2.Add(Caps("Aim assist"));
+                c2.Add(Segmented(new[] { "Off", "Normal", "Strong" }, new[] { "off", "normal", "strong" },
+                    () => Settings.AimAssist <= 0 ? "off" : Settings.AimAssist > 1.3f ? "strong" : "normal",
+                    v => { Settings.AimAssist = v == "off" ? 0f : v == "strong" ? 1.6f : 1f; Settings.Apply(); }));
+                c2.Add(Caps("Gyro aim"));
+                c2.Add(Segmented(new[] { "Off", "When aiming", "Always" }, new[] { "off", "aim", "always" }, () => Settings.Gyro, v => { Settings.Gyro = v; Settings.Apply(); }));
+                c2.Add(Caps("Vibration"));
+                c2.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => Settings.Vibration ? "on" : "off", v => { Settings.Vibration = v == "on"; Settings.Apply(); }));
+                c2.Add(Caps("Frame rate"));
+                c2.Add(Segmented(new[] { "60", "90", "120" }, new[] { "60", "90", "120" }, () => Settings.Fps.ToString(), v => { Settings.Fps = int.Parse(v); Settings.Apply(); }));
+                var fh = L("60 keeps the phone cooler and steadier over long sessions.", 12, Dim); fh.style.whiteSpace = WhiteSpace.Normal; fh.style.marginTop = 6; c2.Add(fh);
+                row.Add(c); row.Add(c2); settings.Add(row);
+            }
+            else settings.Add(c);
         }
 
         void Show(VisualElement v, VisualElement returnTo = null)
@@ -451,6 +601,7 @@ namespace StreetLife
                 if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
                 return;
             }
+            ApplyLoadout();
             Open = false; Show(null); HideGame(false);
             RoundManager.HoldAtMenu = false;
             if (RoundManager.Instance) RoundManager.Instance.BeginFromMenu();
@@ -486,10 +637,11 @@ namespace StreetLife
         // the camera while the menu is up: a slow circle round the map, or in front of your fighter on the character step
         void LateUpdate()
         {
+            UpdateLights();
             if (!Open) return;
             var cam = Camera.main; if (!cam) return;
             orbit += Time.unscaledDeltaTime * .05f;
-            if (step == 1 && player)
+            if (step >= 1 && player)
             {
                 float yaw = player.yaw;
                 var fwd = new Vector3(Mathf.Sin(yaw), 0, Mathf.Cos(yaw));
@@ -522,7 +674,23 @@ namespace StreetLife
         public static float Music { get => PlayerPrefs.GetFloat(P + "music", .5f); set => PlayerPrefs.SetFloat(P + "music", value); }
         public static float Effects { get => PlayerPrefs.GetFloat(P + "sfx", 1f); set => PlayerPrefs.SetFloat(P + "sfx", value); }
         public static string Difficulty { get => PlayerPrefs.GetString(P + "difficulty", "normal"); set => PlayerPrefs.SetString(P + "difficulty", value); }
-        public static string Rules { get => PlayerPrefs.GetString(P + "rules", "simple"); set => PlayerPrefs.SetString(P + "rules", value); }
+        public static string Mode { get => PlayerPrefs.GetString(P + "mode", "duels"); set => PlayerPrefs.SetString(P + "mode", value); }
+        public static string Primary { get => PlayerPrefs.GetString(P + "primary", "gar"); set => PlayerPrefs.SetString(P + "primary", value); }
+        public static string Secondary { get => PlayerPrefs.GetString(P + "secondary", "sword"); set => PlayerPrefs.SetString(P + "secondary", value); }
+        public static string Lethal { get => PlayerPrefs.GetString(P + "lethal", "grenade"); set => PlayerPrefs.SetString(P + "lethal", value); }
+        public static string Rules { get => PlayerPrefs.GetString(P + "rules2", "normal"); set => PlayerPrefs.SetString(P + "rules2", value); }
+        // phone controls (mobile pass, 13 Nov)
+        public static float AimAssist { get => PlayerPrefs.GetFloat(P + "assist", 1f); set => PlayerPrefs.SetFloat(P + "assist", value); }
+        public static string Gyro { get => PlayerPrefs.GetString(P + "gyro", "off"); set => PlayerPrefs.SetString(P + "gyro", value); }
+        public static bool Vibration { get => PlayerPrefs.GetInt(P + "vibe", 1) == 1; set => PlayerPrefs.SetInt(P + "vibe", value ? 1 : 0); }
+        public static int Fps { get => PlayerPrefs.GetInt(P + "fps", 60); set => PlayerPrefs.SetInt(P + "fps", value); }
+        /// phones: run at the chosen rate, capped at the screen's own (60 by default: cooler and steadier over long sessions)
+        public static void ApplyFps()
+        {
+            if (!Application.isMobilePlatform || Application.platform == RuntimePlatform.WebGLPlayer) return;
+            int hz = Mathf.Max(60, Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value));
+            Application.targetFrameRate = Mathf.Min(Fps, hz);
+        }
         public static string Graphics
         {
             get => PlayerPrefs.GetString(P + "gfx", Application.isMobilePlatform ? "smooth" : "high");
@@ -532,7 +700,8 @@ namespace StreetLife
         public static void Apply()
         {
             foreach (var pc in UnityEngine.Object.FindObjectsByType<PlayerController>()) { pc.sensitivity = Sens; pc.adsSensitivity = AimSens; }
-            if (TouchControls.I) TouchControls.I.sensitivity = Sens;
+            if (TouchControls.I) { TouchControls.I.sensitivity = Sens; TouchControls.I.aimAssist = AimAssist; TouchControls.I.gyro = Gyro; }
+            Haptics.On = Vibration; ApplyFps();
             Sfx.MusicVolume = Music; Sfx.SfxVolume = Effects;
             var names = QualitySettings.names; string want = Graphics == "smooth" ? "Mobile" : "PC";
             for (int i = 0; i < names.Length; i++) if (names[i] == want && QualitySettings.GetQualityLevel() != i) { QualitySettings.SetQualityLevel(i, true); break; }

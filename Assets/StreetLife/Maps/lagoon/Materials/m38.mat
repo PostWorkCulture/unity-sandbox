@@ -101,14 +101,14 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _Metallic: 0.8
+    - _Metallic: 0.1
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
     - _ScreenSpaceReflections: 1
     - _ScreenSpaceReflectionsContributeTransparent: 1
-    - _Smoothness: 0.644
+    - _Smoothness: 0.736
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -118,13 +118,13 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.7254902, g: 0.74509805, b: 0.7764706, a: 1}
-    - _Color: {r: 0.7254902, g: 0.74509805, b: 0.7764706, a: 1}
+    - _BaseColor: {r: 0.16470589, g: 0.3529412, b: 0.5411765, a: 1}
+    - _Color: {r: 0.16470584, g: 0.35294116, b: 0.5411765, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &3422934284371560943
+--- !u!114 &7720644246473037276
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}

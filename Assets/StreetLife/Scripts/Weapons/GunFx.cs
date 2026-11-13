@@ -124,6 +124,7 @@ namespace StreetLife
         /// explosion: white flash, fireball, smoke column, sparks and a light (a lighter version of the web game's boomFX)
         public static void Boom(Vector3 at, float radius, Color[] cols)
         {
+            if (BoomFx.Play(at, radius, cols, true)) return;   // match chat: the full explosion (BoomFx.cs)
             if (!I) return;
             float k = Mathf.Clamp(radius / 4.5f, .35f, 1.3f);
             Bb(at, Vector3.zero, new Color(1, .97f, .85f), .5f * k, 5.5f * k, 1, .16f, true);
@@ -144,6 +145,7 @@ namespace StreetLife
         /// one burst of the flamethrower jet: from the nozzle along dir until the first wall (stop) - the web game's FLAME.jet
         public static void FlameJet(Vector3 from, Vector3 dir, float stop, int n = 16, float speed = 25)
         {
+            if (FlameFx.Jet(from, dir, stop, n, speed)) return;   // match chat: the web game's FLAME (FlameFx.cs)
             if (!I) return;
             var u = Mathf.Abs(dir.y) > .9f ? Vector3.right : Vector3.up; var w = Vector3.Cross(dir, u).normalized; u = Vector3.Cross(w, dir).normalized;
             for (int k = 0; k < n; k++)
@@ -157,7 +159,8 @@ namespace StreetLife
         }
 
         /// a small lick of flame (someone burning)
-        public static void Lick(Vector3 p, float s = 1) => Bb(p, new Vector3((Random.value - .5f) * .8f, 1.2f + Random.value * 1.2f, (Random.value - .5f) * .8f), Color.white, .14f * s, .5f * s + .14f * s, 1, .35f + Random.value * .25f, true, 1, 0, 2.6f);
+        public static void Lick(Vector3 p, float s = 1) { if (!FlameFx.Lick(p, s)) LickOld(p, s); }   // match chat: FlameFx.cs
+        static void LickOld(Vector3 p, float s) => Bb(p, new Vector3((Random.value - .5f) * .8f, 1.2f + Random.value * 1.2f, (Random.value - .5f) * .8f), Color.white, .14f * s, .5f * s + .14f * s, 1, .35f + Random.value * .25f, true, 1, 0, 2.6f);
 
         // ------------------------------------------------------------------ simulate and draw
         void LateUpdate()

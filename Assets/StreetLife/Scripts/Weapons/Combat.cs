@@ -198,7 +198,8 @@ namespace StreetLife
             float R = cfg.radius;
             var cols = new Color[cfg.colors != null ? cfg.colors.Length : 0];
             for (int i = 0; i < cols.Length; i++) cols[i] = Web.Hex(cfg.colors[i]);
-            if (cfg.gun == "grenade" || cfg.gun == "rocket") GunFx.Boom(at, R, cols);
+            if (BoomFx.Play(at, R, cols, cfg.gun == "grenade" || cfg.gun == "rocket" || cfg.gun == "mine", n)) { }   // match chat: BoomFx.cs
+            else if (cfg.gun == "grenade" || cfg.gun == "rocket") GunFx.Boom(at, R, cols);
             else GunFx.Emit(at + Vector3.up * .2f, new EmitOpts { n = Mathf.RoundToInt(70 * R / 4.5f), speed = 12 * R / 4.5f, up = 3, size = .38f, life = .8f, grav = 4, colors = cols });
             if (Me && Me.alive) { float dd = Vector3.Distance(Me.pos, at); if (dd < 14) GunFx.Shake = Mathf.Max(GunFx.Shake, .6f * (1 - dd / 14) + .15f); }
             foreach (var o in Fighters.ToArray())

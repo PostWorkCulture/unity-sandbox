@@ -25,7 +25,7 @@ namespace StreetLife.EditorTools
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             if (EditorApplication.isCompiling || EditorApplication.isUpdating) { EditorApplication.delayCall += Auto; return; }
-            EnsureRim();
+            EnsureRim(); EnsureMat("Fresnel"); EnsureMat("Outline");
             if (File.Exists(Stamp) && File.ReadAllText(Stamp).Trim() == LookVersion.ToString()) return;
             if (!File.Exists("Assets/StreetLife/Settings/StreetLifeVolume.asset")) return;   // the scene setup hasn't run yet
             Apply();
@@ -81,6 +81,17 @@ namespace StreetLife.EditorTools
             var m = new Material(sh) { name = "CharacterRim", enableInstancing = true };
             AssetDatabase.CreateAsset(m, path);
             Debug.Log("Street Life: character rim light material made.");
+        }
+
+        // materials made at runtime from these shaders live in Resources, so builds include the shaders
+        static void EnsureMat(string name)
+        {
+            string path = "Assets/StreetLife/Resources/StreetLife/" + name + ".mat";
+            if (File.Exists(path)) return;
+            var sh = Shader.Find("StreetLife/" + name); if (!sh) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            AssetDatabase.CreateAsset(new Material(sh) { name = name }, path);
+            Debug.Log("Street Life: " + name + " material made.");
         }
 
         static void SetInt(UnityEngine.Object o, string prop, int v)
