@@ -14,7 +14,10 @@ namespace StreetLife
         {
             var d = GunsDb.Data;
             if (cache == null || cache.Length != d.meshes.Length) cache = new Mesh[d.meshes.Length];
-            return cache[i] ? cache[i] : cache[i] = MeshIO.Build(GunsDb.Bin, d.meshes[i], "gun" + i);
+            if (cache[i]) return cache[i];
+            var made = WeaponFixes.Made(i); if (made) return cache[i] = made;
+            var m = MeshIO.Build(GunsDb.Bin, d.meshes[i], "gun" + i); WeaponFixes.Edit(i, m);
+            return cache[i] = m;
         }
 
         public static Material Mat(int id)

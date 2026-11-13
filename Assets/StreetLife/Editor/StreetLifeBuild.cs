@@ -162,11 +162,15 @@ namespace StreetLife.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssets();
         }
 
+        // Railed's baked light lives in a scene of its own (Editor/RailBake.cs), loaded on top of the game's when Railed is played.
+        // Not on WebGL: it has no probe volumes, and the baked data would only make the download bigger.
+        static string[] Scenes(BuildTarget target) => target != BuildTarget.WebGL && File.Exists(RailLook.LightScene) ? new[] { Scene, RailLook.LightScene } : new[] { Scene };
+
         static BuildReport Build(BuildTarget target, BuildTargetGroup group, string path)
         {
             if (EditorUserBuildSettings.activeBuildTarget != target && !EditorUserBuildSettings.SwitchActiveBuildTarget(group, target))
             { Dlg("Street Life", "Couldn't switch the project to " + target + ".", "OK"); return null; }
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { Scene }, locationPathName = path, target = target, targetGroup = group, options = BuildOptions.None });
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = Scenes(target), locationPathName = path, target = target, targetGroup = group, options = BuildOptions.None });
             if (report.summary.result != BuildResult.Succeeded)
             {
                 var errs = string.Join("\n", report.steps.SelectMany(s => s.messages).Where(m => m.type == LogType.Error || m.type == LogType.Exception).Select(m => m.content).Take(6));

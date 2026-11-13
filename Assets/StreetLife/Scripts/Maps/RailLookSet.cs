@@ -17,6 +17,7 @@ namespace StreetLife
             [Tooltip("Not tinted: the colour the texture was painted in, so a darker or lighter original still comes out darker or lighter")] public Color reference = Color.white;
             [Tooltip("Smoothness follows the original material (painted metal)")] public bool keepGloss;
             [Tooltip("At least this metallic, whatever the original had (bare ribbed steel)")] public float metallic;
+            [Tooltip("Multiplied into the colour: ribbed steel is cooled a little so grey sheds stay steel in the evening sun and don't turn to timber")] public Color shift = Color.white;
         }
         public Surface[] surfaces;
         [Tooltip("The goods shed's sign, reading just SHED")] public Texture2D shedSign;

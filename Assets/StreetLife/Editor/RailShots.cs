@@ -31,9 +31,17 @@ namespace StreetLife.EditorTools
 
         public static string Run(string arg)
         {
-            if (Phase != 0) return "busy: a shot run is already going";
-            if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode) return "busy: play mode is on";
-            if (EditorApplication.isCompiling) return "busy: compiling";
+            if (Phase != 0) return "busy: a shot run is already going or waiting";
+            if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
+            {   // take the next gap: starts by itself as soon as play mode ends
+                SessionState.SetString(Key + ".arg", arg ?? ""); Phase = 9; Mark = Now;
+                return "queued: the shots start when play mode ends";
+            }
+            return Begin(arg);
+        }
+
+        static string Begin(string arg)
+        {
             var parts = (arg ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             string tag = parts.Length > 0 ? parts[0] : "shot", map = parts.Length > 1 ? parts[1] : "rail";
             SessionState.SetString(Key + ".tag", tag);
@@ -77,6 +85,10 @@ namespace StreetLife.EditorTools
         {
             switch (phase)
             {
+                case 9:
+                    if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling) { if (Now - Mark > 900) { Phase = 0; Log("gave up waiting for a gap"); } return; }
+                    Phase = 0; Begin(SessionState.GetString(Key + ".arg", ""));
+                    return;
                 case 1:   // waiting for play mode and the map
                     if (Now - Mark > 60) { Finish("gave up: play mode never started"); return; }
                     if (!EditorApplication.isPlaying || Time.frameCount < 20 || !RoundManager.Instance) return;

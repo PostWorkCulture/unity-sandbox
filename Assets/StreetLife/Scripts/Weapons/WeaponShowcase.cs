@@ -22,7 +22,7 @@ namespace StreetLife
         static readonly Color PanelBg = new Color32(10, 10, 10, 238), Line = new Color32(70, 70, 70, 255), Text = new Color32(245, 245, 245, 255),
             Dim = new Color32(138, 138, 138, 255), Track = new Color32(40, 40, 40, 255), Bar = new Color32(245, 245, 245, 255);
 
-        Camera cam; RenderTexture rt; Transform pivot, model; ReflectionProbe probe; Cubemap studioMap;
+        Camera cam; RenderTexture rt; VolumeProfile look; Transform pivot, model; ReflectionProbe probe; Cubemap studioMap;
         Light key, fill, rimA, rimB, glint;
         Image view; Label title, sub, note; readonly Dictionary<string, VisualElement> bars = new Dictionary<string, VisualElement>();
         string shown; bool active;
@@ -128,7 +128,7 @@ namespace StreetLife
 
         // ================================================================== the studio
         void Awake() { I = this; transform.position = Studio; BuildStudio(); }
-        void OnDestroy() { if (I == this) I = null; if (rt) { rt.Release(); Destroy(rt); } if (studioMap) Destroy(studioMap); foreach (var p in polished.Values) if (p) Destroy(p); }
+        void OnDestroy() { if (I == this) I = null; if (rt) { rt.Release(); Destroy(rt); } if (studioMap) Destroy(studioMap); if (look) Destroy(look); foreach (var p in polished.Values) if (p) Destroy(p); }
 
         void BuildStudio()
         {
@@ -141,10 +141,17 @@ namespace StreetLife
             d.renderPostProcessing = true; d.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing; d.antialiasingQuality = AntialiasingQuality.High;
             d.renderShadows = false; d.requiresDepthTexture = false;
             Resize();
+            // its own look (ACES and bloom on layer 29), so a map's mood volume (fog, lens flare, grading) never reaches the showroom
+            d.volumeLayerMask = 1 << Layer;
+            var vol = new GameObject("showroom look").AddComponent<Volume>(); vol.transform.SetParent(transform, false); vol.gameObject.layer = Layer;
+            vol.isGlobal = true; vol.priority = 50; look = ScriptableObject.CreateInstance<VolumeProfile>(); vol.sharedProfile = look;
+            var tm = look.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
+            var bl = look.Add<Bloom>(true); bl.intensity.Override(.55f); bl.threshold.Override(1f); bl.scatter.Override(.6f);
+            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f);
 
             // lights: warm key from above front-left, cool fill low right, two hard rims behind, a glint that sweeps over the top
-            key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 32, 14);
-            fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 12, 10);
+            key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 26, 14);
+            fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 8, 10);
             rimA = MakeLight("rim A", LightType.Spot, Color.white, 55, 14);
             rimB = MakeLight("rim B", LightType.Spot, new Color(.9f, .94f, 1f), 40, 14);
             glint = MakeLight("glint", LightType.Point, Color.white, 14, 4);
@@ -250,7 +257,16 @@ namespace StreetLife
             if (model) { model.gameObject.SetActive(false); Destroy(model.gameObject); }
             var rends = new List<Renderer>();
             var holder = new GameObject("model").transform; holder.SetParent(pivot, false);
-            WeaponModels.Build(nodes, holder, id, Layer, false, rends);
+            if (id == "duals" && WeaponFixes.Pistol != null)
+            {
+                // a matched pair, staggered one above the other like a display case
+                foreach (var (x, y, z) in new[] { (.07f, .17f, .02f), (-.07f, -.17f, -.27f) })
+                {
+                    var one = new GameObject("pistol").transform; one.SetParent(holder, false); one.localPosition = new Vector3(x, y, z);
+                    WeaponModels.Build(WeaponFixes.Pistol, one, "pistol", Layer, false, rends);
+                }
+            }
+            else WeaponModels.Build(nodes, holder, id, Layer, false, rends);
             model = holder;
             // the flame on rocket / missile models stays hidden; everything is lit by the studio only
             var fl = WeaponModels.Find(holder, "flame"); if (fl) fl.gameObject.SetActive(false);
@@ -282,7 +298,8 @@ namespace StreetLife
             if (!m.IsKeywordEnabled("_METALLICSPECGLOSSMAP"))
             {
                 float sm = m.GetFloat("_Smoothness"), mt = m.HasProperty("_Metallic") ? m.GetFloat("_Metallic") : 0;
-                p.SetFloat("_Smoothness", Mathf.Lerp(sm, mt > .3f ? .93f : .8f, .6f));
+                // metal gets a mirror polish; paint and plastic only a soft sheen, so dark parts stay dark under the studio lights
+                p.SetFloat("_Smoothness", mt > .3f ? Mathf.Lerp(sm, .93f, .6f) : Mathf.Clamp(sm, .3f, .45f));
             }
             if (p.HasProperty("_SpecularHighlights")) p.SetFloat("_SpecularHighlights", 1);
             if (p.HasProperty("_EnvironmentReflections")) p.SetFloat("_EnvironmentReflections", 1);
@@ -381,7 +398,14 @@ namespace StreetLife
         /// (800 x 500) and lists them in Logs/weapons/index.txt (file, id, name, class). Needs play mode (weapon data loaded).
         public static string Sheet(string arg)
         {
-            if (!GunsDb.Loaded) return "weapon data not loaded (play first)";
+            if (!Application.isPlaying) return "play first";
+            if (!GunsDb.Loaded)
+            {
+                // any scene will do: load the weapon data the way WeaponWorld does
+                var a = Resources.Load<WeaponAssets>("StreetLifeWeapons");
+                if (!a || !a.gunsJson || !a.gunsBin) return "weapon data not found";
+                GunsDb.Load(a.gunsJson.text, a.gunsBin.bytes); WeaponModels.Mats = a.materials;
+            }
             var s = Get();
             var ids = new List<string>(GunsDb.Primaries);
             foreach (var id in GunsDb.Secondaries) if (!ids.Contains(id)) ids.Add(id);
@@ -423,6 +447,14 @@ namespace StreetLife
             Destroy(tex); s.cam.targetTexture = oldRt; s.cam.aspect = oldAspect; s.cam.enabled = wasOn; rtS.Release(); Destroy(rtS);
             s.shown = null;
             return n + " weapons to " + dir;
+        }
+
+        /// remote test: put a gun in the player's hands as their primary (call WeaponShowcase.Hold gar)
+        public static string Hold(string id)
+        {
+            var f = Combat.Me; if (!f) return "no player";
+            var w = f.GetComponent<Weapons>(); if (!w) return "no weapons";
+            f.primary = id.Trim(); w.ResetKit(); return "holding " + w.Gun;
         }
 
         // ================================================================== remote test (Logs/streetlife-cmd.txt: call WeaponShowcase.Test gar)

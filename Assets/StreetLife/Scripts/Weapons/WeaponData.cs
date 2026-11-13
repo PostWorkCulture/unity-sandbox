@@ -78,6 +78,7 @@ namespace StreetLife
             // menu order, as the web game lists them
             foreach (var id in new[] { "gar", "ar", "burst", "crossbow", "mg", "m60", "sniper", "scout", "shotgun", "autoshot" }) if (stats.ContainsKey(id)) Primaries.Add(id);
             foreach (var id in new[] { "smg", "hornet", "vector", "p90", "ump", "sting", "duals", "rocket", "swarm", "sword" }) if (stats.ContainsKey(id)) Secondaries.Add(id);
+            WeaponFixes.Apply();   // smaller sights, the rocket's front ring, the pistols' missing parts
         }
 
         public static GunStat Gun(string id) => id != null && stats.TryGetValue(id, out var g) ? g : null;
