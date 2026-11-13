@@ -121,6 +121,8 @@ namespace StreetLife.EditorTools
             sb.Append(" score "); for (int i = 0; i < 7; i++) sb.Append(RM.score[i] + ","); return sb.ToString();
         }
 
+        public static string Map(string a) { PlayerPrefs.SetString("StreetLife.map", a.Trim()); PlayerPrefs.Save(); return "map pick " + a.Trim() + " (takes effect on next play)"; }
+
         public static string Unfreeze(string a) { if (B) B.Frozen = false; return "bot free"; }
 
         public static string State(string a)

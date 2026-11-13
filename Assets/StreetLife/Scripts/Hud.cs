@@ -200,8 +200,7 @@ namespace StreetLife
             var bd = BoxWorld.Bounds; const float k = 2.4f;   // UI px per metre
             float size = 190;
             var area = R(W - size - 14, 14, size, size);
-            Fill(area, new Color(0, 0, 0, .45f));
-            GUI.BeginGroup(area);
+            GUI.BeginGroup(area);   // no square backing: only the rotating map shows (Pete, 13 Nov)
             var m = GUI.matrix;
             var c = new Vector2(area.width / 2, area.height / 2);
             var me = fighter.VisualPos;
@@ -247,9 +246,10 @@ namespace StreetLife
             else head = $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}";
             Shadowed(R(W / 2 - 170, 8, 340, 36), head, big, Color.white);
             Shadowed(R(W / 2 - 170, 42, 340, 20), $"{t}   First to {rm.toWin}{(rm.Deathmatch ? " kills" : "")}", center, new Color(1, 1, 1, .85f));
-            float y = 62;
-            foreach (var it in rm.feed)
+            float y = FinisherHud.BannerUp ? 178 : 62;   // drop below the finisher's "Eliminated" banner while it shows
+            for (int fi = Mathf.Max(0, rm.feed.Count - 4); fi < rm.feed.Count; fi++)   // the newest 4 (FFA gets busy)
             {
+                var it = rm.feed[fi];
                 float a = Mathf.Clamp01(6 - (Time.time - it.t)) * .65f;
                 Fill(R(W / 2 - 170, y, 340, 20), new Color(0, 0, 0, .4f * a / .65f));
                 Shadowed(R(W / 2 - 170, y, 340, 20), it.text, feedStyle, it.mine ? new Color(1, .85f, .3f, a / .65f) : new Color(1, 1, 1, a / .65f));
