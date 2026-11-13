@@ -47,6 +47,7 @@ namespace StreetLife
             Mood();
             if (extras != null && bin != null) { BuildGround(); BuildCrowd(); }
             if (entry.id == "wreck") BuildBeachSea();
+            if (entry.IsStreet && builder) gameObject.AddComponent<StreetTraffic>().Init(this, builder);
             if (extras != null && extras.trains != null && extras.trains.Length > 0 || extras != null && extras.glow != null && extras.glow.Length > 0)
                 gameObject.AddComponent<RailYard>().Init(this);
             if (MapRules.Wading || MapRules.DeepWater) gameObject.AddComponent<Waterside>().Init(this);

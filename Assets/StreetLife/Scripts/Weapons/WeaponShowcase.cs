@@ -26,7 +26,7 @@ namespace StreetLife
         Light key, fill, rimA, rimB, glint;
         Image view; Label title, sub, note; readonly Dictionary<string, VisualElement> bars = new Dictionary<string, VisualElement>();
         string shown; bool active;
-        float yaw = -25, pitch = 8, zoom = 1, spinV, idleT = 99, radius = .6f, glintT;
+        float yaw = -25, pitch = 8, zoom = 1, spinV, idleT = 99, radius = .6f, halfW = .5f, halfH = .2f, glintT;
         bool dragging; Vector2 lastPos; int pointer = -1;
         readonly Dictionary<int, Vector2> touches = new Dictionary<int, Vector2>(); float pinchD;
 
@@ -135,7 +135,7 @@ namespace StreetLife
             pivot = new GameObject("pivot").transform; pivot.SetParent(transform, false);
             var cg = new GameObject("Showroom camera"); cg.transform.SetParent(transform, false);
             cam = cg.AddComponent<Camera>(); cam.cullingMask = 1 << Layer; cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(.035f, .035f, .04f, 1); cam.fieldOfView = 26; cam.nearClipPlane = .02f; cam.farClipPlane = 40; cam.depth = -50;
+            cam.backgroundColor = new Color(.05f, .05f, .056f, 1); cam.fieldOfView = 26; cam.nearClipPlane = .02f; cam.farClipPlane = 40; cam.depth = -50;
             cam.allowHDR = true; cam.enabled = false;
             var d = cam.GetUniversalAdditionalCameraData();
             d.renderPostProcessing = true; d.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing; d.antialiasingQuality = AntialiasingQuality.High;
@@ -143,10 +143,10 @@ namespace StreetLife
             Resize();
 
             // lights: warm key from above front-left, cool fill low right, two hard rims behind, a glint that sweeps over the top
-            key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 26, 14);
-            fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 5, 10);
-            rimA = MakeLight("rim A", LightType.Spot, Color.white, 34, 14);
-            rimB = MakeLight("rim B", LightType.Spot, new Color(.9f, .94f, 1f), 24, 14);
+            key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 32, 14);
+            fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 12, 10);
+            rimA = MakeLight("rim A", LightType.Spot, Color.white, 55, 14);
+            rimB = MakeLight("rim B", LightType.Spot, new Color(.9f, .94f, 1f), 40, 14);
             glint = MakeLight("glint", LightType.Point, Color.white, 14, 4);
             key.spotAngle = 55; key.innerSpotAngle = 25; rimA.spotAngle = rimB.spotAngle = 45; rimA.innerSpotAngle = rimB.innerSpotAngle = 20;
 
@@ -257,10 +257,11 @@ namespace StreetLife
                 var ms = r.sharedMaterials; for (int i = 0; i < ms.Length; i++) ms[i] = Polished(ms[i]); r.sharedMaterials = ms;
             }
             // lay it side-on, muzzle to the right, and centre it on the turntable
-            holder.localRotation = Quaternion.Euler(0, -90, 0);
+            holder.localRotation = Quaternion.Euler(0, -90, 0); pivot.localRotation = Quaternion.identity;
             var bb = new Bounds(); bool any = false;
             foreach (var r in rends) if (r && r.enabled && r.gameObject.activeInHierarchy) { if (!any) { bb = r.bounds; any = true; } else bb.Encapsulate(r.bounds); }
-            if (any) { holder.position -= bb.center - pivot.position; radius = Mathf.Max(.08f, bb.extents.magnitude); }
+            if (any) { holder.position -= bb.center - pivot.position; radius = Mathf.Max(.08f, bb.extents.magnitude);
+                var e = bb.extents; halfW = Mathf.Max(.05f, new Vector2(e.x, e.z).magnitude * .95f); halfH = Mathf.Max(.05f, e.y + e.z * .3f); }
             // small things (grenades, mines) are shown bigger so they fill the frame the same way
             yaw = -25; pitch = id == "mine" ? 28 : 8; zoom = 1; spinV = 0; idleT = 99;
             UpdateInfo(id);
@@ -341,10 +342,12 @@ namespace StreetLife
             pivot.localRotation = Quaternion.Euler(pitch, yaw, 0);
 
             // camera: framed on the weapon's size, a touch above
-            float dist = radius / Mathf.Sin(cam.fieldOfView * .5f * Mathf.Deg2Rad) * 1.02f / zoom;
+            // fit the length to 78% of the width and the height to the open middle (between the name and the stats)
+            float t = Mathf.Tan(cam.fieldOfView * .5f * Mathf.Deg2Rad);
+            float dist = Mathf.Max(halfW / (t * cam.aspect * .78f), halfH / (t * .48f), radius * 1.2f) / zoom;
             var c = pivot.position;
-            cam.transform.position = c + new Vector3(0, radius * .18f, -dist);
-            cam.transform.LookAt(c - Vector3.up * radius * .22f);
+            cam.transform.position = c + new Vector3(0, dist * .06f, -dist);
+            cam.transform.LookAt(c - Vector3.up * dist * t * .1f);
 
             // lights placed round the weapon in camera space, scaled to its size
             float s = Mathf.Max(.5f, radius * 2.4f);

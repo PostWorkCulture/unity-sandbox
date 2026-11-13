@@ -397,6 +397,7 @@ namespace StreetLife
                     if (Random.value < dt * 6) BreakFx.I.Puffs(top + Vector3.up * .6f, 1, .8f, 2.6f, .9f, 2.6f, new Color(.17f, .18f, .2f, .5f));
                     continue;
                 }
+                if (e.carState == "ext") continue;   // driven by StreetTraffic (maps chat)
                 if (e.carState == "park")
                 {
                     e.wait -= dt;

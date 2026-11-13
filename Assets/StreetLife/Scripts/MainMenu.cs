@@ -68,6 +68,9 @@ namespace StreetLife
             selMap = MapSet.Current;
             { var cur = MapSet.Load() ? MapSet.Load().Get(selMap) : null; Settings.Mode = ModeKey(cur); }
             BuildMenu(); BuildPause(); BuildSettings();
+            // hover: every button gets the white edge while the pointer is on it (no fading); it goes back to its own edge after
+            root.RegisterCallback<PointerOverEvent>(e => HoverOn(ButtonOf(e.target)), TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerOutEvent>(e => HoverOff(ButtonOf(e.target)), TrickleDown.TrickleDown);
             Show(Open ? menu : null);
             if (Open) Enter(); else { player = FindPlayer(); ApplyLoadout(); }
         }
@@ -87,6 +90,29 @@ namespace StreetLife
         }
         static Label Caps(string t) { var l = L(t.ToUpperInvariant(), 11, Dim, true); l.style.letterSpacing = 1.5f; l.style.marginTop = 14; l.style.marginBottom = 6; return l; }
 
+        // ---- hover edge. The hover white is one step off pure white (Sel), so a click that selects the button while it's
+        // hovered (its refresh sets Sel) is told apart from the hover itself and isn't undone when the pointer leaves.
+        static readonly Color HoverEdge = new Color32(255, 255, 255, 254);
+        class EdgeWas { public Color t, b, l, r; public float tw, bw, lw, rw; }
+        static Button ButtonOf(IEventHandler target) { for (var v = target as VisualElement; v != null; v = v.parent) if (v is Button btn) return btn; return null; }
+        static bool IsHover(Color c) => Mathf.Abs(c.a - HoverEdge.a) < .002f && c.r > .99f && c.g > .99f && c.b > .99f;
+        static void HoverOn(Button b)
+        {
+            if (b == null || b.userData is EdgeWas) return;
+            var st = b.resolvedStyle;
+            b.userData = new EdgeWas { t = st.borderTopColor, b = st.borderBottomColor, l = st.borderLeftColor, r = st.borderRightColor, tw = st.borderTopWidth, bw = st.borderBottomWidth, lw = st.borderLeftWidth, rw = st.borderRightWidth };
+            float w = Mathf.Max(1, st.borderTopWidth, st.borderLeftWidth);
+            Border(b, w, HoverEdge);
+        }
+        static void HoverOff(Button b)
+        {
+            if (b == null || !(b.userData is EdgeWas was)) return;
+            b.userData = null;
+            if (!IsHover(b.style.borderTopColor.value)) return;   // selected while hovered: keep what its refresh set
+            b.style.borderTopColor = was.t; b.style.borderBottomColor = was.b; b.style.borderLeftColor = was.l; b.style.borderRightColor = was.r;
+            b.style.borderTopWidth = was.tw; b.style.borderBottomWidth = was.bw; b.style.borderLeftWidth = was.lw; b.style.borderRightWidth = was.rw;
+        }
+
         static Texture2D gradient;
         static Texture2D Gradient()
         {
@@ -105,8 +131,6 @@ namespace StreetLife
             b.style.flexShrink = 0; b.style.whiteSpace = WhiteSpace.NoWrap;
             if (primary) { b.style.backgroundImage = new StyleBackground(Gradient()); b.style.backgroundColor = Accent; b.style.fontSize = 20; }
             else b.style.backgroundColor = Chip;
-            b.RegisterCallback<PointerEnterEvent>(_ => b.style.opacity = .85f);
-            b.RegisterCallback<PointerLeaveEvent>(_ => b.style.opacity = 1f);
             return b;
         }
 
@@ -258,7 +282,7 @@ namespace StreetLife
 
         Button Round(string t, Action a)
         {
-            var b = Btn(t, a, false, 26); b.style.width = b.style.height = 52; Radius(b, 26); Pad(b, 0, 0); b.style.backgroundColor = new Color(0, 0, 0, .45f); Border(b, 2, new Color(1, 1, 1, .8f));
+            var b = Btn(t, a, false, 26); b.style.width = b.style.height = 52; Radius(b, 26); Pad(b, 0, 0); b.style.backgroundColor = new Color(0, 0, 0, .45f); Border(b, 2, Line);
             return b;
         }
 
