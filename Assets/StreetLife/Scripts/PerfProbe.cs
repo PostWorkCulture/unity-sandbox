@@ -97,7 +97,7 @@ namespace StreetLife
         {
             if (!Show) return;
             if (st == null) st = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.UpperLeft, fontSize = 14 };
-            GUI.Box(new Rect(Screen.width - 250, 10, 240, 136),
+            GUI.Box(HudLayout.PerfBox(240, 136),
                 $"Unity {Application.unityVersion}  {SystemInfo.graphicsDeviceType}\n" +
                 $"{Avg:F0} fps avg   {Low1:F0} fps 1% low\n{Ms:F1} ms a frame (last 10 s)\n" +
                 $"playable after {ReadyAt:F1} s (engine start)\n{Screen.width}x{Screen.height}  {SystemInfo.deviceModel}\n{dc.LastValue} draws  {bt.LastValue} batches  {tri.LastValue / 1000}k tris", st);

@@ -130,10 +130,10 @@ namespace StreetLife
             }
 
             // test notes and the test keys (shown with the match HUD's F1 help)
-            if (note != null && now < noteT) Shadowed(R(W / 2 - 300, H - 120, 600, 22), note, sub, Gold);
+            if (note != null && now < noteT) Shadowed(R(W / 2 - 300, HudLayout.FinisherNoteY, 600, 22), note, sub, Gold);   // phones: above the down / finish prompts, clear of the Finish button
             if (!hud) hud = FindAnyObjectByType<Hud>();
-            if (hud && hud.showHelp)
-                Shadowed(R(W / 2 - 330, H - 72, 660, 20), "F finishes a downed enemy (firing stops yours)" + (Application.isEditor ? "   ·   test: F9 downs the bot, Shift+F9 downs you, F10 next move: " + (Finishers.ForceMove == "" ? "Random" : Finishers.ForceMove) : ""), small, new Color(1, 1, 1, .85f));
+            if (hud && hud.showHelp && !HudLayout.Touch)   // phones show no key help (and the Finish button is there)
+                Shadowed(R(W / 2 - 330, HudLayout.FinisherHelpY, 660, 20), "F finishes a downed enemy (firing stops yours)" + (Application.isEditor ? "   ·   test: F9 downs the bot, Shift+F9 downs you, F10 next move: " + (Finishers.ForceMove == "" ? "Random" : Finishers.ForceMove) : ""), small, new Color(1, 1, 1, .85f));
         }
     }
 }

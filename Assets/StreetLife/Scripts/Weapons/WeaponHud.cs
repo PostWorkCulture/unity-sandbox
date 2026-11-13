@@ -249,7 +249,7 @@ namespace StreetLife
 
             // ammo panel (bottom right)
             {
-                float pw = 250, ph = 106, x = W - pw - 18, y = H - ph - 18;
+                float pw = 250, ph = 106; var ap = HudLayout.AmmoPanel(pw, ph); float x = ap.x, y = ap.y;   // bottom right; left of the minimap on phones
                 Rect(x, y, pw, ph, Panel);
                 var g1 = GunsDb.Gun(w.primary); var g2 = GunsDb.Gun(w.secondary);
                 Shadowed(new Rect(x + 10, y + 6, 115, 20), "1  " + (g1 != null ? g1.name : "-"), mid, w.slot == 0 ? Gold : new Color(1, 1, 1, .55f));
@@ -270,11 +270,12 @@ namespace StreetLife
                 if (!Rules.Rumble && (w.nades > 0 || w.goldNade > 0)) lines.Add("T  Grenade x" + w.nades + (w.goldNade > 0 ? "  + Gold" : ""));
                 if (w.turretKit > 0) lines.Add("V  Sentry");
                 if (f.speedT > 0) lines.Add("Speed  " + Mathf.CeilToInt(f.speedT) + "s");
-                float x = 18, y = H - 126 - lines.Count * 20;
+                float x = 18, y = HudLayout.ItemsTopFor(lines.Count);   // above the vitals; under them on phones
+                HudLayout.ItemsTop = y; HudLayout.ItemsBottom = y + lines.Count * 20 + 10;
                 if (lines.Count > 0) Rect(x, y, 230, lines.Count * 20 + 10, Panel);
                 for (int i = 0; i < lines.Count; i++) Shadowed(new Rect(x + 10, y + 5 + i * 20, 220, 20), lines[i], mid, Color.white);
             }
-            GUI.Label(new Rect(W - 268, H - 150, 250, 20), "Tab  weapons and shop", smallR);
+            if (!HudLayout.Touch) GUI.Label(new Rect(W - 268, H - 150, 250, 20), "Tab  weapons and shop", smallR);   // phones have the Shop button
 
             if (MenuOpen) Menu(W, H);
             GUI.matrix = m0;

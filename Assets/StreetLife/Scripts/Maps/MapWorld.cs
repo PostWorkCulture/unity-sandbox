@@ -43,8 +43,10 @@ namespace StreetLife
             try { env = entry.envJson ? JsonUtility.FromJson<EnvJson>(entry.envJson.text) : null; } catch (System.Exception ex) { Debug.LogError("Street Life maps: env.json: " + ex.Message); }
             try { extras = entry.extrasJson ? JsonUtility.FromJson<ExtrasJson>(entry.extrasJson.text) : null; } catch (System.Exception ex) { Debug.LogError("Street Life maps: extras.json: " + ex.Message); }
             bin = entry.extrasBin ? entry.extrasBin.bytes : null;
+            if (entry.id == "rail") RailLook.Env(env);   // Railed at golden hour (RailLook.cs)
             ApplyEnv();
             Mood();
+            if (entry.id == "rail") RailLook.Apply(this);   // its surfaces and reflections
             if (extras != null && bin != null) { BuildGround(); BuildCrowd(); }
             if (entry.id == "wreck") BuildBeachSea();
             if (entry.IsStreet && builder) gameObject.AddComponent<StreetTraffic>().Init(this, builder);
@@ -155,7 +157,7 @@ namespace StreetLife
             switch (id)
             {
                 case "wreck": l.cover = .45f; l.temp = 3; break;                                                         // bright beach day
-                case "rail": l.cover = .55f; break;
+                case "rail": l.cover = .5f; l.lit = new Color(1f, .84f, .66f); l.shade = new Color(.52f, .44f, .56f); l.temp = 6; l.sat = 6; l.contrast = 4; break;   // golden hour (RailLook.Env)
                 case "skyhigh": l.cover = .55f; l.lit = new Color(1f, .8f, .62f); l.shade = new Color(.55f, .38f, .45f); l.temp = 10; l.sat = 8; break;   // golden hour
                 case "lagoon": l.cover = .52f; l.lit = new Color(1f, .82f, .86f); l.shade = new Color(.55f, .42f, .62f); l.temp = 6; l.sat = 10; break; // sunset
                 case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 8; l.bloom = .7f; l.ev = .45f; break; // night

@@ -51,7 +51,7 @@ namespace StreetLife
             int lv = Progress.LevelOf(xpNow), into = xpNow % Progress.XpPerLevel;
             bool levelled = lv > m.levelBefore;
 
-            float w = 560, x = W / 2 - w / 2, y = H / 2 + 140;
+            float w = 560, x = W / 2 - w / 2, y = HudLayout.XpPanelY;   // phones: above the title (the Rematch button is at the bottom)
             Fill(R(x - 16, y - 12, w + 32, m.unlocked.Count > 0 ? 112 : 84), new Color(0, 0, 0, .45f));
             Shadowed(R(x, y, 200, 26), "Level " + lv, label, levelled ? Gold : Color.white);
             Shadowed(R(x + w - 200, y, 200, 26), "+" + m.xp + " XP", new GUIStyle(label) { alignment = TextAnchor.MiddleRight }, Cyan);

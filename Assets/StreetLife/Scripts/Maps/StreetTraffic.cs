@@ -17,7 +17,7 @@ namespace StreetLife
 
         // layout, in Unity coordinates (the plot is x ±46, z ±30; the hedge and Tripo fence reach x ±48.4, z ±32.4)
         const float RX = 56, RZ = 41, RC = 12, RHW = 4, LANE = 2;        // ring road: centre line, corner radius, half width, lane offset
-        const float SLANE = 1.25f, PARKX = 3.4f, ZF = 30, GAP = 9.2f;     // street driving lanes, parking line, end fences, gap half width
+        const float SLANE = 1.5f, PARKX = 4.4f, ZF = 30, GAP = 9.2f;      // street driving lanes, parking line, end fences, gap half width
         const float DEC = 16;                                             // decide / merge this far before / after a junction
         const float FRONT = -1;                                           // the car models face -z
 
@@ -110,7 +110,7 @@ namespace StreetLife
         float quietT, t;
         AudioSource engine;
         static string forceNext = "";
-        static string initLog = "";
+        static string initLog = "", hitLog = "";
 
         // the lorry's delivery: three boxes and hazard lights
         class Crate { public Transform t; public int box; public Vector3 from, to; public float t0 = -1; public bool shown, landed; }
@@ -128,6 +128,7 @@ namespace StreetLife
             foreach (var e in Destruction.I.ents)
             {
                 if (e.d.kind != "car" || e.boxes.Length == 0) continue;
+                ScaleCar(e);
                 var c = new Car { e = e, truck = e.d.carKind == "truck", name = e.d.carKind };
                 c.off = new Vector3[e.boxes.Length]; c.y = e.homePos.y;
                 float x0 = 1e9f, x1 = -1e9f, z0 = 1e9f, z1 = -1e9f, y1 = 0;
@@ -151,6 +152,26 @@ namespace StreetLife
         }
 
         void OnDestroy() { RoundManager.RoundStarted -= OnRound; if (I == this) I = null; }
+
+        // Pete: some cars looked way too small. The models are real-world size (a 1.05 m tall Lamborghini) but the fighters are
+        // 2.25 m tall, so each car is scaled up to sit right next to them, and parks further over (x ±4.4) to leave the lanes clear.
+        static float CarScale(string kind) => kind == "lambo" ? 1.4f : kind == "porsche" ? 1.33f : kind == "gtr" ? 1.28f : kind == "truck" ? 1.2f : 1.3f;
+
+        static void ScaleCar(Destruction.Ent e)
+        {
+            float k = CarScale(e.d.carKind);
+            var oldHome = e.homePos; var home = new Vector3(Mathf.Sign(oldHome.x) * PARKX, oldHome.y, oldHome.z);
+            e.homePos = home; e.homeScale *= k;
+            e.t.localPosition = home; e.t.localScale = e.homeScale;
+            for (int i = 0; i < e.boxes.Length; i++)
+            {
+                var b = e.homeBoxes[i];
+                float cx = home.x + ((b.x0 + b.x1) / 2 - oldHome.x) * k, cz = home.z + ((b.z0 + b.z1) / 2 - oldHome.z) * k;
+                float hx = (b.x1 - b.x0) / 2 * k, hz = (b.z1 - b.z0) / 2 * k;
+                b.x0 = cx - hx; b.x1 = cx + hx; b.z0 = cz - hz; b.z1 = cz + hz; b.y0 *= k; b.y1 *= k;
+                e.homeBoxes[i] = b; BoxWorld.Set(e.boxes[i], b);
+            }
+        }
 
         void OnRound(int r)
         {
@@ -238,7 +259,13 @@ namespace StreetLife
                 var m0 = e.rends.Count > 0 && e.rends[0] ? e.rends[0].sharedMaterial : null;
                 if ((e.d.kind == "knock" && m0 == red) || (e.d.kind == "tree" && m0 == purple)) gone.Add(e);
             }
+            // Pete: the hospital was too full. Out go the middle row of ward beds and their drips, the nurse in the middle of the ward,
+            // and upstairs the recovery bed (with its drip, cabinet and monitor), its nurse and the wheelchair. The beds that stay
+            // are the two ward beds against the back wall, the triage bed, the upstairs bed by the back wall and the helipad bed.
+            var hospital = new HashSet<int> { 133, 139, 140, 319, 320, 141, 142, 166, 295, 324, 325 };
+            foreach (var e in Destruction.I.ents) if (hospital.Contains(e.d.id) && e.homePos.x > 12 && e.homePos.x < 40 && e.homePos.z > -7 && e.homePos.z < 21) gone.Add(e);
             foreach (var e in gone) Destruction.I.Remove(e);
+            HospitalLights();
             initLog += gone.Count + " red plants and trees removed; ";
             foreach (var e in Destruction.I.ents)
             {
@@ -256,6 +283,22 @@ namespace StreetLife
                 }
             }
         }
+        // the hospital's ceiling lights (the web game's 22-unit point lights): four of the nine go, the rest a fifth dimmer
+        void HospitalLights()
+        {
+            var root = mb ? mb.transform.Find("__Generated/Lamps") : null; if (!root) return;
+            var off = new[] { new Vector3(18.8f, 2.9f, 1.1f), new Vector3(36.4f, 2.9f, 16f), new Vector3(18.8f, 6.8f, 1.1f), new Vector3(31.9f, 6.8f, 15.1f) };
+            int n = 0, dim = 0;
+            foreach (Transform ch in root)
+            {
+                var li = ch.GetComponent<Light>(); if (!li) continue; var p = ch.position;
+                if (p.x < 12 || p.x > 40 || p.z < -7 || p.z > 21) continue;
+                bool kill = false; foreach (var q in off) if ((p - q).sqrMagnitude < .25f) kill = true;
+                if (kill) { li.enabled = false; n++; } else { li.intensity *= .8f; dim++; }
+            }
+            initLog += "hospital lights: " + n + " off, " + dim + " dimmed; ";
+        }
+
         // the black outline drawn round a box-shaped prop goes with it
         void MoveOutline(Destruction.Ent e, Vector3 d)
         {
@@ -569,7 +612,7 @@ namespace StreetLife
                 if (o == c || o.mode == 4) continue;
                 var rel = o.pos - c.pos; float along = Vector3.Dot(rel, c.fwd), side = Vector3.Dot(rel, left);
                 if (along <= 0 || along > 40 || Mathf.Abs(side) > 1.7f) continue;
-                if (o.mode == 0 && Mathf.Abs(o.pos.x) > 2.6f) continue;   // parked at the kerb, clear of the lanes
+                if (o.mode == 0 && Mathf.Abs(o.pos.x) > PARKX - 1) continue;   // parked at the kerb, clear of the lanes
                 float gap = along - c.hl - o.hl - 2.2f;
                 want = Mathf.Min(want, Mathf.Sqrt(2 * 7 * Mathf.Max(0, gap)));
             }
@@ -605,9 +648,9 @@ namespace StreetLife
                     float lt = Vector3.Dot(c.target.pos - (c.pos - left * c.lat), left);
                     float laneX = (c.pos - left * c.lat).x;
                     // across both lanes, and out to the kerb where nobody is parked beside them
-                    float maxL = 1.3f; var tp = c.target.pos; bool parkedBy = false;
+                    float maxL = SLANE; var tp = c.target.pos; bool parkedBy = false;
                     foreach (var o in cars) if (o.mode == 0 && Mathf.Sign(o.pos.x) == Mathf.Sign(tp.x) && Mathf.Abs(o.pos.z - tp.z) < o.hl + 4) parkedBy = true;
-                    if (!parkedBy) maxL = 3.3f;
+                    if (!parkedBy) maxL = 3.0f;
                     float tx = Mathf.Clamp(laneX + left.x * lt, -maxL, maxL);
                     c.latT = left.x != 0 ? (tx - laneX) / left.x : lt;
                 }
@@ -779,6 +822,7 @@ namespace StreetLife
                 f.vel = c.fwd * c.v * .75f + left * sgn * Random.Range(5f, 8f) + Vector3.up * Random.Range(7.5f, 10f);
                 f.grounded = false; f.thrownT = .6f;
                 float dmg = Mathf.Clamp(14 + c.v * 2.9f, 20, 78);
+                hitLog += c.name + (c.reckless ? " (reckless)" : "") + " hit " + f.name + " at " + c.v.ToString("0") + " m/s for " + dmg.ToString("0") + "; ";
                 Sfx.Play("punch", f.pos, 1, 22, .7f); Sfx.Play("impact", f.pos, .8f, 22);
                 var lb = f.lastBy; var by = lb != null && lb != f && lb.team != f.team && f.simTime - f.lastHurt < 10 ? lb : null;
                 var prev = RoundManager.WeaponNameOf;
@@ -808,7 +852,8 @@ namespace StreetLife
             hazard = new Renderer[2];
             for (int k = 0; k < 2; k++)
             {
-                var lamp = Cube(truck.e.t, new Vector3((k == 0 ? -1 : 1) * (truck.hw - .18f), .95f, -FRONT * (truck.hl + .01f)), new Vector3(.2f, .12f, .04f), amber, false);
+                float sc = truck.e.t.localScale.x;   // the lorry is scaled up: local units are smaller than metres
+                var lamp = Cube(truck.e.t, new Vector3((k == 0 ? -1 : 1) * (truck.hw - .2f), 1.15f, -FRONT * (truck.hl + .01f)) / sc, new Vector3(.22f, .14f, .04f) / sc, amber, false);
                 var rr = lamp.GetComponent<Renderer>(); rr.enabled = false; hazard[k] = rr;
             }
         }
@@ -875,6 +920,7 @@ namespace StreetLife
             {
                 case "street": forceNext = parts.Length > 1 ? parts[1] : "through"; if (forceNext == "through") forceNext = "x"; return "next car in: " + forceNext;
                 case "log": return initLog;
+                case "hits": return hitLog;
                 case "probe":
                     {   // which renderers cover a point (x, y, z)
                         float F(int i) => float.Parse(parts[i], System.Globalization.CultureInfo.InvariantCulture);

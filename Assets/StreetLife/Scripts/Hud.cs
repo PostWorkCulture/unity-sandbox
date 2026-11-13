@@ -78,21 +78,22 @@ namespace StreetLife
                 ScoreAndFeed(rm, W);
                 Leaderboard(rm);
                 Banners(rm, W, H);
-                if (showBot && rm && rm.botBrain) GUI.Label(R(18, 120, 520, 60), $"Bot: {rm.botBrain.Style.name} ({rm.botBrain.Dif.name}), {rm.botBrain.Mode}", small);
+                if (showBot && rm && rm.botBrain) GUI.Label(R(18, HudLayout.LeftColumnBottom + 8, 520, 60), $"Bot: {rm.botBrain.Style.name} ({rm.botBrain.Dif.name}), {rm.botBrain.Mode}", small);
             }
             if (showHelp && !(TouchControls.I && TouchControls.I.Showing))
             {
-                Fill(R(W / 2 - 470, H - 50, 940, 44), new Color(0, 0, 0, .35f));
-                GUI.Label(R(W / 2 - 470, H - 48, 940, 44),
+                float hw = HudLayout.HelpWidth;   // clear of the vitals and the ammo panel (HudLayout)
+                Fill(R(W / 2 - hw / 2, H - 58, hw, 54), new Color(0, 0, 0, .35f));
+                GUI.Label(R(W / 2 - hw / 2, H - 56, hw, 54),
                     "WASD move · Space jump (again for a double jump) · Left click fire · Right click aim · C crouch · G ability · walk into a ladder to climb · Esc frees the mouse\n" +
-                    "Tab weapons and shop · F3 characters · F2 bot's style · F8 frame rate · F1 shows this again", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
+                    "Tab weapons and shop · F3 characters · F2 bot's style · F8 frame rate · F1 shows this again", new GUIStyle(small) { alignment = TextAnchor.UpperCenter, wordWrap = true });
             }
         }
 
         // ------------------------------------------------------------------ vitals
         void Vitals(float H)
         {
-            float x = 18, y = H - 84;
+            float x = 18, y = HudLayout.VitalsTop + 22;   // bottom left on desktop, under the leaderboard on phones
             Bar(x, y, 230, 18, fighter.hp / fighter.hpMax, new Color(.27f, .85f, .38f));
             Bar(x, y + 22, 230, 12, fighter.armor / 100f, new Color(.25f, .6f, 1f));
             Bar(x, y + 38, 230, 12, fighter.stam / Fighter.STAM_MAX, fighter.stamLock ? new Color(.45f, .3f, .55f) : new Color(.62f, .38f, 1f));
@@ -121,13 +122,15 @@ namespace StreetLife
         {
             if (!fighter.alive) return;
             float W = Screen.width / s;
-            if (Walls.On && !(TouchControls.I && TouchControls.I.Showing)) Shadowed(R(x, y - 44, 300, 20), fighter.walls > 0 ? $"Q  wall  x{fighter.walls}" : "no walls left", small, new Color(1, 1, 1, fighter.walls > 0 ? .8f : .4f));
+            if (Walls.On && !(TouchControls.I && TouchControls.I.Showing)) Shadowed(R(x, Mathf.Min(y - 44, HudLayout.ItemsTop - 22), 300, 20), fighter.walls > 0 ? $"Q  wall  x{fighter.walls}" : "no walls left", small, new Color(1, 1, 1, fighter.walls > 0 ? .8f : .4f));
             string msg = null; var col = Color.white;
             if (fighter.downed && !fighter.InFinisher) { msg = "Down  ·  fire to tag an enemy (seen through walls for 3 s)"; col = new Color(1f, .55f, .6f); }
             else if (Intel.EnemySensing(fighter)) { msg = "An enemy used HeartBeat: they can see you"; col = new Color(1f, .45f, .45f); }
             else if (fighter.senseT > 0) { msg = "HeartBeat  " + Mathf.CeilToInt(fighter.senseT) + "s"; col = new Color(.5f, .95f, 1f); }
             else if (Kiosk.Near(fighter)) { msg = fighter.shopCD > 0 ? "Shop ready in " + Mathf.CeilToInt(fighter.shopCD) + "s" : (TouchControls.I && TouchControls.I.Showing ? "Shop open: tap Shop" : "Shop: press Tab, pick one item"); col = new Color(1f, .85f, .35f); }
-            if (msg != null) { Fill(R(W / 2 - 260, H - 150, 520, 30), new Color(0, 0, 0, .45f)); Shadowed(R(W / 2 - 260, H - 147, 520, 26), msg, center, col); }
+            HudLayout.MessageShown = msg != null;
+            float my = HudLayout.Touch ? HudLayout.MessageY : H - 150;   // phones: in the top-centre stack, clear of the Finish button
+            if (msg != null) { Fill(R(W / 2 - 260, my, 520, 30), new Color(0, 0, 0, .45f)); Shadowed(R(W / 2 - 260, my + 3, 520, 26), msg, center, col); }
         }
 
         void FrostEdges(float k)
@@ -246,7 +249,7 @@ namespace StreetLife
             else head = $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}";
             Shadowed(R(W / 2 - 170, 8, 340, 36), head, big, Color.white);
             Shadowed(R(W / 2 - 170, 42, 340, 20), $"{t}   First to {rm.toWin}{(rm.Deathmatch ? " kills" : "")}", center, new Color(1, 1, 1, .85f));
-            float y = FinisherHud.BannerUp ? 178 : 62;   // drop below the finisher's "Eliminated" banner while it shows
+            float y = HudLayout.FeedTop;   // under the score, the finisher banner, the round result and (phones) the message   // drop below the finisher's "Eliminated" banner while it shows
             for (int fi = Mathf.Max(0, rm.feed.Count - 4); fi < rm.feed.Count; fi++)   // the newest 4 (FFA gets busy)
             {
                 var it = rm.feed[fi];
@@ -261,6 +264,7 @@ namespace StreetLife
         {
             float x = 18, y = 16;
             Fill(R(x - 6, y - 4, 230, 26 + 20 * rm.fighters.Count), new Color(0, 0, 0, .35f));
+            HudLayout.LeaderboardBottom = y - 4 + 26 + 20 * rm.fighters.Count;
             GUI.Label(R(x, y, 120, 18), "Player", small); GUI.Label(R(x + 130, y, 90, 18), "K   A   D", small);
             y += 20;
             var list = new System.Collections.Generic.List<Fighter>(rm.fighters); list.Sort((a, b) => b.kills != a.kills ? b.kills.CompareTo(a.kills) : a.deaths.CompareTo(b.deaths));
@@ -276,6 +280,7 @@ namespace StreetLife
         // ------------------------------------------------------------------ countdown, round result, match end
         void Banners(RoundManager rm, float W, float H)
         {
+            HudLayout.RoundBarShown = rm.state == RoundManager.State.RoundEnd;
             switch (rm.state)
             {
                 case RoundManager.State.Intro:
@@ -293,8 +298,9 @@ namespace StreetLife
                         string msg = rm.lastWinner < 0 ? (rm.timer <= 0 ? "Draw: time ran out" : "Draw") : rm.lastWinner == fighter.team ? (Rules.TwoVTwo ? "Round to your team" : "Round to you") : "Round to " + other;
                         if (rm.timer <= 0 && rm.lastWinner >= 0) msg += " (more health left)";
                         if (rm.matchOver) msg = rm.lastWinner == fighter.team ? "Match point won!" : rm.Deathmatch ? other + " wins" : "Match lost";
-                        Fill(R(0, 118, W, 44), new Color(0, 0, 0, .55f));
-                        Shadowed(R(0, 118, W, 44), msg, big, rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : rm.lastWinner < 0 ? Color.white : new Color(1f, .5f, .45f));
+                        float ry = HudLayout.RoundBarY;   // centred under the score (and the finisher banner), not across the minimap
+                        Fill(R(W / 2 - 260, ry, 520, 44), new Color(0, 0, 0, .55f));
+                        Shadowed(R(W / 2 - 260, ry, 520, 44), msg, big, rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : rm.lastWinner < 0 ? Color.white : new Color(1f, .5f, .45f));
                     }
                     break;
                 case RoundManager.State.MatchEnd:

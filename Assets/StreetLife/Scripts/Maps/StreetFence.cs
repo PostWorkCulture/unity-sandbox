@@ -4,7 +4,7 @@
 //   2 Railings: black steel park railings with spear tops and finials, 1.6 m
 //   3 Slatted:  modern horizontal cedar boards with gaps on charcoal steel posts, 1.5 m
 //   4 Ranch:    weathered oak post and three rails, 1.25 m (the most open)
-// The style is saved in PlayerPrefs "StreetLife.fence"; "call StreetTraffic.Test fence <n>" switches it live.
+// Pete picked Picket (13 Nov), so that's the default. The style is saved in PlayerPrefs "StreetLife.fence"; "call StreetTraffic.Test fence <n>" switches it live.
 // Both end fences keep the gap for the road (StreetTraffic cuts it in the Tripo fence and splits the collision walls).
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,7 +22,7 @@ namespace StreetLife
         readonly List<int> walls = new List<int>(); readonly List<Box> wallHome = new List<Box>();
         GameObject built; int style = -1;
 
-        public static int Saved { get => Mathf.Clamp(PlayerPrefs.GetInt(Pref, 0), 0, 4); set { PlayerPrefs.SetInt(Pref, value); PlayerPrefs.Save(); } }
+        public static int Saved { get => Mathf.Clamp(PlayerPrefs.GetInt(Pref, 1), 0, 4); set { PlayerPrefs.SetInt(Pref, value); PlayerPrefs.Save(); } }
 
         public void Init(MapBuilder builder, IEnumerable<GameObject> tripoFence)
         {

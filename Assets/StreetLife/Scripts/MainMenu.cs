@@ -102,8 +102,8 @@ namespace StreetLife
             if (b == null || b.userData is EdgeWas) return;
             var st = b.resolvedStyle;
             b.userData = new EdgeWas { t = st.borderTopColor, b = st.borderBottomColor, l = st.borderLeftColor, r = st.borderRightColor, tw = st.borderTopWidth, bw = st.borderBottomWidth, lw = st.borderLeftWidth, rw = st.borderRightWidth };
-            float w = Mathf.Max(1, st.borderTopWidth, st.borderLeftWidth);
-            Border(b, w, HoverEdge);
+            // colour only: the edge widths never change, so nothing around the button moves
+            b.style.borderTopColor = b.style.borderBottomColor = b.style.borderLeftColor = b.style.borderRightColor = HoverEdge;
         }
         static void HoverOff(Button b)
         {
@@ -145,7 +145,7 @@ namespace StreetLife
             {
                 var v = values[i];
                 var b = new Button(() => { set(v); Refresh(); }) { text = labels[i] };
-                b.style.flexGrow = 1; b.style.unityTextAlign = TextAnchor.MiddleCenter; b.style.fontSize = 14; b.style.unityFontStyleAndWeight = FontStyle.Bold; Radius(b, 7); Border(b, 0, Line); Pad(b, 7, 6);
+                b.style.flexGrow = 1; b.style.unityTextAlign = TextAnchor.MiddleCenter; b.style.fontSize = 14; b.style.unityFontStyleAndWeight = FontStyle.Bold; Radius(b, 7); Border(b, 1, new Color(0, 0, 0, 0)); Pad(b, 7, 6);
                 b.style.marginLeft = b.style.marginRight = b.style.marginTop = b.style.marginBottom = 0;
                 buttons.Add(b); bar.Add(b);
             }
@@ -233,11 +233,11 @@ namespace StreetLife
                 {
                     if (m == null || (!m.IsStreet && (!m.mapJson || !m.library))) continue;   // left out of this build
                     var id = m.id;
-                    var c = Btn(m.title, () => { selMap = id; RefreshMap(); }, false, 13); c.name = "map-" + id; c.style.marginRight = 8; c.style.marginBottom = 6;
+                    var c = Btn(m.title, () => { selMap = id; RefreshMap(); }, false, 13); Border(c, 2, Line); c.name = "map-" + id; c.style.marginRight = 8; c.style.marginBottom = 6;
                     (IsBig(id) ? bigChips : smallChips).Add(c);
                 }
             chips.style.flexDirection = FlexDirection.Column;
-            { var rnd = Btn("Random", () => { selMap = RandomId; RefreshMap(); }, false, 13); rnd.name = "map-" + RandomId; rnd.style.alignSelf = Align.FlexStart; rnd.style.marginBottom = 6; chips.Add(rnd); }
+            { var rnd = Btn("Random", () => { selMap = RandomId; RefreshMap(); }, false, 13); Border(rnd, 2, Line); rnd.name = "map-" + RandomId; rnd.style.alignSelf = Align.FlexStart; rnd.style.marginBottom = 6; chips.Add(rnd); }
             foreach (var (cap, row) in new[] { ("Big maps", bigChips), ("Small maps", smallChips) }) { if (row.childCount == 0) continue; var lab = Caps(cap); lab.style.color = Text; lab.style.marginTop = 4; chips.Add(lab); chips.Add(row); }
             if (bigChips.childCount + smallChips.childCount <= 1) { chips.style.display = DisplayStyle.None; arrows.style.display = DisplayStyle.None; }   // a one-map build (the Street Life WebGL)
             right.Add(chips);
@@ -349,8 +349,8 @@ namespace StreetLife
             mapCard.style.backgroundSize = new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Cover));
             mapCard.style.backgroundColor = live ? new Color(0, 0, 0, .08f) : thumb ? Color.white : new Color(sw.r * .6f, sw.g * .6f, sw.b * .6f, .92f);
             if (set && set.maps != null)
-                foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; Border(b, on ? 2 : 1, on ? Sel : Line); b.style.color = on ? Text : Dim; }
-            { var rb = menu.Q<Button>("map-" + RandomId); if (rb != null) { bool on = selMap == RandomId; Border(rb, on ? 2 : 1, on ? Sel : Line); rb.style.color = on ? Text : Dim; } }
+                foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; Border(b, 2, on ? Sel : Line); b.style.color = on ? Text : Dim; }
+            { var rb = menu.Q<Button>("map-" + RandomId); if (rb != null) { bool on = selMap == RandomId; Border(rb, 2, on ? Sel : Line); rb.style.color = on ? Text : Dim; } }
         }
 
         // ---- map pictures for the carousel: taken from the menu's own view the first time each map is shown live.
@@ -440,7 +440,7 @@ namespace StreetLife
         Button CharTile(string id, string name)
         {
             var t = new Button(() => PickCharacter(id)) { text = "" }; t.name = "ch-" + id;
-            t.style.width = 76; t.style.height = 80; Radius(t, 8); Border(t, 1, Line); t.style.marginLeft = 0; t.style.marginTop = 0; t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 0, 0);
+            t.style.width = 76; t.style.height = 80; Radius(t, 8); Border(t, 2, Line); t.style.marginLeft = 0; t.style.marginTop = 0; t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 0, 0);
             t.style.backgroundColor = Chip; t.style.overflow = Overflow.Hidden;
             var pic = new VisualElement(); pic.name = "pic"; pic.pickingMode = PickingMode.Ignore; pic.style.height = 58; pic.style.flexShrink = 0;
             pic.style.backgroundSize = new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Cover));
@@ -471,7 +471,7 @@ namespace StreetLife
         {
             var cs = CharacterSet.Load(); if (!cs) return;
             var mine = Settings.RandomChar ? RandomId : CharacterSkin.PlayerChoice;
-            foreach (var b in charGrid.Query<Button>().ToList()) { bool on = b.name == "ch-" + mine; Border(b, on ? 3 : 1, on ? Sel : Line); }
+            foreach (var b in charGrid.Query<Button>().ToList()) { bool on = b.name == "ch-" + mine; Border(b, 2, on ? Sel : Line); }
             charInfo.Clear();
             if (mine == RandomId)
             {
@@ -511,7 +511,7 @@ namespace StreetLife
                 string stat = id == RandomId ? "Different every match" : c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
                 bool on = id == sel; var pid = id;
                 var b = new Button(() => { WeaponShowcase.Show(pid); if (locked) return; pick(pid); PlayerPrefs.Save(); BuildLoadout(); }) { text = "" };
-                b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, on ? 2 : 1, on ? Sel : Line); Pad(b, 4, 8);
+                b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, 2, on ? Sel : Line); Pad(b, 4, 8);
                 b.style.marginLeft = b.style.marginTop = 0; b.style.marginRight = b.style.marginBottom = 7;
                 b.style.backgroundColor = on ? Sel : Chip; b.style.justifyContent = Justify.Center; b.style.alignItems = Align.FlexStart;
                 if (locked && !on) b.style.opacity = .35f;
