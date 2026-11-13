@@ -21,7 +21,6 @@ namespace StreetLife.EditorTools
         static string ProjectDir => Path.GetDirectoryName(Application.dataPath);
         static string SiteDir => Path.Combine(ProjectDir, "Builds", "site");
 
-        [MenuItem("Street Life/Build/WebGL for GitHub Pages")]
         // set by StreetLifeRemote: no dialogs; questions take these answers and messages go to the log
         public static bool Quiet, QuietAllMaps, QuietPublish;
         public static string LastResult = "";
@@ -31,6 +30,7 @@ namespace StreetLife.EditorTools
             return cancel == null ? EditorUtility.DisplayDialog(title, msg, ok) : EditorUtility.DisplayDialog(title, msg, ok, cancel);
         }
 
+        [MenuItem("Street Life/Build/WebGL for GitHub Pages")]
         public static void BuildWebGL()
         {
             if (!File.Exists(Scene)) { Dlg("Street Life", "The Street Life scene is missing: run Street Life > Rebuild materials and scene first.", "OK"); return; }

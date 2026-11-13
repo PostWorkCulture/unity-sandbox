@@ -24,11 +24,35 @@ namespace StreetLife.EditorTools
         static readonly string Cmd = Path.Combine(Dir, "streetlife-cmd.txt"), Out = Path.Combine(Dir, "streetlife-remote.txt");
         static double next;
 
+        static IntPtr hwnd;
+        static System.Threading.Thread watcher; static volatile bool stopWatch;
+
         static StreetLifeRemote()
         {
             EditorApplication.update -= Tick; EditorApplication.update += Tick;
             PlayerSettings.runInBackground = true;   // play mode keeps going while the editor isn't the front window
+            // An unfocused, idle editor stops ticking, so nothing would read the command file. A background thread checks
+            // for it every half second and, when there is one, nudges the editor's window (a WM_NULL message) to wake it.
+#if UNITY_EDITOR_WIN
+            try { hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; } catch { }
+            if (watcher == null)
+            {
+                watcher = new System.Threading.Thread(() =>
+                {
+                    while (!stopWatch)
+                    {
+                        try { System.Threading.Thread.Sleep(500); if (hwnd != IntPtr.Zero && File.Exists(Cmd)) PostMessage(hwnd, 0, IntPtr.Zero, IntPtr.Zero); }
+                        catch { }
+                    }
+                }) { IsBackground = true, Name = "StreetLife remote" };
+                watcher.Start();
+                AssemblyReloadEvents.beforeAssemblyReload += () => { stopWatch = true; watcher = null; };
+            }
+#endif
         }
+#if UNITY_EDITOR_WIN
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr w, IntPtr l);
+#endif
 
         static void Say(string s) { try { File.AppendAllText(Out, $"{DateTime.Now:HH:mm:ss} {s}\n"); } catch { } }
 
@@ -36,7 +60,9 @@ namespace StreetLife.EditorTools
         {
             if (EditorApplication.timeSinceStartup < next) return;
             next = EditorApplication.timeSinceStartup + .5;
-            if (!File.Exists(Cmd) || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
+            if (!File.Exists(Cmd)) return;
+            EditorApplication.QueuePlayerLoopUpdate();   // keep ticking until the commands are done
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating) return;
             string[] lines;
             try { lines = File.ReadAllLines(Cmd); File.Delete(Cmd); } catch { return; }
             foreach (var raw in lines)

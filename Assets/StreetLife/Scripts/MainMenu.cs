@@ -205,6 +205,7 @@ namespace StreetLife
                     var c = Btn(m.title, () => { selMap = id; RefreshMap(); }, false, 13); c.name = "map-" + id; c.style.marginRight = 8; c.style.marginBottom = 6;
                     chips.Add(c);
                 }
+            if (chips.childCount <= 1) { chips.style.display = DisplayStyle.None; arrows.style.display = DisplayStyle.None; }   // a one-map build (the Street Life WebGL)
             right.Add(chips);
             stepA.Add(right);
             body.Add(stepA);
@@ -269,7 +270,8 @@ namespace StreetLife
             var set = MapSet.Load(); var m = set ? set.Get(selMap) : null;
             mapTitle.text = m != null ? m.title : "Street Life";
             mapDesc.text = (m != null ? m.desc : "Suburban road, cars and front yards").ToUpperInvariant();
-            mapTag.text = ((m != null && !string.IsNullOrEmpty(m.mode) ? m.mode : "Duels") + "  ·  1v1").ToUpperInvariant();
+            var md = m != null && !string.IsNullOrEmpty(m.mode) ? m.mode : "Duels";
+            mapTag.text = (md.IndexOf("1v1", System.StringComparison.OrdinalIgnoreCase) >= 0 ? md : md + "  ·  1v1").ToUpperInvariant();
             // the live map shows through when it's the one picked; another map gets its own colours until you play it
             bool live = selMap == MapSet.Current;
             var sw = m != null && m.swatch != null && m.swatch.Length > 0 ? m.swatch[0] : new Color(.2f, .3f, .25f);
