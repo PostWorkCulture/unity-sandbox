@@ -130,7 +130,8 @@ namespace StreetLife
             else if (Kiosk.Near(fighter)) { msg = fighter.shopCD > 0 ? "Shop ready in " + Mathf.CeilToInt(fighter.shopCD) + "s" : (TouchControls.I && TouchControls.I.Showing ? "Shop open: tap Shop" : "Shop: press Tab, pick one item"); col = new Color(1f, .85f, .35f); }
             HudLayout.MessageShown = msg != null;
             float my = HudLayout.Touch ? HudLayout.MessageY : H - 150;   // phones: in the top-centre stack, clear of the Finish button
-            if (msg != null) { Fill(R(W / 2 - 260, my, 520, 30), new Color(0, 0, 0, .45f)); Shadowed(R(W / 2 - 260, my + 3, 520, 26), msg, center, col); }
+            float mw = HudLayout.Touch ? HudLayout.StackW(520) : 520, mx = (HudLayout.Touch ? HudLayout.StackX : W / 2) - mw / 2;
+            if (msg != null) { Fill(R(mx, my, mw, 30), new Color(0, 0, 0, .45f)); Shadowed(R(mx, my + 3, mw, 26), msg, center, col); }
         }
 
         void FrostEdges(float k)
@@ -254,8 +255,8 @@ namespace StreetLife
             {
                 var it = rm.feed[fi];
                 float a = Mathf.Clamp01(6 - (Time.time - it.t)) * .65f;
-                Fill(R(W / 2 - 170, y, 340, 20), new Color(0, 0, 0, .4f * a / .65f));
-                Shadowed(R(W / 2 - 170, y, 340, 20), it.text, feedStyle, it.mine ? new Color(1, .85f, .3f, a / .65f) : new Color(1, 1, 1, a / .65f));
+                Fill(R(HudLayout.StackX - 170, y, 340, 20), new Color(0, 0, 0, .4f * a / .65f));
+                Shadowed(R(HudLayout.StackX - 170, y, 340, 20), it.text, feedStyle, it.mine ? new Color(1, .85f, .3f, a / .65f) : new Color(1, 1, 1, a / .65f));
                 y += 22;
             }
         }
@@ -299,8 +300,9 @@ namespace StreetLife
                         if (rm.timer <= 0 && rm.lastWinner >= 0) msg += " (more health left)";
                         if (rm.matchOver) msg = rm.lastWinner == fighter.team ? "Match point won!" : rm.Deathmatch ? other + " wins" : "Match lost";
                         float ry = HudLayout.RoundBarY;   // centred under the score (and the finisher banner), not across the minimap
-                        Fill(R(W / 2 - 260, ry, 520, 44), new Color(0, 0, 0, .55f));
-                        Shadowed(R(W / 2 - 260, ry, 520, 44), msg, big, rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : rm.lastWinner < 0 ? Color.white : new Color(1f, .5f, .45f));
+                        float rw = HudLayout.StackW(520), rx = HudLayout.StackX - rw / 2;
+                        Fill(R(rx, ry, rw, 44), new Color(0, 0, 0, .55f));
+                        Shadowed(R(rx, ry, rw, 44), msg, big, rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : rm.lastWinner < 0 ? Color.white : new Color(1f, .5f, .45f));
                     }
                     break;
                 case RoundManager.State.MatchEnd:

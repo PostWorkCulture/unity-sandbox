@@ -241,8 +241,13 @@ namespace StreetLife
             else if (GunsDb.Held(id) != null) nodes = GunsDb.Held(id).nodes;
             else if (GunsDb.Proj(id) != null) nodes = GunsDb.Proj(id).nodes;
             if (nodes == null) return;
+            ShowNodes(id, nodes);
+        }
+
+        void ShowNodes(string id, WNode[] nodes)
+        {
             shown = id;
-            if (model) Destroy(model.gameObject);
+            if (model) { model.gameObject.SetActive(false); Destroy(model.gameObject); }
             var rends = new List<Renderer>();
             var holder = new GameObject("model").transform; holder.SetParent(pivot, false);
             WeaponModels.Build(nodes, holder, id, Layer, false, rends);
@@ -340,14 +345,20 @@ namespace StreetLife
                 if (idleT > 2.5f) yaw += 14 * dt * Mathf.Clamp01((idleT - 2.5f) / 1.5f);   // a slow turntable when left alone
             }
             pivot.localRotation = Quaternion.Euler(pitch, yaw, 0);
+            glintT += dt;
+            Frame(false);
+        }
 
+        /// camera and lights round the weapon on show (sheet: centred, for the contact sheet)
+        void Frame(bool sheet)
+        {
             // camera: framed on the weapon's size, a touch above
             // fit the length to 78% of the width and the height to the open middle (between the name and the stats)
             float t = Mathf.Tan(cam.fieldOfView * .5f * Mathf.Deg2Rad);
-            float dist = Mathf.Max(halfW / (t * cam.aspect * .78f), halfH / (t * .48f), radius * 1.2f) / zoom;
+            float dist = sheet ? Mathf.Max(halfW / (t * cam.aspect * .86f), halfH / (t * .8f)) : Mathf.Max(halfW / (t * cam.aspect * .78f), halfH / (t * .48f), radius * 1.2f) / zoom;
             var c = pivot.position;
             cam.transform.position = c + new Vector3(0, dist * .06f, -dist);
-            cam.transform.LookAt(c - Vector3.up * dist * t * .1f);
+            cam.transform.LookAt(sheet ? c : c - Vector3.up * dist * t * .1f);
 
             // lights placed round the weapon in camera space, scaled to its size
             float s = Mathf.Max(.5f, radius * 2.4f);
@@ -356,7 +367,6 @@ namespace StreetLife
             Place(rimA, c + new Vector3(1.2f, .9f, 1.5f) * s, c);
             Place(rimB, c + new Vector3(-1.4f, .5f, 1.3f) * s, c);
             // the glint sweeps back and forth over the top, so a highlight runs along the barrel and receiver
-            glintT += dt;
             float sweep = Mathf.Sin(glintT * .9f);
             glint.transform.position = c + new Vector3(sweep * 1.2f, .75f + .15f * Mathf.Cos(glintT * .5f), -.55f) * s;
             glint.range = 3.2f * s;
@@ -365,6 +375,55 @@ namespace StreetLife
         }
 
         static void Place(Light l, Vector3 at, Vector3 look) { l.transform.position = at; l.transform.rotation = Quaternion.LookRotation(look - at); }
+
+        // ================================================================== contact sheet (call WeaponShowcase.Sheet)
+        /// Renders every weapon (primaries, secondaries, lethals, grenade, Sentry) side-on to Logs/weapons/<n>-<id>.png
+        /// (800 x 500) and lists them in Logs/weapons/index.txt (file, id, name, class). Needs play mode (weapon data loaded).
+        public static string Sheet(string arg)
+        {
+            if (!GunsDb.Loaded) return "weapon data not loaded (play first)";
+            var s = Get();
+            var ids = new List<string>(GunsDb.Primaries);
+            foreach (var id in GunsDb.Secondaries) if (!ids.Contains(id)) ids.Add(id);
+            if (!ids.Contains("sword")) ids.Add("sword");
+            foreach (var id in new[] { "grenade" }) if (!ids.Contains(id)) ids.Add(id);
+            foreach (var id in GunsDb.Lethals) if (!ids.Contains(id)) ids.Add(id);
+            string dir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Logs", "weapons");
+            System.IO.Directory.CreateDirectory(dir);
+            foreach (var f in System.IO.Directory.GetFiles(dir, "*.png")) System.IO.File.Delete(f);
+            var rtS = new RenderTexture(800, 500, 24, RenderTextureFormat.ARGB32) { antiAliasing = 1 }; rtS.Create();
+            var oldRt = s.cam.targetTexture; float oldAspect = s.cam.aspect; bool wasOn = s.cam.enabled;
+            s.cam.targetTexture = rtS; s.cam.aspect = 1.6f;
+            var tex = new Texture2D(800, 500, TextureFormat.RGB24, false);
+            var lines = new List<string>(); int n = 0;
+            // the Sentry: the shop's turret, built straight from its nodes
+            ids.Add("sentry");
+            foreach (var id in ids)
+            {
+                if (id == "sentry")
+                {
+                    if (GunsDb.Data.turret == null || GunsDb.Data.turret.nodes == null) continue;
+                    s.shown = null; s.ShowNodes("sentry", GunsDb.Data.turret.nodes);
+                }
+                else { s.shown = null; s.SetWeapon(id); if (s.shown != id) continue; }
+                s.pivot.localRotation = Quaternion.Euler(10, id == "mine" ? -25 : -20, 0);
+                s.glintT = 1.2f; s.Frame(true);
+                s.cam.Render();
+                var prev = RenderTexture.active; RenderTexture.active = rtS;
+                tex.ReadPixels(new Rect(0, 0, 800, 500), 0, 0); tex.Apply(); RenderTexture.active = prev;
+                n++; string file = n.ToString("00") + "-" + id + ".png";
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, file), tex.EncodeToPNG());
+                var g = GunsDb.Gun(id); var c = GunsDb.Cons(id);
+                string name = id == "sentry" ? "Sentry" : c != null ? c.name : g != null ? g.name : id;
+                string cat = id == "sentry" ? "Shop" : g != null && !string.IsNullOrEmpty(g.cat) && c == null ? g.cat : c != null ? "Lethal" : "";
+                string slot = GunsDb.Primaries.Contains(id) ? "Primary" : GunsDb.Secondaries.Contains(id) ? "Secondary" : id == "sentry" ? "Shop" : "Lethal";
+                lines.Add(file + "\t" + id + "\t" + name + "\t" + cat + "\t" + slot);
+            }
+            System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "index.txt"), lines);
+            Destroy(tex); s.cam.targetTexture = oldRt; s.cam.aspect = oldAspect; s.cam.enabled = wasOn; rtS.Release(); Destroy(rtS);
+            s.shown = null;
+            return n + " weapons to " + dir;
+        }
 
         // ================================================================== remote test (Logs/streetlife-cmd.txt: call WeaponShowcase.Test gar)
         /// Opens the menu's Loadout step and puts the weapon on show. Optional "id yaw" turns it.

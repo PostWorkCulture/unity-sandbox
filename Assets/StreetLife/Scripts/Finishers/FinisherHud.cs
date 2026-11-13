@@ -85,7 +85,7 @@ namespace StreetLife
             // finish prompt
             if (Finishers.Finishable(me))
             {
-                float pulse = .5f + .5f * Mathf.Sin(now * 6), w = 170, x = W / 2 - w / 2, y = H * .64f;
+                float pulse = .5f + .5f * Mathf.Sin(now * 6), w = 170, x = HudLayout.StackX - w / 2, y = H * .64f;
                 Fill(R(x, y, w, 40), new Color(0, 0, 0, .55f));
                 Fill(R(x, y + 38, w, 2), new Color(Gold.r, Gold.g, Gold.b, .6f + .4f * pulse));
                 Fill(R(x + 10, y + 7, 26, 26), Gold); Shadowed(R(x + 10, y + 7, 26, 26), "F", key, new Color(.08f, .08f, .1f));
@@ -95,7 +95,7 @@ namespace StreetLife
             // you're down
             if (me.downed && me.alive && !me.InFinisher)
             {
-                float y = H * .62f, w = 280, x = W / 2 - w / 2, left = Mathf.Max(0, (1 - me.revive) * Fighter.REVIVE_TIME);
+                float y = H * .62f, w = 280, x = HudLayout.StackX - w / 2, left = Mathf.Max(0, (1 - me.revive) * Fighter.REVIVE_TIME);
                 Shadowed(R(x, y, w, 40), "YOU'RE DOWN", big, Red);
                 Shadowed(R(x, y + 38, w, 22), "Crawl to cover · back up in " + left.ToString("0.0") + " s", sub, new Color(1, 1, 1, .9f));
                 Fill(R(x + 30, y + 64, w - 60, 8), new Color(0, 0, 0, .6f));
@@ -109,31 +109,31 @@ namespace StreetLife
             {
                 float u = now - bT, a = Mathf.Clamp01(u / .15f) * Mathf.Clamp01((bDur - u) / .3f), pop = 1 + .12f * Mathf.Max(0, 1 - u / .2f);
                 var c = bWin ? Gold : Red;
-                float y = 96;
-                Fill(R(W / 2 - 260, y - 4, 520, 76), new Color(0, 0, 0, .45f * a));
-                Fill(R(W / 2 - 260, y + 70, 520, 2), new Color(c.r, c.g, c.b, .8f * a));
-                var m = GUI.matrix; GUIUtility.ScaleAroundPivot(Vector2.one * pop, new Vector2(W / 2 * s, (y + 22) * s));
-                Shadowed(R(W / 2 - 260, y, 520, 44), bTitle.ToUpper(), big, new Color(c.r, c.g, c.b, a));
+                float y = 96, bw = HudLayout.StackW(520), bx = HudLayout.StackX - bw / 2;   // the HUD's centre column (HudLayout)
+                Fill(R(bx, y - 4, bw, 76), new Color(0, 0, 0, .45f * a));
+                Fill(R(bx, y + 70, bw, 2), new Color(c.r, c.g, c.b, .8f * a));
+                var m = GUI.matrix; GUIUtility.ScaleAroundPivot(Vector2.one * pop, new Vector2(HudLayout.StackX * s, (y + 22) * s));
+                Shadowed(R(bx, y, bw, 44), bTitle.ToUpper(), big, new Color(c.r, c.g, c.b, a));
                 GUI.matrix = m;
-                Shadowed(R(W / 2 - 260, y + 42, 520, 24), bSub, sub, new Color(1, 1, 1, a));
+                Shadowed(R(bx, y + 42, bw, 24), bSub, sub, new Color(1, 1, 1, a));
             }
 
             // call-out (centre)
             if (cTitle != null && now - cT < cDur)
             {
                 float u = now - cT, a = Mathf.Clamp01(u / .08f) * Mathf.Clamp01((cDur - u) / .25f), pop = 1 + .35f * Mathf.Max(0, 1 - u / .18f);
-                var c = cWin ? Gold : Red; float y = H * .36f;
-                var m = GUI.matrix; GUIUtility.ScaleAroundPivot(Vector2.one * pop, new Vector2(W / 2 * s, (y + 22) * s));
-                Shadowed(R(W / 2 - 300, y, 600, 48), cTitle, big, new Color(c.r, c.g, c.b, a));
+                var c = cWin ? Gold : Red; float y = H * .36f, cw = HudLayout.StackW(600), cx = HudLayout.StackX - cw / 2;
+                var m = GUI.matrix; GUIUtility.ScaleAroundPivot(Vector2.one * pop, new Vector2(HudLayout.StackX * s, (y + 22) * s));
+                Shadowed(R(cx, y, cw, 48), cTitle, big, new Color(c.r, c.g, c.b, a));
                 GUI.matrix = m;
-                Shadowed(R(W / 2 - 300, y + 46, 600, 24), cSub, sub, new Color(1, 1, 1, a));
+                Shadowed(R(cx, y + 46, cw, 24), cSub, sub, new Color(1, 1, 1, a));
             }
 
             // test notes and the test keys (shown with the match HUD's F1 help)
-            if (note != null && now < noteT) Shadowed(R(W / 2 - 300, HudLayout.FinisherNoteY, 600, 22), note, sub, Gold);   // phones: above the down / finish prompts, clear of the Finish button
+            if (note != null && now < noteT) Shadowed(R(HudLayout.NoteX - HudLayout.NoteW / 2, HudLayout.FinisherNoteY, HudLayout.NoteW, 22), note, sub, Gold);   // phones: above the down / finish prompts, clear of the Finish button
             if (!hud) hud = FindAnyObjectByType<Hud>();
             if (hud && hud.showHelp && !HudLayout.Touch)   // phones show no key help (and the Finish button is there)
-                Shadowed(R(W / 2 - 330, HudLayout.FinisherHelpY, 660, 20), "F finishes a downed enemy (firing stops yours)" + (Application.isEditor ? "   ·   test: F9 downs the bot, Shift+F9 downs you, F10 next move: " + (Finishers.ForceMove == "" ? "Random" : Finishers.ForceMove) : ""), small, new Color(1, 1, 1, .85f));
+                Shadowed(R(W / 2 - HudLayout.CenterWidth(660) / 2, HudLayout.FinisherHelpY, HudLayout.CenterWidth(660), 20), "F finishes a downed enemy (firing stops yours)" + (Application.isEditor ? "   ·   test: F9 downs the bot, Shift+F9 downs you, F10 next move: " + (Finishers.ForceMove == "" ? "Random" : Finishers.ForceMove) : ""), small, new Color(1, 1, 1, .85f));
         }
     }
 }
