@@ -22,15 +22,24 @@ namespace StreetLife.EditorTools
         static string SiteDir => Path.Combine(ProjectDir, "Builds", "site");
 
         [MenuItem("Street Life/Build/WebGL for GitHub Pages")]
+        // set by StreetLifeRemote: no dialogs; questions take these answers and messages go to the log
+        public static bool Quiet, QuietAllMaps, QuietPublish;
+        public static string LastResult = "";
+        static bool Dlg(string title, string msg, string ok, string cancel = null)
+        {
+            if (Quiet) { LastResult = msg; Debug.Log("Street Life build: " + msg.Replace('\n', ' ')); return true; }
+            return cancel == null ? EditorUtility.DisplayDialog(title, msg, ok) : EditorUtility.DisplayDialog(title, msg, ok, cancel);
+        }
+
         public static void BuildWebGL()
         {
-            if (!File.Exists(Scene)) { EditorUtility.DisplayDialog("Street Life", "The Street Life scene is missing: run Street Life > Rebuild materials and scene first.", "OK"); return; }
+            if (!File.Exists(Scene)) { Dlg("Street Life", "The Street Life scene is missing: run Street Life > Rebuild materials and scene first.", "OK"); return; }
             if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.WebGL, BuildTarget.WebGL))
-            { EditorUtility.DisplayDialog("Street Life", "WebGL Build Support isn't installed. Add it to this Unity version in Unity Hub (Installs > Add modules).", "OK"); return; }
+            { Dlg("Street Life", "WebGL Build Support isn't installed. Add it to this Unity version in Unity Hub (Installs > Add modules).", "OK"); return; }
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.WebGL &&
-                !EditorUtility.DisplayDialog("Street Life", "Switching the project to WebGL re-imports the textures once (a few minutes). Carry on?", "Build", "Cancel")) return;
+                !Dlg("Street Life", "Switching the project to WebGL re-imports the textures once (a few minutes). Carry on?", "Build", "Cancel")) return;
 
-            int which = EditorUtility.DisplayDialogComplex("Street Life", "Which maps go in the browser build?\n\nStreet Life only is the fair comparison with the web version (and a much smaller download).", "Street Life only", "Cancel", "All eight maps");
+            int which = Quiet ? (QuietAllMaps ? 2 : 0) : EditorUtility.DisplayDialogComplex("Street Life", "Which maps go in the browser build?\n\nStreet Life only is the fair comparison with the web version (and a much smaller download).", "Street Life only", "Cancel", "All eight maps");
             if (which == 1) return;
             bool streetOnly = which == 0;
 
@@ -65,16 +74,16 @@ namespace StreetLife.EditorTools
             long bytes = Directory.GetFiles(Path.Combine(outDir, "Build")).Sum(f => new FileInfo(f).Length);
             File.WriteAllText(Path.Combine(outDir, "build-info.json"),
                 $"{{\"unity\":\"{Application.unityVersion}\",\"built\":\"{System.DateTime.UtcNow:O}\",\"buildBytes\":{bytes},\"seconds\":{report.summary.totalTime.TotalSeconds:F0}}}");
-            if (EditorUtility.DisplayDialog("Street Life", $"WebGL build done in {report.summary.totalTime.TotalMinutes:F1} min.\nDownload: {bytes / 1048576f:F1} MB (compressed).\n\nPublish it to GitHub Pages now?", "Publish", "Not now"))
+            if (Quiet ? QuietPublish : Dlg("Street Life", $"WebGL build done in {report.summary.totalTime.TotalMinutes:F1} min.\nDownload: {bytes / 1048576f:F1} MB (compressed).\n\nPublish it to GitHub Pages now?", "Publish", "Not now"))
                 PublishSite();
         }
 
         [MenuItem("Street Life/Build/Publish site to GitHub Pages")]
         public static void PublishSite()
         {
-            if (!File.Exists(Path.Combine(SiteDir, "unity", "index.html"))) { EditorUtility.DisplayDialog("Street Life", "Build the WebGL version first.", "OK"); return; }
+            if (!File.Exists(Path.Combine(SiteDir, "unity", "index.html"))) { Dlg("Street Life", "Build the WebGL version first.", "OK"); return; }
             var origin = Git(ProjectDir, "config --get remote.origin.url").Trim();
-            if (string.IsNullOrEmpty(origin)) { EditorUtility.DisplayDialog("Street Life", "This project has no git remote called origin.", "OK"); return; }
+            if (string.IsNullOrEmpty(origin)) { Dlg("Street Life", "This project has no git remote called origin.", "OK"); return; }
             // a throwaway repo in Builds/site, force-pushed to gh-pages: the branch only ever holds the latest build
             var gitDir = Path.Combine(SiteDir, ".git");
             if (Directory.Exists(gitDir)) Directory.Delete(gitDir, true);
@@ -88,16 +97,16 @@ namespace StreetLife.EditorTools
             finally { EditorUtility.ClearProgressBar(); }
             Debug.Log("Street Life publish:\n" + log);
             var site = PagesUrl(origin);
-            EditorUtility.DisplayDialog("Street Life", $"Pushed to the gh-pages branch.\n\nIf this is the first time: on GitHub open the repo's Settings > Pages and choose 'Deploy from a branch', gh-pages, / (root).\n\nThen: {site}", "OK");
+            Dlg("Street Life", $"Pushed to the gh-pages branch.\n\nIf this is the first time: on GitHub open the repo's Settings > Pages and choose 'Deploy from a branch', gh-pages, / (root).\n\nThen: {site}", "OK");
         }
 
         [MenuItem("Street Life/Build/Android APK (S24)")]
         public static void BuildAndroid()
         {
             if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
-            { EditorUtility.DisplayDialog("Street Life", "Android Build Support isn't installed. In Unity Hub: Installs > this version > Add modules > Android Build Support (with OpenJDK and the Android SDK & NDK). Then run this again.", "OK"); return; }
+            { Dlg("Street Life", "Android Build Support isn't installed. In Unity Hub: Installs > this version > Add modules > Android Build Support (with OpenJDK and the Android SDK & NDK). Then run this again.", "OK"); return; }
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
-                !EditorUtility.DisplayDialog("Street Life", "Switching the project to Android re-imports the textures once (a few minutes). Carry on?", "Build", "Cancel")) return;
+                !Dlg("Street Life", "Switching the project to Android re-imports the textures once (a few minutes). Carry on?", "Build", "Cancel")) return;
 
             var nb = NamedBuildTarget.Android;
             PlayerSettings.SetScriptingBackend(nb, ScriptingImplementation.IL2CPP);
@@ -115,8 +124,8 @@ namespace StreetLife.EditorTools
             var report = Build(BuildTarget.Android, BuildTargetGroup.Android, apk);
             if (report == null) return;
             var mb = new FileInfo(apk).Length / 1048576f;
-            EditorUtility.DisplayDialog("Street Life", $"APK built: {mb:F0} MB, in {report.summary.totalTime.TotalMinutes:F1} min.\n\nCopy Builds/Android/StreetLife.apk to the S24 (USB, Drive or Quick Share), open it and allow installs from that app.", "OK");
-            EditorUtility.RevealInFinder(apk);
+            Dlg("Street Life", $"APK built: {mb:F0} MB, in {report.summary.totalTime.TotalMinutes:F1} min.\n\nCopy Builds/Android/StreetLife.apk to the S24 (USB, Drive or Quick Share), open it and allow installs from that app.", "OK");
+            if (!Quiet) EditorUtility.RevealInFinder(apk);
         }
 
         // the maps chat's registry keeps every map's data; for a Street Life only build, blank the others' references
@@ -138,12 +147,12 @@ namespace StreetLife.EditorTools
         static BuildReport Build(BuildTarget target, BuildTargetGroup group, string path)
         {
             if (EditorUserBuildSettings.activeBuildTarget != target && !EditorUserBuildSettings.SwitchActiveBuildTarget(group, target))
-            { EditorUtility.DisplayDialog("Street Life", "Couldn't switch the project to " + target + ".", "OK"); return null; }
+            { Dlg("Street Life", "Couldn't switch the project to " + target + ".", "OK"); return null; }
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { Scene }, locationPathName = path, target = target, targetGroup = group, options = BuildOptions.None });
             if (report.summary.result != BuildResult.Succeeded)
             {
                 var errs = string.Join("\n", report.steps.SelectMany(s => s.messages).Where(m => m.type == LogType.Error || m.type == LogType.Exception).Select(m => m.content).Take(6));
-                EditorUtility.DisplayDialog("Street Life", $"The {target} build failed ({report.summary.totalErrors} errors).\n\n{errs}", "OK");
+                Dlg("Street Life", $"The {target} build failed ({report.summary.totalErrors} errors).\n\n{errs}", "OK");
                 return null;
             }
             return report;

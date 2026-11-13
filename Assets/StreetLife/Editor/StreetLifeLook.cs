@@ -16,7 +16,7 @@ namespace StreetLife.EditorTools
     [InitializeOnLoad]
     static class StreetLifeLook
     {
-        const int LookVersion = 2;
+        const int LookVersion = 3;
         const string Stamp = "Assets/StreetLife/Settings/look-version.txt";
 
         static StreetLifeLook() { EditorApplication.delayCall += Auto; }
@@ -57,6 +57,7 @@ namespace StreetLife.EditorTools
                 {
                     mob.msaaSampleCount = 2; mob.shadowDistance = 60; mob.shadowCascadeCount = 2;
                     SetInt(mob, "m_MainLightShadowmapResolution", 2048);
+                    SetInt(mob, "m_UpscalingFilter", 1);   // linear: 'Auto' picks FSR, whose shader WebGL strips, and then post-processing doesn't run at all
                     EditorUtility.SetDirty(mob);
                 }
                 Ssao("Assets/Settings/PC_Renderer.asset", false);

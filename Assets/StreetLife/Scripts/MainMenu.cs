@@ -133,9 +133,9 @@ namespace StreetLife
             var val = L("", 15, Cyan, true); val.style.width = 70; val.style.unityTextAlign = TextAnchor.MiddleCenter;
             int Index() { float v = get(); int best = 0; for (int i = 1; i < steps.Length; i++) if (Mathf.Abs(steps[i] - v) < Mathf.Abs(steps[best] - v)) best = i; return best; }
             void Refresh() => val.text = fmt(steps[Index()]);
-            box.Add(Btn("‹", () => { set(steps[Mathf.Max(0, Index() - 1)]); Refresh(); }));
+            box.Add(Btn("<", () => { set(steps[Mathf.Max(0, Index() - 1)]); Refresh(); }));
             box.Add(val);
-            box.Add(Btn("›", () => { set(steps[Mathf.Min(steps.Length - 1, Index() + 1)]); Refresh(); }));
+            box.Add(Btn(">", () => { set(steps[Mathf.Min(steps.Length - 1, Index() + 1)]); Refresh(); }));
             row.Add(box); Refresh(); return row;
         }
 
@@ -186,7 +186,7 @@ namespace StreetLife
             mapCard.style.justifyContent = Justify.FlexEnd; Pad(mapCard, 26, 30);
             var arrows = new VisualElement(); arrows.style.position = Position.Absolute; arrows.style.left = 14; arrows.style.right = 14; arrows.style.top = new Length(45, LengthUnit.Percent);
             arrows.style.flexDirection = FlexDirection.Row; arrows.style.justifyContent = Justify.SpaceBetween; arrows.pickingMode = PickingMode.Ignore;
-            arrows.Add(Round("‹", () => StepMap(-1))); arrows.Add(Round("›", () => StepMap(1)));
+            arrows.Add(Round("<", () => StepMap(-1))); arrows.Add(Round(">", () => StepMap(1)));
             mapCard.Add(arrows);
             mapTag = L("", 12, Text, true); mapTag.style.alignSelf = Align.FlexStart; mapTag.style.letterSpacing = 1.5f; Radius(mapTag, 5); Pad(mapTag, 3, 8);
             mapTag.style.backgroundImage = new StyleBackground(Gradient());
@@ -223,7 +223,7 @@ namespace StreetLife
 
             // ---- bottom: back / next or play
             var bottom = new VisualElement(); bottom.style.flexDirection = FlexDirection.Row; bottom.style.justifyContent = Justify.Center; bottom.style.alignItems = Align.Center; bottom.style.marginTop = 14;
-            var back = Btn("‹  Back", () => SetStep(0)); back.name = "back"; back.style.marginRight = 14;
+            var back = Btn("Back", () => SetStep(0)); back.name = "back"; back.style.marginRight = 14;
             var next = Btn("Character", () => { if (step == 0) SetStep(1); else Play(); }, true); next.name = "next";
             bottom.Add(back); bottom.Add(next);
             menu.Add(bottom);
@@ -273,9 +273,56 @@ namespace StreetLife
             // the live map shows through when it's the one picked; another map gets its own colours until you play it
             bool live = selMap == MapSet.Current;
             var sw = m != null && m.swatch != null && m.swatch.Length > 0 ? m.swatch[0] : new Color(.2f, .3f, .25f);
-            mapCard.style.backgroundColor = live ? new Color(0, 0, 0, .08f) : new Color(sw.r * .6f, sw.g * .6f, sw.b * .6f, .92f);
+            var thumb = live ? null : Thumb(selMap);
+            mapCard.style.backgroundImage = thumb ? new StyleBackground(thumb) : new StyleBackground((Texture2D)null);
+            mapCard.style.backgroundSize = new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Cover));
+            mapCard.style.backgroundColor = live ? new Color(0, 0, 0, .08f) : thumb ? Color.white : new Color(sw.r * .6f, sw.g * .6f, sw.b * .6f, .92f);
             if (set && set.maps != null)
                 foreach (var e in set.maps) { if (e == null) continue; var b = menu.Q<Button>("map-" + e.id); if (b == null) continue; bool on = e.id == selMap; Border(b, on ? 2 : 1, on ? Cyan : Line); b.style.color = on ? Text : Dim; }
+        }
+
+        // ---- map pictures for the carousel: taken from the menu's own view the first time each map is shown live.
+        // In the editor they're saved into the project (Resources/StreetLife/MapThumbs), so builds ship with them;
+        // in a build, any missing one is saved on the device instead.
+        static readonly Dictionary<string, Texture2D> thumbs = new Dictionary<string, Texture2D>();
+        static string DeviceThumb(string id) => System.IO.Path.Combine(Application.persistentDataPath, "mapthumb-" + id + ".png");
+        static Texture2D Thumb(string id)
+        {
+            if (thumbs.TryGetValue(id, out var t) && t) return t;
+            t = Resources.Load<Texture2D>("StreetLife/MapThumbs/" + id);
+            if (!t)
+            {
+                try { var f = DeviceThumb(id); if (System.IO.File.Exists(f)) { t = new Texture2D(2, 2); t.LoadImage(System.IO.File.ReadAllBytes(f)); } } catch { }
+            }
+            if (t) thumbs[id] = t;
+            return t;
+        }
+
+        float thumbT = 3.5f;
+        void MaybeTakeThumb()
+        {
+            if (!Open || step != 0 || thumbT <= 0 || (thumbT -= Time.unscaledDeltaTime) > 0) return;
+            var id = MapSet.Current;
+            if (Resources.Load<Texture2D>("StreetLife/MapThumbs/" + id)) return;
+            if (!Application.isEditor) { try { if (System.IO.File.Exists(DeviceThumb(id))) return; } catch { return; } }
+            var cam = Camera.main; if (!cam) return;
+            var rt = RenderTexture.GetTemporary(960, 540, 24, RenderTextureFormat.ARGB32);
+            var old = cam.targetTexture; cam.targetTexture = rt; cam.Render(); cam.targetTexture = old;
+            var prev = RenderTexture.active; RenderTexture.active = rt;
+            var tex = new Texture2D(960, 540, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 960, 540), 0, 0); tex.Apply();
+            RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+            var png = tex.EncodeToPNG();
+            try
+            {
+                if (Application.isEditor)
+                {
+                    var dir = System.IO.Path.Combine(Application.dataPath, "StreetLife/Resources/StreetLife/MapThumbs");
+                    System.IO.Directory.CreateDirectory(dir); System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, id + ".png"), png);
+                }
+                else System.IO.File.WriteAllBytes(DeviceThumb(id), png);
+            }
+            catch (Exception e) { Debug.LogWarning("Street Life: couldn't save a map picture: " + e.Message); }
+            thumbs[id] = tex;
         }
 
         void BuildCharacters()
@@ -329,6 +376,10 @@ namespace StreetLife
             })
             { var b = Btn(label, act, primary); b.style.marginBottom = 10; c.Add(b); }
             pause.Add(c);
+            // phones have no Esc: a pause button under the minimap
+            pauseBtn = Btn("II", Pause, false, 18); pauseBtn.style.position = Position.Absolute; pauseBtn.style.right = 14; pauseBtn.style.top = 200;
+            pauseBtn.style.width = pauseBtn.style.height = 46; Radius(pauseBtn, 23); Pad(pauseBtn, 0, 0); pauseBtn.style.backgroundColor = new Color(0, 0, 0, .45f);
+            pauseBtn.style.display = DisplayStyle.None; root.Add(pauseBtn);
         }
 
         VisualElement backTo;
@@ -403,6 +454,13 @@ namespace StreetLife
             if (RoundManager.Instance) RoundManager.Instance.BeginFromMenu();
         }
 
+        Button pauseBtn;
+        void Pause()
+        {
+            if (Paused || Open || !RoundManager.Instance || RoundManager.Instance.state == RoundManager.State.Boot) return;
+            Paused = true; Time.timeScale = 0; HideGame(true); Show(pause);
+        }
+
         void Resume() { Paused = false; Time.timeScale = 1; Show(null); HideGame(false); }
         void ToMenu()
         {
@@ -413,12 +471,13 @@ namespace StreetLife
 
         void Update()
         {
+            MaybeTakeThumb();
+            if (pauseBtn != null) pauseBtn.style.display = !Open && !Paused && TouchControls.I && TouchControls.I.Showing ? DisplayStyle.Flex : DisplayStyle.None;
             var kb = Keyboard.current;
             if (!Open && kb != null && kb.escapeKey.wasPressedThisFrame && !MapPicker.Open && !CharacterPicker.Open)
             {
                 if (Paused) { if (settings.style.display == DisplayStyle.Flex) Show(pause); else Resume(); }
-                else if (RoundManager.Instance && RoundManager.Instance.state != RoundManager.State.Boot)
-                { Paused = true; Time.timeScale = 0; HideGame(true); Show(pause); }
+                else Pause();
             }
         }
 
@@ -442,7 +501,7 @@ namespace StreetLife
             {
                 var bd = BoxWorld.Bounds; var c = new Vector3((bd.x0 + bd.x1) / 2, 2, (bd.z0 + bd.z1) / 2);
                 float r = Mathf.Max(bd.x1 - bd.x0, bd.z1 - bd.z0) * .55f;
-                var want = c + new Vector3(Mathf.Sin(orbit), 0, Mathf.Cos(orbit)) * r + Vector3.up * r * .42f;
+                var want = c + new Vector3(Mathf.Sin(orbit), 0, Mathf.Cos(orbit)) * r + Vector3.up * r * .55f;
                 cam.transform.position = Vector3.Lerp(cam.transform.position, want, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 2));
                 cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, Quaternion.LookRotation(c - cam.transform.position), 1 - Mathf.Exp(-Time.unscaledDeltaTime * 3));
                 cam.fieldOfView = 55;
