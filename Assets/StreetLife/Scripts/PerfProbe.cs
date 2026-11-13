@@ -33,7 +33,8 @@ namespace StreetLife
 
         const int N = 600;                       // 10 s at 60 fps
         readonly float[] ft = new float[N]; int n, head;
-        float sendT; bool show, ready;
+        float sendT; bool ready;
+        public static bool Show;   // F8, the settings screen, or a three-finger tap
         public static float ReadyAt = -1;        // seconds since the engine started, when the first match frame ran
         public static float Avg, Low1, Ms;
         GUIStyle st;
@@ -58,10 +59,10 @@ namespace StreetLife
             ft[head] = dt; head = (head + 1) % N; if (n < N) n++;
             if (!ready && BoxWorld.Loaded && Time.frameCount > 2) { ready = true; ReadyAt = Time.realtimeSinceStartup; SL_Ready(ReadyAt); }
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.f8Key.wasPressedThisFrame) show = !show;
+            if (kb != null && kb.f8Key.wasPressedThisFrame) Show = !Show;
             // phones: a three-finger tap
             var ts = UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches;
-            if (ts.Count == 3) { bool began = false; foreach (var t in ts) if (t.phase == UnityEngine.InputSystem.TouchPhase.Began) began = true; if (began) show = !show; }
+            if (ts.Count == 3) { bool began = false; foreach (var t in ts) if (t.phase == UnityEngine.InputSystem.TouchPhase.Began) began = true; if (began) Show = !Show; }
             // in the editor, leave the numbers where the Cowork chats can read them
             if (Application.isEditor && (fileT -= dt) <= 0)
             {
@@ -93,7 +94,7 @@ namespace StreetLife
 
         void OnGUI()
         {
-            if (!show) return;
+            if (!Show) return;
             if (st == null) st = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.UpperLeft, fontSize = 14 };
             GUI.Box(new Rect(Screen.width - 250, 10, 240, 136),
                 $"Unity {Application.unityVersion}  {SystemInfo.graphicsDeviceType}\n" +

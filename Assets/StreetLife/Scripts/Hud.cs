@@ -45,7 +45,7 @@ namespace StreetLife
             label = new GUIStyle(GUI.skin.label) { fontSize = fs(14), fontStyle = FontStyle.Bold };
             small = new GUIStyle(GUI.skin.label) { fontSize = fs(12) };
             center = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter };
-            big = new GUIStyle(center) { fontSize = fs(25) };
+            big = new GUIStyle(center) { fontSize = fs(25), wordWrap = false, clipping = TextClipping.Overflow };
             huge = new GUIStyle(center) { fontSize = fs(72) };
             feedStyle = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         }
@@ -197,9 +197,9 @@ namespace StreetLife
         {
             int me = fighter.team, them = 1 - me;
             string t = rm.state == RoundManager.State.Fight || rm.state == RoundManager.State.RoundEnd ? $"{Mathf.FloorToInt(Mathf.Max(0, rm.timer) / 60)}:{Mathf.FloorToInt(Mathf.Max(0, rm.timer) % 60):00}" : "";
-            Fill(R(W / 2 - 130, 8, 260, 58), new Color(0, 0, 0, .45f));
-            Shadowed(R(W / 2 - 130, 8, 260, 36), $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}", big, Color.white);
-            Shadowed(R(W / 2 - 130, 42, 260, 20), $"{t}   First to {rm.toWin}", center, new Color(1, 1, 1, .85f));
+            Fill(R(W / 2 - 170, 8, 340, 58), new Color(0, 0, 0, .45f));
+            Shadowed(R(W / 2 - 170, 8, 340, 36), $"YOU  {rm.score[me]}  :  {rm.score[them]}  {(rm.bot ? rm.bot.displayName.ToUpperInvariant() : "BOT")}", big, Color.white);
+            Shadowed(R(W / 2 - 170, 42, 340, 20), $"{t}   First to {rm.toWin}", center, new Color(1, 1, 1, .85f));
             float y = 62;
             foreach (var it in rm.feed)
             {

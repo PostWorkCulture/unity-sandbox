@@ -30,6 +30,10 @@ namespace StreetLife.EditorTools
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.WebGL &&
                 !EditorUtility.DisplayDialog("Street Life", "Switching the project to WebGL re-imports the textures once (a few minutes). Carry on?", "Build", "Cancel")) return;
 
+            int which = EditorUtility.DisplayDialogComplex("Street Life", "Which maps go in the browser build?\n\nStreet Life only is the fair comparison with the web version (and a much smaller download).", "Street Life only", "Cancel", "All eight maps");
+            if (which == 1) return;
+            bool streetOnly = which == 0;
+
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
             PlayerSettings.WebGL.decompressionFallback = true;          // GitHub Pages serves .gz without Content-Encoding
             PlayerSettings.WebGL.dataCaching = true;
@@ -40,7 +44,18 @@ namespace StreetLife.EditorTools
 
             var outDir = Path.Combine(SiteDir, "unity");
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
-            var report = Build(BuildTarget.WebGL, BuildTargetGroup.WebGL, outDir);
+            BuildReport report;
+            const string mapsAsset = "Assets/StreetLife/Resources/StreetLifeMaps.asset";
+            string backup = streetOnly && File.Exists(mapsAsset) ? File.ReadAllText(mapsAsset) : null;
+            try
+            {
+                if (backup != null) LeaveOutOtherMaps(mapsAsset);
+                report = Build(BuildTarget.WebGL, BuildTargetGroup.WebGL, outDir);
+            }
+            finally
+            {
+                if (backup != null) { File.WriteAllText(mapsAsset, backup); AssetDatabase.ImportAsset(mapsAsset); }
+            }
             if (report == null) return;
 
             // the comparison page and Pages housekeeping
@@ -102,6 +117,22 @@ namespace StreetLife.EditorTools
             var mb = new FileInfo(apk).Length / 1048576f;
             EditorUtility.DisplayDialog("Street Life", $"APK built: {mb:F0} MB, in {report.summary.totalTime.TotalMinutes:F1} min.\n\nCopy Builds/Android/StreetLife.apk to the S24 (USB, Drive or Quick Share), open it and allow installs from that app.", "OK");
             EditorUtility.RevealInFinder(apk);
+        }
+
+        // the maps chat's registry keeps every map's data; for a Street Life only build, blank the others' references
+        // for the length of the build (the file is put back byte for byte afterwards)
+        static void LeaveOutOtherMaps(string path)
+        {
+            var set = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path); if (!set) return;
+            var so = new SerializedObject(set); var maps = so.FindProperty("maps"); if (maps == null) return;
+            for (int i = 0; i < maps.arraySize; i++)
+            {
+                var e = maps.GetArrayElementAtIndex(i);
+                if (e.FindPropertyRelative("id").stringValue == "street") continue;
+                foreach (var f in new[] { "mapJson", "mapBin", "dynJson", "dynBin", "extrasJson", "extrasBin", "envJson", "library" })
+                { var p = e.FindPropertyRelative(f); if (p != null) p.objectReferenceValue = null; }
+            }
+            so.ApplyModifiedPropertiesWithoutUndo(); AssetDatabase.SaveAssets();
         }
 
         static BuildReport Build(BuildTarget target, BuildTargetGroup group, string path)

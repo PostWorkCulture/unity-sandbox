@@ -13,6 +13,9 @@ namespace StreetLife
     public class RoundManager : MonoBehaviour
     {
         public static RoundManager Instance;
+        /// The main menu holds the match here (both fighters placed and frozen) until Play.
+        public static bool HoldAtMenu;
+        bool held;
         public static event Action<int> RoundStarted;          // round number
         public static event Action<int, int> RoundEnded;       // round number, winning team (-1 draw)
         public static event Action<int> MatchEnded;            // winning team
@@ -86,6 +89,9 @@ namespace StreetLife
             go.AddComponent<FighterAudio>();
         }
 
+        /// Play pressed in the main menu.
+        public void BeginFromMenu() { HoldAtMenu = false; held = false; Settings.Apply(); if (state == State.Boot && player && bot) StartMatch(); }
+
         // ------------------------------------------------------------------ match flow
         public void StartMatch()
         {
@@ -127,7 +133,14 @@ namespace StreetLife
             switch (state)
             {
                 case State.Boot:
-                    Setup(); if (enabled && player && bot) StartMatch();
+                    if (!player) Setup();
+                    if (!enabled || !player || !bot) break;
+                    if (HoldAtMenu)
+                    {
+                        if (!held) { held = true; var sp = PickSpawns(); player.ResetForRound(sp[0].p, sp[0].yaw); bot.ResetForRound(sp[1].p, sp[1].yaw); SetFrozen(true); }
+                        break;
+                    }
+                    Settings.Apply(); StartMatch();
                     break;
                 case State.Intro:
                     stateT -= dt;
