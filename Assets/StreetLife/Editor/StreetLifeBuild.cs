@@ -87,7 +87,11 @@ namespace StreetLife.EditorTools
             if (string.IsNullOrEmpty(origin)) { Dlg("Street Life", "This project has no git remote called origin.", "OK"); return; }
             // a throwaway repo in Builds/site, force-pushed to gh-pages: the branch only ever holds the latest build
             var gitDir = Path.Combine(SiteDir, ".git");
-            if (Directory.Exists(gitDir)) Directory.Delete(gitDir, true);
+            if (Directory.Exists(gitDir))
+            {   // git's object files are read-only on Windows, and Directory.Delete won't remove read-only files
+                foreach (var f in Directory.GetFiles(gitDir, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
+                Directory.Delete(gitDir, true);
+            }
             string log = "";
             log += Git(SiteDir, "init -q");
             log += Git(SiteDir, "checkout -q -b gh-pages");
