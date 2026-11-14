@@ -109,6 +109,8 @@ namespace StreetLife.EditorTools
         [MenuItem("Street Life/Build/Windows (desktop)")]
         public static void BuildWindows()
         {
+            // a running copy holds its data files open: building or installing under it leaves files the game then reads as corrupt
+            if (System.Diagnostics.Process.GetProcessesByName("StreetLife").Length > 0) { Dlg("Street Life", "Close Street Life first: the game is still running, and building under it corrupts its data files.", "OK"); return; }
             var nb = NamedBuildTarget.Standalone;
             PlayerSettings.productName = "Street Life"; PlayerSettings.companyName = "PostWorkCulture";
             PlayerSettings.fullScreenMode = FullScreenMode.ExclusiveFullScreen;   // true full screen at first run (Settings > Display can change it)
@@ -116,6 +118,8 @@ namespace StreetLife.EditorTools
             PlayerSettings.SetScriptingBackend(nb, ScriptingImplementation.Mono2x);
             var outDir = Path.Combine(ProjectDir, "Builds", "Windows"); Directory.CreateDirectory(outDir);
             var exe = Path.Combine(outDir, "StreetLife.exe");
+            var data = Path.Combine(outDir, "StreetLife_Data");   // a full write every time, never a patch over old data files
+            if (Directory.Exists(data)) { foreach (var f in Directory.GetFiles(data, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal); Directory.Delete(data, true); }
             var report = Build(BuildTarget.StandaloneWindows64, BuildTargetGroup.Standalone, exe);
             if (report == null) return;
             long bytes = Directory.GetFiles(outDir, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length);
@@ -136,6 +140,7 @@ namespace StreetLife.EditorTools
 
         public static string InstallWindows()
         {
+            if (System.Diagnostics.Process.GetProcessesByName("StreetLife").Length > 0) return "Not installed: close Street Life first.";
             var src = Path.Combine(ProjectDir, "Builds", "Windows");
             if (!File.Exists(Path.Combine(src, "StreetLife.exe"))) return "No Windows build to install yet.";
             try
@@ -162,6 +167,25 @@ namespace StreetLife.EditorTools
                 return $"Installed to {InstallDir} ({bytes / 1048576f:F0} MB){sc}.";
             }
             catch (System.Exception e) { return $"Couldn't install to {InstallDir} (is the game still running?): {e.Message}"; }
+        }
+
+        /// remote: call StreetLifeBuild.GameProbe [kill|run]: the running copies of the game, or close them, or start the installed one windowed with its log in Logs/game.log
+        public static string GameProbe(string a)
+        {
+            a = (a ?? "").Trim(); var sb = new System.Text.StringBuilder();
+            foreach (var p in System.Diagnostics.Process.GetProcessesByName("StreetLife"))
+            {
+                string path = "?"; try { path = p.MainModule.FileName; } catch { }
+                sb.Append($"pid {p.Id} {path} started {p.StartTime:HH:mm:ss} responding {p.Responding} window '{p.MainWindowTitle}' mem {p.WorkingSet64 / 1048576} MB; ");
+                if (a == "kill") { try { p.Kill(); sb.Append("killed; "); } catch (System.Exception e) { sb.Append(e.Message + "; "); } }
+            }
+            if (a == "run")
+            {
+                var log = Path.Combine(ProjectDir, "Logs", "game.log");
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(InstallDir, "StreetLife.exe"), $"-screen-fullscreen 0 -screen-width 1280 -screen-height 720 -logFile \"{log}\"") { WorkingDirectory = InstallDir, UseShellExecute = false });
+                sb.Append("started windowed, log in Logs/game.log");
+            }
+            return sb.Length == 0 ? "not running" : sb.ToString();
         }
 
         static string DesktopShortcut(string exe)
