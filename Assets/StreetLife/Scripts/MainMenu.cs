@@ -744,6 +744,7 @@ namespace StreetLife
         void LateUpdate()
         {
             UpdateLights();
+            WeaponPose.MenuUnarmed = Open && step >= 1;   // no gun in your fighter's hands while you pick characters and weapons
             if (Open && step == 1 && player) MenuWeaponRack.Show(player, RackId(Settings.Primary, "gar"), RackId(Settings.Secondary, "sword"), RackId(Settings.Lethal, "grenade"));
             else MenuWeaponRack.Hide();
             if (!Open) return;
@@ -779,7 +780,7 @@ namespace StreetLife
             }
         }
 
-        void OnDestroy() { MenuPortraits.Ready -= OnPortrait; MenuWeaponRack.Hide(); WeaponShowcase.SetActive(false); if (Paused) Time.timeScale = 1; Open = false; Paused = false; }
+        void OnDestroy() { WeaponPose.MenuUnarmed = false; MenuPortraits.Ready -= OnPortrait; MenuWeaponRack.Hide(); WeaponShowcase.SetActive(false); if (Paused) Time.timeScale = 1; Open = false; Paused = false; }
     }
 
     /// Saved player settings (PlayerPrefs), applied at every scene load and whenever they change.

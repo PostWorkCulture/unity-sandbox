@@ -128,6 +128,28 @@ namespace StreetLife
             }
         }
 
+        readonly System.Text.StringBuilder watchLog = new System.Text.StringBuilder();
+        System.Collections.IEnumerator Watch()
+        {
+            var tally = new Dictionary<string, int[]>();   // name -> [samples, held, alive-and-not-holding (unexplained)]
+            var why = new Dictionary<string, string>();
+            for (float t = 0; t < 20; t += .25f)
+            {
+                foreach (var f in FindObjectsByType<Fighter>())
+                {
+                    if (!f.isBot) continue;
+                    var wp = f.GetComponent<WeaponPose>(); var w = f.GetComponent<Weapons>(); var rg = f.GetComponent<CharacterRig>();
+                    string k = (CharacterSkin.Of(rg) ?? f.displayName);
+                    if (!tally.TryGetValue(k, out var c)) tally[k] = c = new int[3];
+                    c[0]++; bool held = wp && wp.HeldVisible;
+                    if (held) c[1]++;
+                    else if (f.alive && !f.downed && !f.InFinisher && f.onLadder == null && w && w.Gun != "sword") { c[2]++; why[k] = $"gun {w.Gun} pose {(wp ? wp.enabled.ToString() : "none")} rig {(rg && rg.Built)} vis {(rg && rg.Visible)}"; }
+                }
+                yield return new WaitForSeconds(.25f);
+            }
+            foreach (var kv in tally) watchLog.Append($"[{kv.Key}: {kv.Value[0]} samples, holding {kv.Value[1]}, unexplained empty {kv.Value[2]}{(why.TryGetValue(kv.Key, out var y) ? " last: " + y : "")}] ");
+        }
+
         /// remote test hook (Logs/streetlife-cmd.txt: "call CharacterShowcase.Test step 1" / "char lia" / "spin 90")
         public static string Test(string arg)
         {
@@ -163,6 +185,10 @@ namespace StreetLife
                         }
                         cam.targetTexture = null; Destroy(rt); Destroy(go); return sb.ToString();
                     }
+                case "watch":   // sample every fighter 4x a second for 20 s; "watch report" prints the tally
+                    if (a[1] == "report") return I ? I.watchLog.ToString() : "no showcase";
+                    if (I) { I.watchLog.Clear(); I.StartCoroutine(I.Watch()); return "watching 20 s"; }
+                    return "no showcase";
                 case "spin": if (I) { I.spin = float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture); I.vel = 0; return "spin " + a[1]; } return "no showcase";
             }
             return "unknown " + a[0];

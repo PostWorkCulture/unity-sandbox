@@ -24,6 +24,8 @@ namespace StreetLife
         readonly Dictionary<string, Held> held = new Dictionary<string, Held>();
         readonly List<Renderer> swordRends = new List<Renderer>();
         Held cur; float hRun, phase; bool built, lastVis = true, wasOn;
+        /// set by the main menu (match chat) on its Character and Loadout steps: your fighter stands empty-handed there
+        public static bool MenuUnarmed;
         public bool HeldVisible => cur != null && cur.rig && cur.rig.gameObject.activeSelf;
 
         void OnEnable() { CharacterSkin.Changed += OnSkin; }
@@ -101,7 +103,7 @@ namespace StreetLife
             float dt = Time.deltaTime; var f = fighter; var w = weapons;
             string id = w.Gun;
             // down, in a finishing move or on a ladder: no gun in hand, and the arms are left to whoever is posing them
-            bool on = f.alive && !f.downed && !f.InFinisher && f.onLadder == null;
+            bool on = f.alive && !f.downed && !f.InFinisher && f.onLadder == null && !(MenuUnarmed && w.isPlayer);
             float sp = f.HorizontalSpeed; if (f.grounded) phase += sp * dt * 1.15f;
 
             // ---- base arm pose (both arms forward at the aim, swing for throws, dips for reload and swap)
