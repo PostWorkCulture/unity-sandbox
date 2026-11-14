@@ -136,6 +136,33 @@ namespace StreetLife
         }
 
         /// The web game's segmented control: one bar, the picked option filled cyan.
+        // ---- step 1's description: explains exactly what the picked mode, players, rules and bots mean
+        Label modeHint;
+        void RefreshHint()
+        {
+            if (modeHint == null) return;
+            var sb = new System.Text.StringBuilder();
+            if (Rules.Rumble) sb.Append("<color=#F5F5F5><b>Rumble</b></color>: melee only. You start on fists, and each kill without dying moves you up to the knife, the bat, then the sword. Hit someone while you're falling for an air strike.");
+            else sb.Append("<color=#F5F5F5><b>Duels</b></color>: guns and a lethal of your choice (step 3), walls you can build (Q) and the shop (Tab).");
+            sb.Append("\n\n");
+            if (Rules.Ffa) sb.Append($"<color=#F5F5F5><b>Free for all, {Rules.FfaN} fighters</b></color>: you and {Rules.FfaN - 1} bot{(Rules.FfaN - 1 == 1 ? "" : "s")}, everyone for themselves. You respawn after each death; first to {Rules.DM_KILLS} kills wins ({Mathf.RoundToInt(Rules.RoundTime / 60)} min limit).");
+            else if (Rules.TwoVTwo) sb.Append($"<color=#F5F5F5><b>2v2</b></color>: you and a bot team-mate against two bots. Rounds of {Mathf.RoundToInt(Rules.RoundTime)} s; first team to {Rules.ROUNDS_TO_WIN} rounds wins.");
+            else sb.Append($"<color=#F5F5F5><b>1v1</b></color>: you against one bot. Rounds of {Mathf.RoundToInt(Rules.RoundTime)} s; first to {Rules.ROUNDS_TO_WIN} rounds wins.");
+            sb.Append("\n\n");
+            if (Rules.Rumble || !Rules.OneVOne) sb.Append("<color=#F5F5F5><b>Rules</b></color>: Simple only applies to 1v1 Duels, so this match uses Normal rules.");
+            else if (Settings.Rules == "simple") sb.Append("<color=#F5F5F5><b>Simple rules</b></color>: everyone gets the M4, sword and grenade, and no sniper bots.");
+            else sb.Append("<color=#F5F5F5><b>Normal rules</b></color>: you pick your own loadout, and bots can play any style, snipers included.");
+            sb.Append("\n\n");
+            switch (Settings.Difficulty)
+            {
+                case "easy": sb.Append("<color=#F5F5F5><b>Easy bots</b></color>: about 1.5 s to react, loose aim, almost never go for your head."); break;
+                case "hard": sb.Append("<color=#F5F5F5><b>Hard bots</b></color>: about 0.4 s to react, tight aim, strafe a lot and often go for your head."); break;
+                case "extreme": sb.Append("<color=#F5F5F5><b>Extreme bots</b></color>: about 0.3 s to react, near-perfect tracking and frequent headshots."); break;
+                default: sb.Append("<color=#F5F5F5><b>Normal bots</b></color>: about 0.8 s to react, decent aim and the odd headshot."); break;
+            }
+            modeHint.text = sb.ToString();
+        }
+
         readonly List<Action> segRefresh = new List<Action>();   // every segmented control, refreshed when a setting changes elsewhere
         VisualElement Segmented(string[] labels, string[] values, Func<string> get, Action<string> set)
         {
@@ -146,7 +173,7 @@ namespace StreetLife
             for (int i = 0; i < labels.Length; i++)
             {
                 var v = values[i];
-                var b = new Button(() => { set(v); Refresh(); }) { text = labels[i] };
+                var b = new Button(() => { set(v); Refresh(); RefreshHint(); }) { text = labels[i] };
                 b.style.flexGrow = 1; b.style.unityTextAlign = TextAnchor.MiddleCenter; b.style.fontSize = 14; b.style.unityFontStyleAndWeight = FontStyle.Bold; Radius(b, 7); Border(b, 1, new Color(0, 0, 0, 0)); Pad(b, 7, 6);
                 b.style.marginLeft = b.style.marginRight = b.style.marginTop = b.style.marginBottom = 0;
                 buttons.Add(b); bar.Add(b);
@@ -208,7 +235,7 @@ namespace StreetLife
             left.Add(Caps("Players")); left.Add(Segmented(new[] { "1v1", "2v2", "FFA 4", "FFA 6" }, new[] { "1v1", "2v2", "ffa4", "ffa6" }, () => Rules.Ffa ? "ffa" + Rules.FfaN : Rules.Players, v => { if (v.StartsWith("ffa")) { Rules.Players = "ffa"; Rules.FfaN = v[3] - '0'; } else Rules.Players = v; RefreshMap(); }));
             left.Add(Caps("Rules")); left.Add(Segmented(new[] { "Normal", "Simple" }, new[] { "normal", "simple" }, () => Settings.Rules, v => Settings.Rules = v));
             left.Add(Caps("Bots")); left.Add(Segmented(new[] { "Easy", "Normal", "Hard", "Extreme" }, new[] { "easy", "normal", "hard", "extreme" }, () => Settings.Difficulty, v => Settings.Difficulty = v));
-            var hint = L("Duels: guns, lethals, walls (Q), abilities (G), the shop. Rumble: start on fists; each kill without dying moves you up to the knife, the bat, then the sword. Land a hit while falling for an air strike.\n2v2: you and a bot against two bots. FFA: everyone respawns, first to 10 kills.\nRules: Simple is the M4, sword and grenade (1v1 Duels only).", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal;
+            var hint = L("", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal; modeHint = hint; RefreshHint();
             left.Add(hint);
             stepA.Add(left);
 
@@ -516,7 +543,7 @@ namespace StreetLife
                 {
                     WeaponShowcase.Show(pid);
                     // under Simple rules the kit is fixed: picking a weapon switches to Normal rules, so the pick takes and only it is selected
-                    if (locked) { Settings.Rules = "normal"; Settings.Apply(); foreach (var r in segRefresh) r(); }
+                    if (locked) { Settings.Rules = "normal"; Settings.Apply(); foreach (var r in segRefresh) r(); RefreshHint(); }
                     pick(pid); PlayerPrefs.Save(); BuildLoadout();
                 }) { text = "" };
                 b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, 2, on ? Sel : Line); Pad(b, 4, 8);

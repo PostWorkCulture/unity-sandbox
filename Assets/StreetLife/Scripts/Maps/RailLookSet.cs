@@ -25,6 +25,12 @@ namespace StreetLife
         [Tooltip("Striped cushions: their own picture goes in, a canvas weave lies over it as a detail map")] public Material cushion;
         [Tooltip("The fuel drums' hazard label")] public Texture2D drumLabel;
         [Tooltip("The goods shed's sign, reading just SHED")] public Texture2D shedSign;
+        [Header("The Tiki Bar (TikiBar.cs): templates it copies and recolours, kept as assets so builds have their shader variants")]
+        [Tooltip("Clear glass: see-through, keeps its highlights")] public Material glass;
+        [Tooltip("A plain surface with no texture: brass, steel, lacquer, leather, drinks")] public Material gloss;
+        [Tooltip("A plain surface that gives off light: light strips, bulbs, candle flames, the lit stone panels")] public Material glow;
+        [Tooltip("The sheet of bottle labels and cap colours (4 x 4)")] public Texture2D barLabels;
+        [Tooltip("Honey onyx: the picture the lit panels behind the bottles glow with")] public Texture2D onyx;
 
         public Surface Get(string n) { if (surfaces != null) foreach (var s in surfaces) if (s != null && s.name == n) return s; return null; }
     }

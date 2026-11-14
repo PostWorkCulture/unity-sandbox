@@ -42,6 +42,7 @@ namespace StreetLife.EditorTools
             new Def { name = "paint", tex = "metal", dir = RailDir, metres = 1.5f, tinted = true, keepGloss = true },
             new Def { name = "grass", dir = RailDir, metres = 6f, tinted = true },
             new Def { name = "leaf", tex = "grass", dir = RailDir, metres = 3f, tinted = true },
+            new Def { name = "marble", metres = 2.6f, tinted = true, bump = .35f },
         };
 
         [MenuItem("Street Life/Maps/Rebuild Railed surfaces")]
@@ -57,6 +58,7 @@ namespace StreetLife.EditorTools
             if (rail && File.Exists(sign)) { Import(sign, false, true); rail.shedSign = AssetDatabase.LoadAssetAtPath<Texture2D>(sign); EditorUtility.SetDirty(rail); }
             string b = Book(lit, BeachDir, "Assets/StreetLife/Resources/BeachLook.asset", Beach, out var beach);
             if (beach) { beach.ground = Sand(lit); beach.cushion = Cushion(lit); EditorUtility.SetDirty(beach); }
+            if (beach) Bar(lit, beach);
             string label = BeachDir + "/drum_label.png";
             if (File.Exists(label))
             {
@@ -139,6 +141,43 @@ namespace StreetLife.EditorTools
             m.enableInstancing = true;
             EditorUtility.SetDirty(m);
             return m;
+        }
+
+        // The Tiki Bar's templates (TikiBar.cs copies and recolours them at play time): clear glass, a plain surface and a plain
+        // surface that glows. Kept as assets so every build has the shader variants they need.
+        static void Bar(Shader lit, RailLookSet beach)
+        {
+            Material Mat(string name)
+            {
+                string mp = BeachDir + "/" + name + ".mat";
+                var m = AssetDatabase.LoadAssetAtPath<Material>(mp);
+                if (!m) { m = new Material(lit); AssetDatabase.CreateAsset(m, mp); }
+                m.shader = lit; m.SetFloat("_WorkflowMode", 1); m.SetColor("_BaseColor", Color.white); m.enableInstancing = true;
+                return m;
+            }
+            var glass = Mat("bar_glass");
+            glass.SetFloat("_Surface", 1); glass.SetFloat("_Blend", 0); glass.SetFloat("_BlendModePreserveSpecular", 1);
+            glass.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.One); glass.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            glass.SetFloat("_SrcBlendAlpha", (float)UnityEngine.Rendering.BlendMode.One); glass.SetFloat("_DstBlendAlpha", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            glass.SetFloat("_ZWrite", 0); glass.SetFloat("_AlphaClip", 0); glass.SetFloat("_Cull", 2); glass.SetFloat("_ReceiveShadows", 0);
+            glass.SetOverrideTag("RenderType", "Transparent"); glass.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            glass.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); glass.EnableKeyword("_ALPHAPREMULTIPLY_ON"); glass.EnableKeyword("_RECEIVE_SHADOWS_OFF");
+            glass.SetShaderPassEnabled("DepthOnly", false); glass.SetShaderPassEnabled("ShadowCaster", false);
+            glass.SetColor("_BaseColor", new Color(1, 1, 1, .16f)); glass.SetFloat("_Smoothness", .96f); glass.SetFloat("_Metallic", 0);
+            EditorUtility.SetDirty(glass);
+            var gloss = Mat("bar_gloss");
+            gloss.SetFloat("_Smoothness", .8f); gloss.SetFloat("_Metallic", 0);
+            EditorUtility.SetDirty(gloss);
+            var glow = Mat("bar_glow");
+            glow.SetFloat("_Smoothness", .6f); glow.SetFloat("_Metallic", 0);
+            glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor", Color.white * 2f);
+            glow.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            EditorUtility.SetDirty(glow);
+            beach.glass = glass; beach.gloss = gloss; beach.glow = glow;
+            string lp = BeachDir + "/bar_labels.png", op = BeachDir + "/onyx.png";
+            if (File.Exists(lp)) { Import(lp, false, true); beach.barLabels = AssetDatabase.LoadAssetAtPath<Texture2D>(lp); }
+            if (File.Exists(op)) { Import(op, false, true); beach.onyx = AssetDatabase.LoadAssetAtPath<Texture2D>(op); }
+            EditorUtility.SetDirty(beach);
         }
 
         static void Import(string path, bool normal, bool sign = false)

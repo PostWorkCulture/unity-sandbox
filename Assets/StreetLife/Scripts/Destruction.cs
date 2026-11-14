@@ -74,6 +74,21 @@ namespace StreetLife
             }
         }
 
+        /// Something built at play time joins in (maps chat: the Tiki Bar's bottles, glasses, stools and glass screens).
+        /// Its boxes, if it has any, must already be in BoxWorld. Loose items are kind "knock"; with prop "glass" they
+        /// shatter like glass when they break or land hard.
+        public Ent Add(WDyn d, Transform t)
+        {
+            var e = new Ent { d = d, t = t, boxes = d.boxes ?? new int[0], homePos = t.localPosition, homeRot = t.localRotation, homeScale = t.localScale };
+            e.homeBoxes = new Box[e.boxes.Length];
+            for (int k = 0; k < e.boxes.Length; k++) { if (e.boxes[k] < BoxWorld.Boxes.Count) e.homeBoxes[k] = BoxWorld.Boxes[e.boxes[k]]; byBox[e.boxes[k]] = e; NavGrid.Dynamic.Add(e.boxes[k]); }
+            e.rends.AddRange(t.GetComponentsInChildren<Renderer>(true));
+            e.hp = d.hp > 0 ? d.hp : 60;
+            if (d.kind == "knock") { e.bhp = d.brk; knocks.Add(e); }
+            ents.Add(e);
+            return e;
+        }
+
         /// Take something out of the map for good, boxes and all (maps chat: Street Life's red plants).
         public void Remove(Ent e)
         {
@@ -491,11 +506,22 @@ namespace StreetLife
             e.bhp -= dmg;
             if (e.bhp > 0) return;
             e.alive = false; e.t.gameObject.SetActive(false);
-            Report("prop");
             var p = e.t.position;
+            if (e.d.prop == "glass")
+            {   // a bottle or a glass (maps chat): shards, a puff of whatever was in it, and the glass sound (not one per shard-burst when a row goes)
+                Report("glass");
+                if (Time.time - glassT > .045f) { glassT = Time.time; Sfx.Play("frost", p, .7f, 16, Random.Range(1.25f, 1.75f)); }
+                var col = BaseColor(e); float big = Mathf.Max(e.d.kw, e.d.kh);
+                BreakFx.I.Chunks(p, new Vector3(e.d.kw, e.d.kh, e.d.kd), Vector3.zero, new[] { new Color(.88f, .96f, 1f), Color.Lerp(col, Color.white, .45f), Color.white }, Mathf.Clamp(Mathf.RoundToInt(big * 36), 5, 14), Ground(p.x, p.z, p.y - e.d.kh / 2 - .3f), 2.4f, true);
+                if (e.d.kh > .28f) BreakFx.I.Puffs(p, 2, .12f, .5f, .16f, .45f, new Color(col.r, col.g, col.b, .5f));
+                return;
+            }
+            Report("prop");
             Sfx.Play("crate", p, .8f, 14);
             BreakFx.I.Chunks(p, new Vector3(e.d.kw, e.d.kh, e.d.kd), Vector3.up, new[] { BaseColor(e), C("#d8dbe2"), C("#55585f") }, 8, p.y - e.d.kh / 2, 1.2f);
         }
+
+        float glassT;
 
         float Ground(float x, float z, float y)
         {
@@ -532,6 +558,7 @@ namespace StreetLife
                 float g = Ground(p.x, p.z, p.y - hy + .3f);
                 if (p.y - hy < g && e.kv.y < 0)
                 {
+                    if (e.d.prop == "glass" && e.d.brk > 0 && e.kv.y < -2.8f) { p.y = g + hy; e.t.position = p; KnockHurt(e, 9999); continue; }   // glass that lands hard smashes
                     p.y = g + hy; e.kv.y *= e.d.ball ? -.5f : -.25f; e.kv.x *= .55f; e.kv.z *= .55f; e.kav *= .5f;
                     if (Mathf.Abs(e.kv.y) < .6f && new Vector2(e.kv.x, e.kv.z).magnitude < .4f) { e.kst = 2; e.kv = Vector3.zero; }
                 }
