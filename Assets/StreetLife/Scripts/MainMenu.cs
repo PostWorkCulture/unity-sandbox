@@ -470,7 +470,7 @@ namespace StreetLife
             charGrid.Clear();
             var cs = CharacterSet.Load(); if (!cs) { charGrid.Add(L("Characters aren't set up in this project yet.", 13, Dim)); return; }
             charGrid.Add(CharTile(RandomId, "Random"));
-            foreach (var c in cs.All) { if (cs.Has(c.id)) charGrid.Add(CharTile(c.id, c.name)); }
+            foreach (var c in cs.Playable) { if (cs.Has(c.id)) charGrid.Add(CharTile(c.id, c.name)); }   // characters chat: bot-only ones (Dida, Lia) left out
             RefreshCharacter();
         }
 
@@ -748,7 +748,7 @@ namespace StreetLife
             if (Settings.RandomChar)
             {
                 var cs = CharacterSet.Load(); var ids = new List<string>();
-                if (cs) foreach (var c in cs.All) if (cs.Has(c.id)) ids.Add(c.id);
+                if (cs) foreach (var c in cs.Playable) if (cs.Has(c.id)) ids.Add(c.id);
                 if (ids.Count > 0)
                 {
                     var id = Pick(ids); CharacterSkin.PlayerChoice = id;

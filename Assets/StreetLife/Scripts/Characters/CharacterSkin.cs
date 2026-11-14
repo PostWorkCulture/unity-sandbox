@@ -20,8 +20,8 @@ namespace StreetLife
         /// brute, blaze, blink, tank, frost, patch, thorn, thor, isaac).
         public static string PlayerChoice
         {
-            get => PlayerPrefs.GetString(PlayerPref, "wednesday");
-            set { PlayerPrefs.SetString(PlayerPref, value); PlayerPrefs.Save(); }
+            get { var id = PlayerPrefs.GetString(PlayerPref, "wednesday"); return CharacterSet.IsBotOnly(id) ? "wednesday" : id; }   // bot-only characters are never yours
+            set { if (CharacterSet.IsBotOnly(value)) return; PlayerPrefs.SetString(PlayerPref, value); PlayerPrefs.Save(); }
         }
 
         /// The bot's character, or empty for a random one each match.

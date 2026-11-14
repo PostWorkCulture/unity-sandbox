@@ -41,7 +41,7 @@ namespace StreetLife
         static CharacterSet cached;
         public static CharacterSet Load() { if (!cached) cached = Resources.Load<CharacterSet>("StreetLifeCharacters"); return cached; }
 
-        void OnEnable() { infos = null; arms = null; }
+        void OnEnable() { infos = null; arms = null; playable = null; }
 
         /// All characters in the web game's menu order (Wednesday first).
         public Info[] All
@@ -50,6 +50,21 @@ namespace StreetLife
             {
                 if (infos == null) infos = catalog ? (JsonUtility.FromJson<CatalogJson>(catalog.text)?.characters ?? new Info[0]) : new Info[0];
                 return infos;
+            }
+        }
+
+        /// Characters only bots play (Pete, 14 Nov): not offered to players in the menu or F3, never a player's character.
+        public static readonly HashSet<string> BotOnly = new HashSet<string> { "dida", "lia" };
+        public static bool IsBotOnly(string id) => id != null && BotOnly.Contains(id);
+
+        [NonSerialized] Info[] playable;
+        /// The characters a player can pick (All without the bot-only ones), in menu order.
+        public Info[] Playable
+        {
+            get
+            {
+                if (playable == null || playable.Length == 0) { var l = new List<Info>(); foreach (var i in All) if (!IsBotOnly(i.id)) l.Add(i); playable = l.ToArray(); }
+                return playable;
             }
         }
 

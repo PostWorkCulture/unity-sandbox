@@ -64,7 +64,7 @@ namespace StreetLife
             GUI.depth = -10;
             float W = Screen.width, H = Screen.height;
             Fill(new Rect(0, 0, W, H), new Color(0, 0, 0, .7f));
-            int nAll = set ? set.All.Length : 0, rowsN = (nAll + 5) / 6; float chh = 112 * s;
+            int nAll = set ? (bot ? set.All : set.Playable).Length : 0, rowsN = (nAll + 5) / 6; float chh = 112 * s;
             float pw = Mathf.Min(W - 40 * s, 1250 * s), ph = Mathf.Min(H - 40 * s, 60 * s + rowsN * (chh + 8 * s) + (bot ? 52 * s : 0) + 86 * s), px = (W - pw) / 2, py = (H - ph) / 2;
             HudDraw.PanelBox(new Rect(px, py, pw, ph), s);
             if (!set) { GUI.Label(new Rect(px + 20 * s, py + 20 * s, pw, 40 * s), "No characters yet: run Street Life > Rebuild characters in the Editor.", title); return; }
@@ -77,7 +77,8 @@ namespace StreetLife
             GUI.Label(new Rect(tx + 290 * s, py + 18 * s, pw - 480 * s, 30 * s), bot ? "The bot plays a random character each match unless you pick one." : "Picking restarts the match with your new character.", small);
 
             // grid of characters, in the web game's menu order
-            var all = set.All; int cols = 6; float gx = px + 20 * s, gy = py + 60 * s, cw = (pw * .62f - 30 * s) / cols;
+            // bot-only characters (Dida, Lia) only on the Bot tab
+            var all = bot ? set.All : set.Playable; int cols = 6; float gx = px + 20 * s, gy = py + 60 * s, cw = (pw * .62f - 30 * s) / cols;
             if (tileSt == null) tileSt = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false, clipping = TextClipping.Clip };
             tileSt.fontSize = Mathf.RoundToInt(12 * s); tileSt.normal.textColor = Color.white;
             string cur = bot ? botSel : sel;

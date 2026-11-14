@@ -45,6 +45,19 @@ namespace StreetLife.EditorTools
             new Def { name = "marble", metres = 2.6f, tinted = true, bump = .35f },
         };
 
+        /// remote: call RailSetup.Target [win|webgl|android]   which platform the editor is set to (no argument: just says). After a
+        /// browser build the editor is left on WebGL, where the baked bounce light is off: `win` puts it back.
+        public static string Target(string arg)
+        {
+            var now = EditorUserBuildSettings.activeBuildTarget;
+            if (string.IsNullOrEmpty(arg)) return now.ToString();
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return "not in play mode (" + now + ")";
+            bool ok = arg.Contains("win") ? EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows64)
+                : arg.Contains("web") ? EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL)
+                : arg.Contains("android") && EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
+            return (ok ? "now " : "could not switch, still ") + EditorUserBuildSettings.activeBuildTarget;
+        }
+
         [MenuItem("Street Life/Maps/Rebuild Railed surfaces")]
         static void Menu() { Debug.Log("Map surfaces: " + Build("")); }
 
