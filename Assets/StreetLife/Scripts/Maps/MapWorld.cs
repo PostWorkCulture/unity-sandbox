@@ -29,6 +29,9 @@ namespace StreetLife
 
         public static void Create(MapBuilder mb, MapSet.Entry e, MapSet set)
         {
+            // the builder can be enabled more than once in a scene (it rebuilds each time): one MapWorld only. Old ones stacked
+            // their mood volumes on each other, which on Arena added up to +1.26 exposure and +34 contrast (Pete, 14 Nov: "super bright")
+            foreach (var old in FindObjectsByType<MapWorld>(FindObjectsInactive.Include)) { old.gameObject.SetActive(false); Destroy(old.gameObject); }
             var go = new GameObject("Map: " + e.title);
             var w = go.AddComponent<MapWorld>();
             w.entry = e; w.set = set; w.builder = mb;
@@ -152,17 +155,17 @@ namespace StreetLife
         struct LookSet { public float cover, alpha, temp, contrast, sat, bloom, ev; public Color lit, shade; }
         static LookSet Look(string id)
         {
-            // ev: the web game draws with no tone mapping (three r158 default), while the shared profile uses ACES, which puts mid grey
-            // about 0.8 stops lower; +0.6 brings the mid tones (and dark clothes such as Wednesday's) back to the web game's brightness
-            // and leaves ACES's softer highlights.
-            var l = new LookSet { cover = .52f, alpha = .95f, lit = Color.white, shade = new Color(.62f, .68f, .78f), bloom = -1, ev = .6f };
+            // ev: on top of the shared profile's own +0.807 (StreetLifeSetup.WebExposure, which already matches the web game under ACES).
+            // The +0.6 added here on 13 Nov missed that and over-brightened every map (the hospital, and Arena's white floor at night);
+            // daytime maps now get a light +0.15 and Arena is taken down for night.
+            var l = new LookSet { cover = .52f, alpha = .95f, lit = Color.white, shade = new Color(.62f, .68f, .78f), bloom = -1, ev = .15f };
             switch (id)
             {
                 case "wreck": l.cover = .35f; l.temp = 3; l.sat = 8; l.contrast = 6; break;                                                         // bright beach day
                 case "rail": l.cover = .5f; l.lit = new Color(1f, .84f, .66f); l.shade = new Color(.52f, .44f, .56f); l.temp = 2; l.sat = 6; l.contrast = 4; break;   // golden hour (RailLook.Env)
                 case "skyhigh": l.cover = .55f; l.lit = new Color(1f, .8f, .62f); l.shade = new Color(.55f, .38f, .45f); l.temp = 10; l.sat = 8; break;   // golden hour
                 case "lagoon": l.cover = .52f; l.lit = new Color(1f, .82f, .86f); l.shade = new Color(.55f, .42f, .62f); l.temp = 6; l.sat = 10; break; // sunset
-                case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 8; l.bloom = .5f; l.ev = .15f; break; // night
+                case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 8; l.bloom = .35f; l.ev = -.35f; break; // night
                 case "house": case "yard": l.cover = .5f; break;
             }
             return l;
@@ -192,7 +195,10 @@ namespace StreetLife
             var l = Look(entry.id);
             if (l.temp == 0 && l.sat == 0 && l.contrast == 0 && l.bloom < 0 && l.ev == 0) return;
             VolumeProfile shared = null;
-            foreach (var vol in FindObjectsByType<Volume>(FindObjectsInactive.Exclude)) if (vol.isGlobal && vol.sharedProfile) { shared = vol.sharedProfile; break; }
+            // the shared look: the lowest-priority global volume that isn't a map's mood or the weapon showroom's own (layer 29)
+            float best = float.MaxValue;
+            foreach (var vol in FindObjectsByType<Volume>(FindObjectsInactive.Exclude))
+                if (vol.isGlobal && vol.sharedProfile && !vol.GetComponentInParent<MapWorld>() && vol.name != "Map mood" && vol.gameObject.layer == 0 && vol.priority < best) { best = vol.priority; shared = vol.sharedProfile; }
             float baseTemp = 0, baseSat = 0, baseCon = 0, baseEv = 0;
             if (shared)
             {
@@ -208,7 +214,12 @@ namespace StreetLife
                 if (l.sat != 0) ca.saturation.Override(baseSat + l.sat);
                 if (l.contrast != 0) ca.contrast.Override(baseCon + l.contrast);
             }
-            if (l.bloom >= 0) prof.Add<UnityEngine.Rendering.Universal.Bloom>(true).intensity.Override(l.bloom);
+            // bloom: capped on every map, so one tiny very bright thing (a lamp face, a sign at full HDR) can't bloom over the whole
+            // screen; on Arena that cap, and a higher threshold for the floodlit white floor, cure the white-out (Pete, 14 Nov)
+            var bloom = prof.Add<UnityEngine.Rendering.Universal.Bloom>(true);
+            bloom.clamp.Override(4f);
+            if (l.bloom >= 0) bloom.intensity.Override(l.bloom);
+            if (entry.id == "arena") bloom.threshold.Override(1.3f);
             var v = new GameObject("Map mood").AddComponent<Volume>(); v.transform.SetParent(transform, false);
             v.isGlobal = true; v.priority = 5; v.sharedProfile = prof;
         }

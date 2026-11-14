@@ -160,6 +160,26 @@ namespace StreetLife.EditorTools
             return $"bot tagged {b.Tagged} (for {b.tagT - Time.time:F1} s)";
         }
 
+        /// is sound getting out? listeners, mute switches, volumes, clips, and the listener's actual output level
+        public static string Audio(string a)
+        {
+            var ls = Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude);
+            int on = 0; foreach (var l in ls) if (l.enabled && l.gameObject.activeInHierarchy) on++;
+            var playing = 0; foreach (var src in Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude)) if (src.isPlaying) playing++;
+            var clip = Resources.Load<AudioClip>("StreetLife/sfx/" + (string.IsNullOrEmpty(a) ? "kill" : a));
+            var sres = Sfx.Play2D(string.IsNullOrEmpty(a) ? "kill" : a, 1);
+            var cfg = AudioSettings.GetConfiguration();
+            return $"listeners {on}/{ls.Length}, AudioListener.volume {AudioListener.volume}, paused {AudioListener.pause}, editor mute {UnityEditor.EditorUtility.audioMasterMute}, " +
+                   $"Sfx {Sfx.SfxVolume:F2} music {Sfx.MusicVolume:F2}, clip {(clip ? clip.name + " " + clip.length.ToString("F2") + "s " + clip.loadState : "MISSING")}, " +
+                   $"played {(sres ? sres.isPlaying.ToString() : "null")}, sources playing {playing}, output {cfg.sampleRate} Hz {cfg.speakerMode}, driver {AudioSettings.driverCapabilities}";
+        }
+
+        public static string AudioLevel(string a)
+        {
+            var d = new float[1024]; AudioListener.GetOutputData(d, 0); float r = 0; foreach (var x in d) r += x * x;
+            return "output RMS " + Mathf.Sqrt(r / d.Length).ToString("F4");
+        }
+
         public static string Unfreeze(string a) { if (B) B.Frozen = false; return "bot free"; }
 
         public static string State(string a)

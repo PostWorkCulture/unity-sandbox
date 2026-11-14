@@ -453,7 +453,7 @@ namespace StreetLife
             }
             else burstShots = f.shots;
             float dist = Flat(target.pos - f.pos).magnitude;
-            if (f.primary == "sword" && dist > 3f) fire = false;
+            if (RumbleLadder.Swung(f.primary) && dist > 3f) fire = false;   // sword, and Rumble's knife and bat
             f.inFire = fire;
         }
 

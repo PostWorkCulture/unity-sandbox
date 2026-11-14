@@ -31,7 +31,7 @@ namespace StreetLife
         readonly List<Renderer> hidden = new List<Renderer>();
         HashSet<Material> charMats;
 
-        void Awake() { I = this; }
+        void Awake() { if (!watcher) I = this; }
 
         int Step()
         {
@@ -44,6 +44,7 @@ namespace StreetLife
 
         void LateUpdate()
         {
+            if (watcher) return;
             int step = Step();
             var r = PlayerRig();
             if (r != rig) { ShowWeapons(); rig = r; applied = false; }
@@ -128,7 +129,7 @@ namespace StreetLife
             }
         }
 
-        readonly System.Text.StringBuilder watchLog = new System.Text.StringBuilder();
+        static readonly System.Text.StringBuilder watchLog = new System.Text.StringBuilder(); bool watcher;
         System.Collections.IEnumerator Watch()
         {
             var tally = new Dictionary<string, int[]>();   // name -> [samples, held, alive-and-not-holding (unexplained)]
@@ -145,8 +146,10 @@ namespace StreetLife
                     if (held) c[1]++;
                     else if (f.alive && !f.downed && !f.InFinisher && f.onLadder == null && w && w.Gun != "sword") { c[2]++; why[k] = $"gun {w.Gun} pose {(wp ? wp.enabled.ToString() : "none")} rig {(rg && rg.Built)} vis {(rg && rg.Visible)}"; }
                 }
-                yield return new WaitForSeconds(.25f);
+                yield return new WaitForSecondsRealtime(.25f);
             }
+            Destroy(gameObject, .1f);
+            watchLog.Clear(); if (tally.Count == 0) watchLog.Append("no bots seen");
             foreach (var kv in tally) watchLog.Append($"[{kv.Key}: {kv.Value[0]} samples, holding {kv.Value[1]}, unexplained empty {kv.Value[2]}{(why.TryGetValue(kv.Key, out var y) ? " last: " + y : "")}] ");
         }
 
@@ -186,9 +189,8 @@ namespace StreetLife
                         cam.targetTexture = null; Destroy(rt); Destroy(go); return sb.ToString();
                     }
                 case "watch":   // sample every fighter 4x a second for 20 s; "watch report" prints the tally
-                    if (a[1] == "report") return I ? I.watchLog.ToString() : "no showcase";
-                    if (I) { I.watchLog.Clear(); I.StartCoroutine(I.Watch()); return "watching 20 s"; }
-                    return "no showcase";
+                    if (a[1] == "report") return watchLog.Length > 0 ? watchLog.ToString() : "still watching (or nothing seen)";
+                    { var prev = I; var wgo = new GameObject("held watch"); DontDestroyOnLoad(wgo); var ws = wgo.AddComponent<CharacterShowcase>(); ws.watcher = true; I = prev; watchLog.Clear(); ws.StartCoroutine(ws.Watch()); return "watching 20 s"; }
                 case "spin": if (I) { I.spin = float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture); I.vel = 0; return "spin " + a[1]; } return "no showcase";
             }
             return "unknown " + a[0];

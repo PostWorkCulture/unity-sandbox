@@ -208,7 +208,7 @@ namespace StreetLife
             left.Add(Caps("Players")); left.Add(Segmented(new[] { "1v1", "2v2", "FFA 4", "FFA 6" }, new[] { "1v1", "2v2", "ffa4", "ffa6" }, () => Rules.Ffa ? "ffa" + Rules.FfaN : Rules.Players, v => { if (v.StartsWith("ffa")) { Rules.Players = "ffa"; Rules.FfaN = v[3] - '0'; } else Rules.Players = v; RefreshMap(); }));
             left.Add(Caps("Rules")); left.Add(Segmented(new[] { "Normal", "Simple" }, new[] { "normal", "simple" }, () => Settings.Rules, v => Settings.Rules = v));
             left.Add(Caps("Bots")); left.Add(Segmented(new[] { "Easy", "Normal", "Hard", "Extreme" }, new[] { "easy", "normal", "hard", "extreme" }, () => Settings.Difficulty, v => Settings.Difficulty = v));
-            var hint = L("Duels: guns, lethals, walls (Q), abilities (G), the shop. Rumble: fists only; land a punch while falling for an air strike.\n2v2: you and a bot against two bots. FFA: everyone respawns, first to 10 kills.\nRules: Simple is the M4, sword and grenade (1v1 Duels only).", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal;
+            var hint = L("Duels: guns, lethals, walls (Q), abilities (G), the shop. Rumble: start on fists; each kill without dying moves you up to the knife, the bat, then the sword. Land a hit while falling for an air strike.\n2v2: you and a bot against two bots. FFA: everyone respawns, first to 10 kills.\nRules: Simple is the M4, sword and grenade (1v1 Duels only).", 12, Dim); hint.style.marginTop = 12; hint.style.whiteSpace = WhiteSpace.Normal;
             left.Add(hint);
             stepA.Add(left);
 

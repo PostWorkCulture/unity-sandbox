@@ -22,6 +22,46 @@ namespace StreetLife
             var vol = w.transform.Find("Map mood") ? w.transform.Find("Map mood").GetComponent<Volume>() : null;
             switch (p[0])
             {
+                case "main":
+                    {
+                        var c = Camera.main; if (!c) return "no main camera";
+                        var d = c.GetUniversalAdditionalCameraData();
+                        var sb = new System.Text.StringBuilder();
+                        sb.Append(c.name).Append(" at ").Append(c.transform.position).Append(" hdr ").Append(c.allowHDR).Append(" post ").Append(d.renderPostProcessing).Append(" volMask ").Append(d.volumeLayerMask.value)
+                          .Append(" quality ").Append(QualitySettings.names[QualitySettings.GetQualityLevel()]).Append(" | ");
+                        var stack = VolumeManager.instance.stack;
+                        var ca = stack.GetComponent<ColorAdjustments>(); var bl = stack.GetComponent<Bloom>(); var tm = stack.GetComponent<Tonemapping>();
+                        sb.Append("stack: ev ").Append(ca.postExposure.value).Append(" contrast ").Append(ca.contrast.value).Append(" bloom ").Append(bl.intensity.value).Append(" thr ").Append(bl.threshold.value).Append(" tonemap ").Append(tm.mode.value);
+                        foreach (var v in Object.FindObjectsByType<Volume>()) sb.Append(" | ").Append(v.name).Append(" layer ").Append(v.gameObject.layer).Append(" p").Append(v.priority).Append(v.isActiveAndEnabled ? "" : " off");
+                        return sb.ToString();
+                    }
+                case "beams": { int n = 0; foreach (var r in Object.FindObjectsByType<MeshRenderer>()) if (r.sharedMaterial && r.sharedMaterial.name.StartsWith("Beam")) { r.enabled = p[1] != "off"; n++; } return "beams " + p[1] + " x" + n; }
+                case "post": { var c = Camera.main; if (!c) return "no cam"; c.GetUniversalAdditionalCameraData().renderPostProcessing = p[1] != "off"; return "post " + p[1]; }
+                case "global": { foreach (var v in Object.FindObjectsByType<Volume>()) if (v.name == "Global Volume") v.enabled = p[1] != "off"; return "global " + p[1]; }
+                case "fog": RenderSettings.fog = p[1] != "off"; return "fog " + p[1];
+                case "pl": { int n = 0; foreach (var l in Object.FindObjectsByType<Light>(FindObjectsInactive.Include)) if (l.type != LightType.Directional) { l.enabled = p[1] != "off"; n++; } return "point lights " + p[1] + " x" + n; }
+                case "list":
+                    {   // renderers in front of the main camera within r metres
+                        var c = Camera.main; float rr = p.Length > 1 ? F(1) : 6; var sb2 = new System.Text.StringBuilder();
+                        foreach (var r in Object.FindObjectsByType<Renderer>()) if (r.enabled && r.bounds.SqrDistance(c.transform.position) < rr * rr) sb2.Append(r.name).Append('[').Append(r.sharedMaterial ? r.sharedMaterial.name : "-").Append("] ");
+                        return sb2.ToString();
+                    }
+                case "mainshot":
+                    {   // the main camera alone (no UI) to Logs/<name>.png
+                        var c = Camera.main; if (!c) return "no cam";
+                        var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32); var old = c.targetTexture;
+                        try
+                        {
+                            c.targetTexture = rt; c.Render();
+                            var prev = RenderTexture.active; RenderTexture.active = rt;
+                            var tex = new Texture2D(1280, 720, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0); tex.Apply(); RenderTexture.active = prev;
+                            System.IO.File.WriteAllBytes(System.IO.Path.Combine(Application.dataPath, "../Logs/" + (p.Length > 1 ? p[1] : "mainshot") + ".png"), tex.EncodeToPNG()); Object.Destroy(tex);
+                        }
+                        catch (System.Exception ex) { return "error " + ex.Message; }
+                        finally { c.targetTexture = old; rt.Release(); Object.Destroy(rt); }
+                        return "main camera at " + c.transform.position + " fwd " + c.transform.forward + " cams: " + Cams();
+                    }
+                case "mainsweep": w.StartCoroutine(MainSweep()); return "sweeping the main camera";
                 case "sweep": w.StartCoroutine(Sweep(new Vector3(F(1), F(2), F(3)), Quaternion.Euler(F(5), F(4), 0))); return "sweeping";
                 case "mood": if (!vol) return "no mood volume"; vol.enabled = p.Length < 2 || p[1] != "off"; return "mood " + vol.enabled;
                 case "bloom": { if (!vol) return "no mood"; if (!vol.sharedProfile.TryGet<Bloom>(out var b)) b = vol.sharedProfile.Add<Bloom>(true); b.intensity.Override(F(1)); return "bloom " + F(1); }
@@ -43,6 +83,15 @@ namespace StreetLife
                     }
             }
             return Info(vol);
+        }
+
+        static string Cams()
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var c in Camera.allCameras) sb.Append(c.name).Append(" d").Append(c.depth).Append(c.targetTexture ? " rt" : "").Append(" | ");
+            foreach (var cv in Object.FindObjectsByType<Canvas>()) if (cv.isActiveAndEnabled) sb.Append("canvas ").Append(cv.name).Append(" | ");
+            foreach (var ud in Object.FindObjectsByType<UnityEngine.UIElements.UIDocument>()) if (ud.isActiveAndEnabled) sb.Append("ui ").Append(ud.name).Append(" | ");
+            return sb.ToString();
         }
 
         static string Info(Volume vol)
@@ -88,6 +137,42 @@ namespace StreetLife
             if (ca) ca.postExposure.value = ev0;
             cam.targetTexture = null; rt.Release(); Object.Destroy(rt); Object.Destroy(go);
             System.IO.File.WriteAllText(System.IO.Path.Combine(Application.dataPath, "../Logs/look-sweep.txt"), log.ToString());
+        }
+
+        /// renders the main camera itself (as the player sees it) with one thing at a time switched off
+        static System.Collections.IEnumerator MainSweep()
+        {
+            var w = MapWorld.I; var cam = Camera.main; if (!w || !cam) yield break;
+            var d = cam.GetUniversalAdditionalCameraData();
+            var vt = w.transform.Find("Map mood"); var mood = vt ? vt.GetComponent<Volume>() : null;
+            Volume global = null; foreach (var v in Object.FindObjectsByType<Volume>()) if (v.name == "Global Volume") global = v;
+            var beams = new System.Collections.Generic.List<MeshRenderer>();
+            foreach (var r in Object.FindObjectsByType<MeshRenderer>()) if (r.sharedMaterial && r.sharedMaterial.name.StartsWith("Beam")) beams.Add(r);
+            var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
+            var log = new System.Text.StringBuilder("main camera at " + cam.transform.position + " looking " + cam.transform.forward + " near " + cam.nearClipPlane + " fov " + cam.fieldOfView + "\n");
+            string[] names = { "asis", "nobeams", "nomood", "nopost", "noglobal", "nofog", "nolights" };
+            var lights = new System.Collections.Generic.List<Light>(); foreach (var l in Object.FindObjectsByType<Light>()) if (l.enabled && l.type != LightType.Directional) lights.Add(l);
+            for (int k = 0; k < names.Length; k++)
+            {
+                foreach (var r in beams) r.enabled = k != 1;
+                if (mood) mood.enabled = k != 2;
+                d.renderPostProcessing = k != 3;
+                if (global) global.enabled = k != 4;
+                bool fog = RenderSettings.fog; if (k == 5) RenderSettings.fog = false;
+                foreach (var l in lights) l.enabled = k != 6;
+                var old = cam.targetTexture; cam.targetTexture = rt; cam.Render(); cam.targetTexture = old;
+                RenderSettings.fog = fog;
+                var prev = RenderTexture.active; RenderTexture.active = rt;
+                var tex = new Texture2D(1280, 720, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0); tex.Apply(); RenderTexture.active = prev;
+                float sum = 0; var px = tex.GetPixels(); for (int i = 0; i < px.Length; i += 37) sum += px[i].grayscale; sum /= px.Length / 37f;
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(Application.dataPath, "../Logs/main-" + names[k] + ".png"), tex.EncodeToPNG());
+                log.Append(names[k]).Append(" brightness ").Append(sum.ToString("0.00")).Append('\n');
+                Object.Destroy(tex);
+                yield return null;
+            }
+            foreach (var r in beams) r.enabled = true; if (mood) mood.enabled = true; d.renderPostProcessing = true; if (global) global.enabled = true; foreach (var l in lights) l.enabled = true;
+            rt.Release(); Object.Destroy(rt);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(Application.dataPath, "../Logs/main-sweep.txt"), log.ToString());
         }
 }
 }

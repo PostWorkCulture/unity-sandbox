@@ -324,7 +324,7 @@ namespace StreetLife
         // ------------------------------------------------------------------ melee: swing, lunge, first foe in the arc
         void Melee(GunStat g)
         {
-            swingT = .32f; if (Gun == "sword") swL = !swL;
+            swingT = .32f; if (RumbleLadder.Swung(Gun)) swL = !swL;   // sword, and Rumble's knife and bat: slashes alternate
             F.vel.x += Mathf.Sin(F.yaw) * g.Lunge; F.vel.z += Mathf.Cos(F.yaw) * g.Lunge;
             var e = F.Eye;
             bool fists = Gun == "fists"; int sn = fists ? 4 : 10; float sa = fists ? .3f : 1.6f, sd = fists ? 1.25f : 1.7f, sy = fists ? .35f : .6f;   // fists: a short puff straight ahead at the fist, not the sword's wide arc
@@ -342,9 +342,9 @@ namespace StreetLife
                     float dm = aerial ? 20 : g.dmg;
                     if (aerial) Rumble.AirStrike(F, foe, dx, dz, dist);
                     GunFx.HitSpray(foe.pos + Vector3.up * 1.4f, null, 10, 1.3f);
-                    Sfx.Play("punch", foe.pos, 1, 14, Gun == "sword" ? .9f : 1.05f); F.NoteHit(false);
+                    Sfx.Play("punch", foe.pos, 1, 14, Gun == "sword" ? .9f : Gun == "bat" ? .8f : 1.05f); F.NoteHit(false);
                     if (isPlayer) Combat.Feedback(foe, dm, false, dm >= foe.hp);
-                    if (!aerial) { foe.vel.x += dx / (dist > 0 ? dist : 1) * 5; foe.vel.z += dz / (dist > 0 ? dist : 1) * 5; }
+                    if (!aerial) { float kb = Gun == "bat" ? 9 : 5; foe.vel.x += dx / (dist > 0 ? dist : 1) * kb; foe.vel.z += dz / (dist > 0 ? dist : 1) * kb; }   // the bat shoves harder
                     Combat.Damage(foe, dm, F, false, Gun);
                     return;
                 }

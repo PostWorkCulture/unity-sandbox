@@ -2,7 +2,8 @@
 //   call PunchTest.Shot bot 0.10 name   make the bot (or "me") throw a punch, then save the Game view to Logs/<name>.png
 //                                       that many seconds later (play mode, Rumble, ideally after StreetLifeTests.Face 2)
 //   call PunchTest.Shot bot 0.10 name side   the same, but seen from the fighter's side by a camera of its own
-// It only starts the punch animation (as Weapons.Melee does, by setting swingT): no damage, no lunge.
+// It only starts the punch animation (as Weapons.Melee does, by setting swingT): no damage, no lunge. A fighter not on
+// fists is given fists for the picture and its loadout put back after, so it can run inside another chat's match.
 using UnityEditor;
 using UnityEngine;
 
@@ -20,6 +21,10 @@ namespace StreetLife.EditorTools
             var rm = RoundManager.Instance; if (!rm) return "no round manager";
             var f = who == "me" ? rm.player : rm.bot; if (!f) return "no " + who;
             var w = f.GetComponent<Weapons>(); if (!w) return "no weapons on " + who;
+            string pri = w.primary, sec = w.secondary, leth = w.lethal; int slot = w.slot;
+            bool swap = w.Gun != "fists";
+            if (swap) w.SetLoadout("fists", "fists", leth);   // fists for the test only: put back after the picture
+            bool wasFrozen = f.Frozen; if (who != "me") f.Frozen = true;   // the bot holds still for the picture
             w.swingT = .32f;
             double at = EditorApplication.timeSinceStartup + delay;
             var file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Logs", name + ".png");
@@ -28,7 +33,7 @@ namespace StreetLife.EditorTools
             cb = () =>
             {
                 if (EditorApplication.timeSinceStartup < at) return; EditorApplication.update -= cb;
-                if (!side) { ScreenCapture.CaptureScreenshot(file); return; }
+                if (!side) { ScreenCapture.CaptureScreenshot(file); if (swap && w) { w.SetLoadout(pri, sec, leth); w.Equip(slot); } if (f) f.Frozen = wasFrozen; return; }
                 // a camera of its own: 3.2 m to the fighter's side, looking at the chest, so the arms show in profile
                 var fw = f.Forward; var rt = Vector3.Cross(Vector3.up, fw).normalized;
                 var chest = f.pos + Vector3.up * 1.35f * Fighter.SC;
@@ -41,6 +46,8 @@ namespace StreetLife.EditorTools
                 RenderTexture.active = prev; cam.targetTexture = null;
                 System.IO.File.WriteAllBytes(file, png.EncodeToPNG());
                 Object.Destroy(go); Object.Destroy(tex); Object.Destroy(png);
+                if (swap && w) { w.SetLoadout(pri, sec, leth); w.Equip(slot); }
+                if (f) f.Frozen = wasFrozen;
             };
             EditorApplication.update += cb;
             return $"{who} ({w.Gun}) punching; shot in {delay:0.00} s to {file}";

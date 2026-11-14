@@ -36,7 +36,7 @@ namespace StreetLife
         void OnDisable() { RoundManager.RoundStarted -= OnRound; }
 
         /// each round the bot takes its style's kit: a random primary and secondary from its list in Normal rules, the
-        /// Simple kit in Simple rules, fists in Rumble (the web game's applyStyle)
+        /// Simple kit in Simple rules, their weapon-ladder step in Rumble (the web game's applyStyle, plus RumbleLadder)
         /// a deathmatch respawn: the style's kit again
         public void Rekit() => OnRound(0);
 
@@ -46,7 +46,7 @@ namespace StreetLife
             if (!w) w = GetComponent<Weapons>(); if (!w) return;
             var rm = RoundManager.Instance;
             string pri, sec, leth = f.lethal;
-            if (Rules.Rumble) { pri = "fists"; sec = "fists"; }
+            if (Rules.Rumble) { pri = sec = RumbleLadder.WeaponOf(f); }   // wherever they are on the weapon ladder (fists to start)
             else if (rm && rm.simpleRules && Rules.OneVOne && !Rules.Rumble) { pri = "gar"; sec = "sword"; leth = "grenade"; }
             else { var k = K; pri = k.prim[Random.Range(0, k.prim.Length)]; sec = k.sec[Random.Range(0, k.sec.Length)]; }
             if (GunsDb.Gun(pri) == null) pri = "gar"; if (GunsDb.Gun(sec) == null) sec = Rules.Rumble ? pri : "sword";

@@ -75,11 +75,15 @@ namespace StreetLife
             foreach (var v in Data.vm) vms[v.id] = v;
             foreach (var p in Data.proj) projs[p.id] = p;
             foreach (var c in Data.cons) cons[c.id] = c;
+            RumbleLadder.AddGuns();   // Rumble's Knife and Baseball Bat, which the web game doesn't have (RumbleLadder.cs)
             // menu order, as the web game lists them
             foreach (var id in new[] { "gar", "ar", "burst", "crossbow", "mg", "m60", "sniper", "scout", "shotgun", "autoshot" }) if (stats.ContainsKey(id)) Primaries.Add(id);
             foreach (var id in new[] { "smg", "hornet", "vector", "p90", "ump", "sting", "duals", "rocket", "swarm", "sword" }) if (stats.ContainsKey(id)) Secondaries.Add(id);
             WeaponFixes.Apply();   // smaller sights, the rocket's front ring, the pistols' missing parts
         }
+
+        /// a weapon that isn't in the export (it isn't listed in any loadout menu)
+        public static void Add(GunStat g) { if (g != null) stats[g.id] = g; }
 
         public static GunStat Gun(string id) => id != null && stats.TryGetValue(id, out var g) ? g : null;
         public static HeldJson Held(string id) => id != null && held.TryGetValue(id, out var h) ? h : null;

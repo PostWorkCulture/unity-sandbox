@@ -1,7 +1,8 @@
 // How the character holds and moves the weapon, ported from the web game's animFighter / holdGun / armIK / swordPose:
 // both hands on the gun by two-bone IK (right hand on the grip, left on the handguard, sliding to the magazine during
 // a reload), the gun lowered to a run carry, kicked by recoil, dipped during swaps; Dual Pistols one in each hand;
-// the Sword held high with alternating diagonal slashes and a light trail; the throwing arm swing;
+// the Sword held high with alternating diagonal slashes and a light trail (Rumble's Knife and Baseball Bat are swung
+// the same way; their models come from RumbleLadder); the throwing arm swing;
 // Fists (Rumble): a boxing guard with both fists up by the chin, and punches that shoot one arm fully out at the aim.
 // All pose maths uses the web game's own (right-handed) numbers and is mirrored into Unity at the end.
 using System.Collections.Generic;
@@ -17,14 +18,15 @@ namespace StreetLife
         public Weapons weapons;
         public CharacterRig rig;
 
-        Transform root, upIn, aLp, aRp, aLe, aRe, swordG;
+        Transform root, upIn, aLp, aRp, aLe, aRe, swordG, knifeG, batG;
         Vector3 shR, shL;                    // shoulders (web space, in upIn)
         ArmJson armL, armR; float handY;
         class Held { public Transform rig; public HeldJson h; public List<Renderer> rends = new List<Renderer>(); public Transform[] flash; }
         readonly Dictionary<string, Held> held = new Dictionary<string, Held>();
         readonly List<Renderer> swordRends = new List<Renderer>();
         Held cur; float hRun, phase; bool built, lastVis = true, wasOn;
-        /// set by the main menu (match chat) on its Character and Loadout steps: your fighter stands empty-handed there
+        /// set by the main menu on its Character and Loadout steps: your fighter stands empty-handed there. Keep this and the
+        /// MenuUnarmed check in `on` below when editing this file (Pete, 14 Nov; see claude/street-life-menu.md)
         public static bool MenuUnarmed;
         public bool HeldVisible => cur != null && cur.rig && cur.rig.gameObject.activeSelf;
 
@@ -36,7 +38,7 @@ namespace StreetLife
         void Forget()
         {
             foreach (var h in held.Values) if (h != null && h.rig) Destroy(h.rig.gameObject);
-            held.Clear(); swordRends.Clear(); if (swordG) Destroy(swordG.gameObject);
+            held.Clear(); swordRends.Clear(); if (swordG) Destroy(swordG.gameObject); if (knifeG) Destroy(knifeG.gameObject); if (batG) Destroy(batG.gameObject);
             cur = null; built = false; enabled = true; wasOn = false;
         }
 
@@ -63,6 +65,9 @@ namespace StreetLife
             swordG.localPosition = Web.V(new Vector3(0, handY, .06f));
             WeaponModels.Build(GunsDb.Data.sword.nodes, swordG, "dragon sword", -1, true, swordRends);
             swordG.gameObject.SetActive(false);
+            // Rumble's knife and bat sit in the same hand (RumbleLadder builds them)
+            knifeG = RumbleLadder.BuildProp("knife", aRp, swordRends); batG = RumbleLadder.BuildProp("bat", aRp, swordRends);
+            knifeG.localPosition = batG.localPosition = swordG.localPosition; knifeG.gameObject.SetActive(false); batG.gameObject.SetActive(false);
             built = true; return true;
         }
 
@@ -116,7 +121,7 @@ namespace StreetLife
             {
                 SetW(aRp, Web.EulerXYZ(-Mathf.PI / 2 - p - k + sg * .9f, -.08f - sg * 1.4f, 0));
                 SetW(aLp, Web.EulerXYZ(-Mathf.PI / 2 - p + .1f - k, .62f, 0));
-                if (id == "sword") twist = SwordPose(p);
+                if (RumbleLadder.Swung(id)) twist = SwordPose(p);
                 if (id == "fists") twist = FistsPose(f.pitch, dt);
                 if (id == "duals") SetW(aLp, Web.EulerXYZ(-Mathf.PI / 2 - p - k * (w.dualL ? 1 : 0), .06f, 0));
             }
@@ -125,9 +130,9 @@ namespace StreetLife
             wasOn = on;
 
             // ---- the held gun and the two-handed IK
-            var want = on && id != "sword" ? GetHeld(id) : null;
+            var want = on && !RumbleLadder.Swung(id) ? GetHeld(id) : null;
             if (cur != want) { if (cur != null && cur.rig) cur.rig.gameObject.SetActive(false); cur = want; if (cur != null) cur.rig.gameObject.SetActive(true); }
-            swordG.gameObject.SetActive(on && id == "sword");
+            swordG.gameObject.SetActive(on && id == "sword"); knifeG.gameObject.SetActive(on && id == "knife"); batG.gameObject.SetActive(on && id == "bat");
             if (cur != null) HoldGun(cur, dt, sp, p);
             else if (on && id != "fists") { SetW(aRe, Quaternion.identity); SetW(aLe, Quaternion.identity); }
 
@@ -139,7 +144,7 @@ namespace StreetLife
                     cur.flash[i].gameObject.SetActive(lit);
                     if (lit) { cur.flash[i].localRotation = Quaternion.Euler(0, 0, Random.value * 170); cur.flash[i].localScale = Vector3.one * (.75f + Random.value * .5f); }
                 }
-            SwordTrail(on && id == "sword");
+            SwordTrail(on && RumbleLadder.Swung(id), id);
 
             // follow the character's visibility (the camera hides the body when it gets too close)
             bool vis = rig.Visible;
@@ -282,7 +287,7 @@ namespace StreetLife
 
         // a bright arc left behind the blade during the slash
         Mesh trail; MeshRenderer trailR; readonly List<(Vector3 a, Vector3 b, float t)> tp = new List<(Vector3, Vector3, float)>();
-        void SwordTrail(bool on)
+        void SwordTrail(bool on, string id)
         {
             if (!trail)
             {
@@ -292,13 +297,14 @@ namespace StreetLife
             }
             const int N = 16; const float LIFE = .16f; float now = Combat.Time;
             float t = weapons.swingT > 0 ? 1 - weapons.swingT / .32f : 1;
-            if (on && swordG && t > .12f && t < .52f) tp.Insert(0, (swordG.TransformPoint(Web.V(new Vector3(0, 0, .45f))), swordG.TransformPoint(Web.V(new Vector3(0, 0, 1.5f))), now));
+            var blade = id == "knife" ? knifeG : id == "bat" ? batG : swordG; RumbleLadder.TrailSpan(id, out float z0, out float z1);
+            if (on && blade && t > .12f && t < .52f) tp.Insert(0, (blade.TransformPoint(Web.V(new Vector3(0, 0, z0))), blade.TransformPoint(Web.V(new Vector3(0, 0, z1))), now));
             while (tp.Count > 0 && (tp.Count > N || now - tp[tp.Count - 1].t > LIFE)) tp.RemoveAt(tp.Count - 1);
             trail.Clear(); int n = tp.Count; if (n < 2) return;
             var v = new Vector3[n * 2]; var c = new Color[n * 2]; var ix = new List<int>();
             for (int i = 0; i < n; i++)
             {
-                float a = Mathf.Max(0, 1 - (now - tp[i].t) / LIFE) * (1 - i / (float)N);
+                float a = Mathf.Max(0, 1 - (now - tp[i].t) / LIFE) * (1 - i / (float)N) * (id == "bat" ? .5f : 1);   // wood leaves a fainter streak than steel
                 v[i * 2] = tp[i].a; v[i * 2 + 1] = tp[i].b; c[i * 2] = new Color(1, .85f, .45f, a * .55f); c[i * 2 + 1] = new Color(1, .97f, .85f, a * .95f);
                 if (i < n - 1) { int q = i * 2; ix.AddRange(new[] { q, q + 1, q + 2, q + 1, q + 3, q + 2 }); }
             }

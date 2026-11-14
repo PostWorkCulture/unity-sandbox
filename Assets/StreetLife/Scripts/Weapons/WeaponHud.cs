@@ -225,7 +225,7 @@ namespace StreetLife
                 else if (g.Sniper) { Rect(cx - 4, cy - 4, 8, 8, sh); Rect(cx - 3, cy - 3, 6, 6, cc); }
                 else
                 {
-                    if (id != "sword")
+                    if (!RumbleLadder.Swung(id))
                         foreach (var (x, y, ww, hh) in new[] { (cx - 1, cy - gap - 10, 2f, 10f), (cx - 1, cy + gap, 2f, 10f), (cx - gap - 10, cy - 1, 10f, 2f), (cx + gap, cy - 1, 10f, 2f) })
                         { Rect(x - 1.5f, y - 1.5f, ww + 3, hh + 3, sh); Rect(x, y, ww, hh, cc); }
                     Rect(cx - 3.5f, cy - 3.5f, 7, 7, sh); Rect(cx - 2, cy - 2, 4, 4, cc);
@@ -250,7 +250,9 @@ namespace StreetLife
             float vig = Mathf.Max(vigA, f.alive && f.hp < 30 ? .35f + Mathf.Sin(Time.time * 6) * .1f : 0);
             if (vig > 0) { GUI.color = new Color(.75f, 0, .05f, vig * .7f); GUI.DrawTexture(new Rect(-W * .25f, -H * .25f, W * 1.5f, H * 1.5f), hole); GUI.color = Color.white; }
 
-            // ammo panel (bottom right)
+            // ammo panel (bottom right); Rumble has no ammo, so its weapon ladder goes here instead (RumbleLadder.cs)
+            if (Rules.Rumble) { var lp = HudLayout.AmmoPanel(250, 106); RumbleLadder.DrawPanel(lp.x, lp.y, 250, 106, f); }
+            else
             {
                 float pw = 250, ph = 106; var ap = HudLayout.AmmoPanel(pw, ph); float x = ap.x, y = ap.y;   // bottom right; left of the minimap on phones
                 Rect(x, y, pw, ph, Panel);
