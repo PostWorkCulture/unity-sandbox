@@ -138,6 +138,31 @@ namespace StreetLife
             {
                 case "step": if (m && setStepM != null) { setStepM.Invoke(m, new object[] { int.Parse(a[1]) }); return "step " + a[1]; } return "no menu";
                 case "char": { var rg = PlayerRig(); CharacterSkin.PlayerChoice = a[1]; if (rg) CharacterSkin.Apply(rg, a[1]); return "char " + a[1]; }
+                case "bots":
+                    {
+                        var sb = new System.Text.StringBuilder();
+                        foreach (var f in FindObjectsByType<Fighter>())
+                        {
+                            var w = f.GetComponent<Weapons>(); var wp = f.GetComponent<WeaponPose>(); var rg = f.GetComponent<CharacterRig>();
+                            sb.Append($"[{f.displayName} bot:{f.isBot} W:{(w ? w.Gun : "none")} pose:{(wp ? (wp.enabled ? "on" : "off") : "none")} held:{(wp && wp.HeldVisible)} rigVis:{(rg && rg.Visible)} skin:{CharacterSkin.Of(rg)}] ");
+                        }
+                        return sb.ToString();
+                    }
+                case "botcam":
+                    {   // a picture of every fighter from 3 m in front, three-quarters on, to Logs/botcam_<name>.png
+                        var go = new GameObject("botcam"); var cam = go.AddComponent<Camera>(); cam.fieldOfView = 40; cam.nearClipPlane = .05f;
+                        var rt = new RenderTexture(640, 640, 24); cam.targetTexture = rt; var sb = new System.Text.StringBuilder();
+                        float side = a.Length > 1 ? float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture) : 35f;
+                        foreach (var f in FindObjectsByType<Fighter>())
+                        {
+                            var fwd = Quaternion.Euler(0, f.yaw * Mathf.Rad2Deg + side, 0) * Vector3.forward;
+                            var c = f.pos + Vector3.up * 1.15f; go.transform.position = c + fwd * 3.2f + Vector3.up * .3f; go.transform.LookAt(c);
+                            cam.Render(); RenderTexture.active = rt; var tex = new Texture2D(640, 640, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 640, 640), 0, 0); tex.Apply(); RenderTexture.active = null;
+                            var path = System.IO.Path.Combine(Application.dataPath, "../Logs/botcam_" + (f.isBot ? (CharacterSkin.Of(f.GetComponent<CharacterRig>()) ?? f.displayName) : "you") + ".png");
+                            System.IO.File.WriteAllBytes(path, tex.EncodeToPNG()); Destroy(tex); sb.Append(path + " ");
+                        }
+                        cam.targetTexture = null; Destroy(rt); Destroy(go); return sb.ToString();
+                    }
                 case "spin": if (I) { I.spin = float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture); I.vel = 0; return "spin " + a[1]; } return "no showcase";
             }
             return "unknown " + a[0];

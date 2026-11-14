@@ -327,7 +327,8 @@ namespace StreetLife
             swingT = .32f; if (Gun == "sword") swL = !swL;
             F.vel.x += Mathf.Sin(F.yaw) * g.Lunge; F.vel.z += Mathf.Cos(F.yaw) * g.Lunge;
             var e = F.Eye;
-            for (int k = 0; k < 10; k++) { float a = F.yaw + (k / 9f - .5f) * 1.6f; GunFx.Emit(new Vector3(F.pos.x + Mathf.Sin(a) * 1.7f, e.y - .6f, F.pos.z + Mathf.Cos(a) * 1.7f), GunFx.E(1, .3f, .16f, .25f, 0, "#ffffff", "#ffe9a8")); }
+            bool fists = Gun == "fists"; int sn = fists ? 4 : 10; float sa = fists ? .3f : 1.6f, sd = fists ? 1.25f : 1.7f, sy = fists ? .35f : .6f;   // fists: a short puff straight ahead at the fist, not the sword's wide arc
+            for (int k = 0; k < sn; k++) { float a = F.yaw + (k / (sn - 1f) - .5f) * sa; GunFx.Emit(new Vector3(F.pos.x + Mathf.Sin(a) * sd, e.y - sy, F.pos.z + Mathf.Cos(a) * sd), GunFx.E(1, .3f, .16f, .25f, 0, "#ffffff", "#ffe9a8")); }
             var foes = new List<Fighter>(Combat.FoesOf(F));
             foes.Sort((a, b) => Vector3.SqrMagnitude(a.pos - F.pos).CompareTo(Vector3.SqrMagnitude(b.pos - F.pos)));
             foreach (var foe in foes)

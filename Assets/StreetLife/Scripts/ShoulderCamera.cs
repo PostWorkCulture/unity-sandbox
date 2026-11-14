@@ -44,6 +44,7 @@ namespace StreetLife
             float rs = BoxWorld.Ray(head, right, sh + .4f); if (rs >= 0) sh = Mathf.Max(0, rs - .4f);
             Vector3 pivot = head + right * sh;
             float dist = Mathf.Lerp(f.ads ? 2.6f : 4.6f, f.ads ? 1.9f : 3.1f, ind), lift = Mathf.Lerp(.45f, .15f, ind);
+            if (!f.ads) { float cd = Mathf.Clamp(Settings.CamDist, .6f, 2.5f); dist *= cd; lift *= Mathf.Sqrt(cd); }   // Settings > Camera distance (walls still pull it in)
             Vector3 want = pivot - dir * dist + up * lift;
             Vector3 d = want - pivot; float L = d.magnitude; d /= L;
             float use = L;

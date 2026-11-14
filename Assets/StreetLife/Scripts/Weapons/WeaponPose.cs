@@ -1,7 +1,8 @@
 // How the character holds and moves the weapon, ported from the web game's animFighter / holdGun / armIK / swordPose:
 // both hands on the gun by two-bone IK (right hand on the grip, left on the handguard, sliding to the magazine during
 // a reload), the gun lowered to a run carry, kicked by recoil, dipped during swaps; Dual Pistols one in each hand;
-// the Sword held high with alternating diagonal slashes and a light trail; the throwing arm swing.
+// the Sword held high with alternating diagonal slashes and a light trail; the throwing arm swing;
+// Fists (Rumble): a boxing guard with both fists up by the chin, and punches that shoot one arm fully out at the aim.
 // All pose maths uses the web game's own (right-handed) numbers and is mirrored into Unity at the end.
 using System.Collections.Generic;
 using UnityEngine;
@@ -108,15 +109,17 @@ namespace StreetLife
             float sw = w.switchT > 0 ? w.switchT * 2 : 0;
             float sg = w.swingT > 0 ? Mathf.Sin((1 - w.swingT / .32f) * Mathf.PI) : 0;
             float p = f.pitch - relo - sw, k = w.kick * .12f;
-            float twist = 0;
+            float twist = 0; lean = 0;
             if (on)
             {
                 SetW(aRp, Web.EulerXYZ(-Mathf.PI / 2 - p - k + sg * .9f, -.08f - sg * 1.4f, 0));
                 SetW(aLp, Web.EulerXYZ(-Mathf.PI / 2 - p + .1f - k, .62f, 0));
                 if (id == "sword") twist = SwordPose(p);
+                if (id == "fists") twist = FistsPose(f.pitch, dt);
                 if (id == "duals") SetW(aLp, Web.EulerXYZ(-Mathf.PI / 2 - p - k * (w.dualL ? 1 : 0), .06f, 0));
             }
-            if (root && (on || wasOn)) root.localRotation = Web.Q(Web.EulerXYZ(0, twist, 0));
+            if (!(on && id == "fists")) ShouldersHome();
+            if (root && (on || wasOn)) root.localRotation = Web.Q(Web.EulerXYZ(lean, twist, 0));
             wasOn = on;
 
             // ---- the held gun and the two-handed IK
@@ -124,7 +127,7 @@ namespace StreetLife
             if (cur != want) { if (cur != null && cur.rig) cur.rig.gameObject.SetActive(false); cur = want; if (cur != null) cur.rig.gameObject.SetActive(true); }
             swordG.gameObject.SetActive(on && id == "sword");
             if (cur != null) HoldGun(cur, dt, sp, p);
-            else if (on) { SetW(aRe, Quaternion.identity); SetW(aLe, Quaternion.identity); }
+            else if (on && id != "fists") { SetW(aRe, Quaternion.identity); SetW(aLe, Quaternion.identity); }
 
             // muzzle flash on the held gun (hidden while aiming in first person: the view model has its own)
             if (cur != null && cur.flash != null)
@@ -200,6 +203,56 @@ namespace StreetLife
             X = Vector3.Cross(y, z); Z = z;
             SetW(P, Web.Basis(y, z));
             SetW(E, Web.EulerXYZ(-Mathf.Acos(Mathf.Clamp(Vector3.Dot(u, v), -1, 1)), 0, 0));
+        }
+
+        // ---------------------------------------------------------------- fists (Rumble): boxing guard and straight punches
+        // The web game's version only swung the shoulders; here both arms are posed by IK so the elbows bend: fists up by
+        // the chin with the elbows tucked in, the left (lead) hand a little further out. Each punch (Weapons.Melee, seen as
+        // swingT jumping back up) goes to the other arm: it snaps fully straight at the aim in a tenth of a second, holds,
+        // and pulls back, with the shoulder pushed forward, the upper body turned into it and a slight lean.
+        const float PunchTime = .34f;
+        float punchR, punchL, lastSwing, lean; bool nextL, shouldersOut;
+
+        static float Extension(float left)
+        {
+            if (left <= 0) return 0;
+            float u = 1 - left / PunchTime;
+            if (u < .28f) { float a = u / .28f; return 1 - (1 - a) * (1 - a) * (1 - a); }   // snap out
+            if (u < .46f) return 1;                                                        // hold at full stretch
+            float b = (u - .46f) / .54f; return 1 - b * b * (3 - 2 * b);                   // pull back to the guard
+        }
+
+        float FistsPose(float p, float dt)
+        {
+            var w = weapons;
+            if (w.swingT > lastSwing + .05f) { if (nextL) punchL = PunchTime; else punchR = PunchTime; nextL = !nextL; }
+            lastSwing = w.swingT;
+            punchR = Mathf.Max(0, punchR - dt); punchL = Mathf.Max(0, punchL - dt);
+            float r = Extension(punchR), l = Extension(punchL);
+
+            float bob = Mathf.Sin(Time.time * 6f + fighter.team * 1.7f) * .025f;   // a light bounce in the guard
+            var aim = new Vector3(0, Mathf.Sin(p), Mathf.Cos(p));                       // web space: +z ahead, +y up
+            Vector3 sR = shR + new Vector3(0, 0, .2f * r), sL = shL + new Vector3(0, 0, .2f * l);
+            aRp.localPosition = Web.V(sR); aLp.localPosition = Web.V(sL); shouldersOut = true;
+
+            // guard: fists just under the chin, in towards the middle
+            var gR = new Vector3(shR.x * .35f, shR.y + .17f + bob, .30f);
+            var gL = new Vector3(shL.x * .35f, shL.y + .13f - bob, .40f);
+            // punch: the arm straight out from the shoulder along the aim, aimed in at the middle
+            Vector3 pR = new Vector3(sR.x * .25f, sR.y + .04f, sR.z) + aim * (armR.up + armR.fore) * .98f;
+            Vector3 pL = new Vector3(sL.x * .25f, sL.y + .04f, sL.z) + aim * (armL.up + armL.fore) * .98f;
+
+            Reach(aRp, aRe, sR, armR, Vector3.Lerp(gR, pR, r), Vector3.Lerp(new Vector3(.5f, -1, -.45f), new Vector3(.9f, -.6f, 0), r));
+            Reach(aLp, aLe, sL, armL, Vector3.Lerp(gL, pL, l), Vector3.Lerp(new Vector3(-.5f, -1, -.45f), new Vector3(-.9f, -.6f, 0), l));
+            lean = .12f * Mathf.Max(r, l);
+            return (l - r) * .42f;   // turn the upper body into the punch
+        }
+
+        void ShouldersHome()
+        {
+            if (!shouldersOut) return;
+            shouldersOut = false; punchR = punchL = 0;
+            if (aRp) aRp.localPosition = Web.V(shR); if (aLp) aLp.localPosition = Web.V(shL);
         }
 
         // ---------------------------------------------------------------- the sword: high guard, alternating diagonal slashes

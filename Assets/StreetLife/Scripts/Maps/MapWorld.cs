@@ -47,6 +47,7 @@ namespace StreetLife
             if (entry.id == "wreck") BeachLook.Env(env);   // Beach Please on a clear afternoon (BeachLook.cs)
             ApplyEnv();
             Mood();
+            SoftBeams();
             if (entry.id == "rail") RailLook.Apply(this);   // its surfaces and reflections
             if (extras != null && bin != null) { BuildGround(); BuildCrowd(); }
             if (entry.id == "wreck") { BuildBeachSea(); BeachLook.Apply(this); }   // then its surfaces, sand and reflections
@@ -161,10 +162,27 @@ namespace StreetLife
                 case "rail": l.cover = .5f; l.lit = new Color(1f, .84f, .66f); l.shade = new Color(.52f, .44f, .56f); l.temp = 2; l.sat = 6; l.contrast = 4; break;   // golden hour (RailLook.Env)
                 case "skyhigh": l.cover = .55f; l.lit = new Color(1f, .8f, .62f); l.shade = new Color(.55f, .38f, .45f); l.temp = 10; l.sat = 8; break;   // golden hour
                 case "lagoon": l.cover = .52f; l.lit = new Color(1f, .82f, .86f); l.shade = new Color(.55f, .42f, .62f); l.temp = 6; l.sat = 10; break; // sunset
-                case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 8; l.bloom = .7f; l.ev = .45f; break; // night
+                case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 8; l.bloom = .5f; l.ev = .15f; break; // night
                 case "house": case "yard": l.cover = .5f; break;
             }
             return l;
+        }
+
+        // Floodlight beams (Arena): huge see-through cones that the web game draws at 5.5% white. Overlapping, they stacked into a
+        // white sheet over the screen (Pete, 14 Nov). Any big, nearly clear map mesh is redrawn as soft added light (Map Beam shader).
+        void SoftBeams()
+        {
+            var geo = builder ? builder.transform.Find("__Generated/Geometry") : null; if (!geo) return;
+            var beam = Resources.Load<Material>("StreetLife/MapBeam"); if (!beam) return;
+            foreach (var r in geo.GetComponentsInChildren<MeshRenderer>())
+            {
+                var m = r.sharedMaterial;
+                if (!m || m.renderQueue < 3000 || !m.HasProperty("_BaseColor") || m.GetColor("_BaseColor").a > .12f || r.bounds.size.magnitude < 60) continue;
+                var b = new Material(beam) { name = "Beam " + entry.id };
+                var c = m.GetColor("_BaseColor"); c.a = 1; b.SetColor("_BaseColor", c);
+                b.SetFloat("_Top", Mathf.Max(5, r.bounds.max.y * .8f));
+                r.sharedMaterial = b; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
         }
 
         // a global volume on top of the shared one (priority 5) that nudges the shared look for the map: warmer, more saturated,

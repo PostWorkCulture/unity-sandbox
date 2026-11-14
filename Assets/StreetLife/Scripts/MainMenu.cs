@@ -136,10 +136,12 @@ namespace StreetLife
         }
 
         /// The web game's segmented control: one bar, the picked option filled cyan.
+        readonly List<Action> segRefresh = new List<Action>();   // every segmented control, refreshed when a setting changes elsewhere
         VisualElement Segmented(string[] labels, string[] values, Func<string> get, Action<string> set)
         {
             var bar = new VisualElement(); bar.style.flexDirection = FlexDirection.Row; bar.style.backgroundColor = Chip; Radius(bar, 9); Pad(bar, 3, 3);
             var buttons = new List<Button>();
+            segRefresh.Add(() => Refresh());
             void Refresh() { for (int i = 0; i < buttons.Count; i++) { bool on = values[i] == get(); buttons[i].style.backgroundColor = on ? Sel : new Color(0, 0, 0, 0); buttons[i].style.color = on ? Ink : Dim; } }
             for (int i = 0; i < labels.Length; i++)
             {
@@ -490,8 +492,8 @@ namespace StreetLife
         {
             loadBox.Clear();
             if (!GunsDb.Loaded) { loadBox.Add(L("Weapons aren't set up in this project yet.", 13, Dim)); return; }
-            bool simple = Settings.Rules == "simple";
-            if (simple) { var n = L("Simple rules: everyone gets the M4, sword and grenade. Switch to Normal rules on step 1 to pick your own.", 12, Dim); n.style.whiteSpace = WhiteSpace.Normal; n.style.marginTop = 8; loadBox.Add(n); }
+            bool simple = Settings.Rules == "simple" && Rules.OneVOne;
+            if (simple) { var n = L("Simple rules: everyone gets the M4, sword and grenade. Pick any weapon to switch to Normal rules and choose your own.", 12, Dim); n.style.whiteSpace = WhiteSpace.Normal; n.style.marginTop = 8; loadBox.Add(n); }
             Section("Primary", GunsDb.Primaries, simple ? "gar" : Settings.Primary, id => Settings.Primary = id, simple);
             Section("Secondary", GunsDb.Secondaries, simple ? "sword" : Settings.Secondary, id => Settings.Secondary = id, simple);
             var leth = new List<string>(); if (GunsDb.Cons("grenade") != null) leth.Add("grenade");
@@ -510,7 +512,13 @@ namespace StreetLife
                 string name = id == RandomId ? "Random" : c != null ? c.name : g != null ? g.name : id;
                 string stat = id == RandomId ? "Different every match" : c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
                 bool on = id == sel; var pid = id;
-                var b = new Button(() => { WeaponShowcase.Show(pid); if (locked) return; pick(pid); PlayerPrefs.Save(); BuildLoadout(); }) { text = "" };
+                var b = new Button(() =>
+                {
+                    WeaponShowcase.Show(pid);
+                    // under Simple rules the kit is fixed: picking a weapon switches to Normal rules, so the pick takes and only it is selected
+                    if (locked) { Settings.Rules = "normal"; Settings.Apply(); foreach (var r in segRefresh) r(); }
+                    pick(pid); PlayerPrefs.Save(); BuildLoadout();
+                }) { text = "" };
                 b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, 2, on ? Sel : Line); Pad(b, 4, 8);
                 b.style.marginLeft = b.style.marginTop = 0; b.style.marginRight = b.style.marginBottom = 7;
                 b.style.backgroundColor = on ? Sel : Chip; b.style.justifyContent = Justify.Center; b.style.alignItems = Align.FlexStart;
@@ -598,6 +606,7 @@ namespace StreetLife
             c.Add(Stepper("Look sensitivity", f2, () => Settings.Sens, v => { Settings.Sens = v; Settings.Apply(); }, v => v.ToString("0.##")));
             c.Add(Stepper("Aim sensitivity", new[] { .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f }, () => Settings.AimSens, v => { Settings.AimSens = v; Settings.Apply(); }, v => v.ToString("0.0")));
             c.Add(Stepper("Sniper scope sensitivity", new[] { .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f, 1.25f, 1.5f }, () => Settings.SnipeSens, v => { Settings.SnipeSens = v; Settings.Apply(); }, v => v.ToString("0.0#")));
+            c.Add(Stepper("Camera distance", new[] { .8f, .9f, 1f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.8f, 2f }, () => Settings.CamDist, v => { Settings.CamDist = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));   // third person: 100% = the web game's
             var vol = new float[] { 0, .1f, .2f, .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f };
             c.Add(Stepper("Music", vol, () => Settings.Music, v => { Settings.Music = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
             c.Add(Stepper("Effects", vol, () => Settings.Effects, v => { Settings.Effects = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
@@ -779,6 +788,8 @@ namespace StreetLife
         const string P = "StreetLife.";
         public static float Sens { get => PlayerPrefs.GetFloat(P + "sens", 1f); set => PlayerPrefs.SetFloat(P + "sens", value); }
         public static float AimSens { get => PlayerPrefs.GetFloat(P + "aimSens", 1f); set => PlayerPrefs.SetFloat(P + "aimSens", value); }
+        /// Third-person camera distance (ShoulderCamera), as a share of the web game's: 1.2 by default, a little further out.
+        public static float CamDist { get => PlayerPrefs.GetFloat(P + "camDist", 1.2f); set => PlayerPrefs.SetFloat(P + "camDist", value); }
         public static float SnipeSens { get => PlayerPrefs.GetFloat(P + "snipeSens", AimSens); set => PlayerPrefs.SetFloat(P + "snipeSens", value); }
         public static bool AutoAds { get => PlayerPrefs.GetInt(P + "autoAds", 0) == 1; set => PlayerPrefs.SetInt(P + "autoAds", value ? 1 : 0); }
         public static float Music { get => PlayerPrefs.GetFloat(P + "music", .5f); set => PlayerPrefs.SetFloat(P + "music", value); }
