@@ -96,7 +96,7 @@ namespace StreetLife
         void OnGUI()
         {
             if (!Show) return;
-            if (st == null) st = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.UpperLeft, fontSize = 14 };
+            if (st == null) st = HudSkin.Box(new GUIStyle(GUI.skin.box) { alignment = TextAnchor.UpperLeft, fontSize = 14 });
             GUI.Box(HudLayout.PerfBox(240, 136),
                 $"Unity {Application.unityVersion}  {SystemInfo.graphicsDeviceType}\n" +
                 $"{Avg:F0} fps avg   {Low1:F0} fps 1% low\n{Ms:F1} ms a frame (last 10 s)\n" +

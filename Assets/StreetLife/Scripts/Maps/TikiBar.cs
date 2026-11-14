@@ -11,7 +11,7 @@
 //  - What smashes: about 400 loose things. Bottles, glasses, the champagne tower, lanterns and the glass screens break
 //    like glass; shakers, ice buckets, stools and tables get knocked about. They all join Destruction (Destruction.Add),
 //    so bullets, blasts, people walking into them and the reset at each round work as for the map's own props.
-// Remote test: call TikiBar.Test status | blast x y z r | ray ox oy oz dx dy dz | climb | old on|off
+// Remote test: call TikiBar.Test status | blast x y z r | ray ox oy oz dx dy dz | climb | kill | old on|off
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -224,7 +224,7 @@ namespace StreetLife
         MeshRenderer Piece(Transform root, string name, Mesh mesh, Material mat, bool shadows = true)
         {
             var go = new GameObject(name); go.transform.SetParent(root, false);
-            mesh.RecalculateBounds(); mesh.UploadMeshData(true);
+            mesh.RecalculateBounds(); if (!baking) mesh.UploadMeshData(true);   // the baker reads the mesh itself
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = mat;
             mr.shadowCastingMode = shadows && mat.renderQueue < 3000 ? ShadowCastingMode.On : ShadowCastingMode.Off;
@@ -266,22 +266,55 @@ namespace StreetLife
         static readonly float[] RackZ = { 5.15f, 5.55f };
         static Vector3 V(float x, float y, float z) => new Vector3(x, y, z);
 
-        void Make()
+        void Begin()
         {
             brass = Gloss("#c9a24e", .86f, 1f); steel = Gloss("#c8ccd2", .9f, 1f); clear = Glass("#eef8ff", .14f);
             sheet = new Material(set.gloss) { name = "bar labels" }; sheet.SetColor("_BaseColor", Color.white); sheet.SetFloat("_Smoothness", .45f);
             if (set.barLabels) sheet.SetTexture("_BaseMap", set.barLabels);
             fittings = new GameObject("Fittings").transform; fittings.SetParent(transform, false);
             looseRoot = new GameObject("Loose").transform; looseRoot.SetParent(transform, false);
-            Counter(); BackBar(); Lamps(); Racks(); BuildLadder(); Collars(); Screens();
+        }
+
+        // the fittings gathered so far become one mesh per material (for the bake: only what blocks or bounces light)
+        void Flush()
+        {
             foreach (var kv in parts)
             {
+                if (baking && (kv.Key.renderQueue >= 3000 || kv.Key.IsKeywordEnabled("_EMISSION"))) continue;
                 var mesh = kv.Value.Build("tiki " + kv.Key.name);
                 if (mapped.TryGetValue(kv.Key, out var s)) RailLook.WorldUV(mesh, Mathf.Max(.1f, s.metres), false, s.upright);
                 Piece(fittings, kv.Key.name, mesh, kv.Key);
             }
+            parts.Clear();
+        }
+
+        void Make()
+        {
+            Begin();
+            Counter(); BackBar(); Lamps(); Racks(); BuildLadder(); Collars(); Screens();
+            Flush();
             if (!Destruction.I) return;
             Protos(); Bottles(); CounterTop(); Tower(); Hanging(); Tables();
+        }
+
+        bool baking;
+        /// For the lighting bake (BeachLook.BuildForBake, before the sand is added): the same changes to the map's geometry as
+        /// in the game (old fittings out, the shop moved), and the new counter, back bar and ladder in.
+        internal static void ForBake(Transform root, RailLookSet set)
+        {
+            if (Old) return;
+            var kids = new List<Transform>(); foreach (Transform t in root) kids.Add(t);
+            foreach (var t in kids)
+            {
+                var mf = t.GetComponent<MeshFilter>(); var mesh = mf ? mf.sharedMesh : null; if (!mesh) continue;
+                if (Cut(mesh) == 0) { DestroyImmediate(mesh); DestroyImmediate(t.gameObject); continue; }
+                mesh.RecalculateBounds();
+                if (Inside(Shop, mesh.bounds)) t.position += new Vector3(ShopShift, 0, 0);
+            }
+            if (!set || !set.glass || !set.gloss || !set.glow) return;
+            var bar = new GameObject("Tiki Bar (bake)").AddComponent<TikiBar>();
+            bar.transform.SetParent(root, false); bar.set = set; bar.baking = true;
+            bar.Begin(); bar.Counter(); bar.BackBar(); bar.BuildLadder(); bar.Flush();
         }
 
         void Counter()
@@ -322,14 +355,14 @@ namespace StreetLife
             for (float x = -25.2f + 2.05f; x < -8.9f; x += 2.05f) br.Box(V(x, (F + 1.95f) / 2, 7.845f), V(.02f, 1f, .012f));
             br.Box(V(-17, 1.9f, 7.845f), V(16.4f, .02f, .012f));
             br.Box(V(-17, F + .05f, 7.84f), V(16.4f, .1f, .02f));
-            BoxWorld.Boxes.Add(new Box { x0 = -25.2f, x1 = -8.8f, y0 = F, y1 = BT, z0 = 7.82f, z1 = 8.4f, wood = true });
+            if (!baking) BoxWorld.Boxes.Add(new Box { x0 = -25.2f, x1 = -8.8f, y0 = F, y1 = BT, z0 = 7.82f, z1 = 8.4f, wood = true });
             // lit onyx either side, a mirror in the middle with a dark board behind the neon sign above it
             var onyx = Glow("#f0c890", "#ffffff", .85f, set.onyx, .85f);
             foreach (var (x0, x1) in Bays)
             {
                 var p = new Mb(); p.Box(V((x0 + x1) / 2, (BT + 4.9f) / 2, 8.375f), V(x1 - x0, 4.9f - BT, .04f));
                 p.PlanarUV(Vector3.right, x0, x1, Vector3.up, BT, 4.9f);
-                Piece(fittings, "lit onyx", p.Build("lit onyx"), onyx, false);
+                if (!baking) Piece(fittings, "lit onyx", p.Build("lit onyx"), onyx, false);
             }
             Part(Gloss("#c9b99c", .97f, 1f)).Box(V(-17, (BT + 3.58f) / 2, 8.375f), V(6.36f, 3.58f - BT, .03f));
             Part(Gloss("#161412", .55f)).Box(V(-17, (3.58f + 4.9f) / 2, 8.397f), V(6.36f, 1.32f, .016f));
@@ -739,6 +772,13 @@ namespace StreetLife
                 case "blast": Destruction.Blast(new Vector3(Fl(1), Fl(2), Fl(3)), Fl(4) > 0 ? Fl(4) : 3f); return bar.Status();
                 case "ray": Destruction.KnockRay(new Vector3(Fl(1), Fl(2), Fl(3)), new Vector3(Fl(4), Fl(5), Fl(6)).normalized, 40, 40); return bar.Status();
                 case "climb": bar.StartCoroutine(bar.Climb()); return "climbing: see Logs/tiki-climb.txt";
+                case "kill":
+                {   // the player takes the bot down, so the round really ends and the next one starts
+                    var rm = RoundManager.Instance;
+                    if (!rm || !rm.bot || !rm.player) return "no match";
+                    rm.bot.Die(rm.player);
+                    return "bot down in round " + rm.round + " (" + rm.state + ")";
+                }
                 default: return bar.Status();
             }
         }
@@ -748,7 +788,8 @@ namespace StreetLife
             int whole = 0, home = 0, glass = 0; string moved = "";
             foreach (var e in loose) { if (e.alive) whole++; if (e.alive && e.kst == 0) home++; else if (moved.Length < 160) moved += " " + e.t.name + (e.alive ? "" : "(broken)"); }
             foreach (var e in screens) if (e.alive) glass++;
-            return loose.Count + " loose things, " + whole + " whole, " + home + " still in place; " + glass + " of " + panes + " screens whole; ladder to " + ladderTop.ToString("0.00") + (loose.Count - home <= 12 ? "; moved:" + moved : "");
+            var match = RoundManager.Instance;
+            return (match ? "round " + match.round + " " + match.state + ": " : "") + loose.Count + " loose things, " + whole + " whole, " + home + " still in place; " + glass + " of " + panes + " screens whole; ladder to " + ladderTop.ToString("0.00") + (loose.Count - home <= 12 ? "; moved:" + moved : "");
         }
 
         // walks the player up the ladder and on along the ridge, noting where they are four times a second

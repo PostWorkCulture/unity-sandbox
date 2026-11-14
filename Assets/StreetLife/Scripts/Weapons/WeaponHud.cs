@@ -84,8 +84,8 @@ namespace StreetLife
             head = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold }; head.normal.textColor = new Color(1, 1, 1, .6f);
             num = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             numHead = new GUIStyle(num) { fontSize = 20 }; numHead.normal.textColor = Gold;
-            btn = new GUIStyle(GUI.skin.button) { fontSize = 12, alignment = TextAnchor.MiddleLeft, wordWrap = true, padding = new RectOffset(8, 8, 4, 4) };
-            btnOn = new GUIStyle(btn); btnOn.normal.textColor = btnOn.hover.textColor = Gold; btnOn.fontStyle = FontStyle.Bold;
+            btn = HudSkin.Button(new GUIStyle(GUI.skin.button) { fontSize = 12, alignment = TextAnchor.MiddleLeft, wordWrap = true, padding = new RectOffset(12, 12, 5, 5) });   // rounded menu buttons (HudRound.cs)
+            btnOn = HudSkin.Button(btn, true); btnOn.fontStyle = FontStyle.Bold;   // selected: white fill, black text
         }
 
         /// ring (inner..outer radius as fraction) or, with invert, a black square with a round hole
@@ -122,6 +122,7 @@ namespace StreetLife
         {
             if (!weapons || !GunsDb.Loaded || Cine.HideHud) return;
             Styles();
+            GUI.depth = MenuOpen ? -12 : 0;   // the weapons and shop screen draws over the scoreboard and minimap
             var w = weapons; var f = w.F; var g = w.G; var cam = Camera.main; if (!cam) return;
             float s = Screen.height / 1080f * 1.4f; var m0 = GUI.matrix; GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
             float W = Screen.width / s, H = Screen.height / s, cx = W / 2, cy = H / 2;

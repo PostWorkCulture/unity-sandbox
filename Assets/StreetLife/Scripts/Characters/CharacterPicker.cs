@@ -43,11 +43,12 @@ namespace StreetLife
             nameSt = new GUIStyle(GUI.skin.label) { fontSize = fs(28), fontStyle = FontStyle.Bold };
             body = new GUIStyle(GUI.skin.label) { fontSize = fs(14), wordWrap = true };
             small = new GUIStyle(GUI.skin.label) { fontSize = fs(12), wordWrap = true };
-            head = new GUIStyle(GUI.skin.label) { fontSize = fs(13), fontStyle = FontStyle.Bold, normal = { textColor = new Color(1, .82f, .3f) } };
-            btn = new GUIStyle(GUI.skin.button) { fontSize = fs(14), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-            btnOn = new GUIStyle(btn) { normal = { textColor = Color.black, background = white }, hover = { textColor = Color.black, background = white } };
+            head = new GUIStyle(GUI.skin.label) { fontSize = fs(13), fontStyle = FontStyle.Bold, normal = { textColor = HudSkin.Dim } };   // menu look: grey section heads
+            btn = HudSkin.Button(new GUIStyle(GUI.skin.button) { fontSize = fs(14), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true });   // rounded menu buttons (HudRound.cs)
+            btnOn = HudSkin.Button(btn, true);
         }
 
+        GUIStyle tileSt;
         void Fill(Rect r, Color c) => HudRound.Fill(r, c, white);   // rounded corners (HudRound.cs)
 
         void OnGUI()
@@ -63,8 +64,9 @@ namespace StreetLife
             GUI.depth = -10;
             float W = Screen.width, H = Screen.height;
             Fill(new Rect(0, 0, W, H), new Color(0, 0, 0, .7f));
-            float pw = Mathf.Min(W - 40 * s, 1250 * s), ph = Mathf.Min(H - 40 * s, 760 * s), px = (W - pw) / 2, py = (H - ph) / 2;
-            Fill(new Rect(px, py, pw, ph), new Color(.07f, .08f, .1f, .97f));
+            int nAll = set ? set.All.Length : 0, rowsN = (nAll + 5) / 6; float chh = 112 * s;
+            float pw = Mathf.Min(W - 40 * s, 1250 * s), ph = Mathf.Min(H - 40 * s, 60 * s + rowsN * (chh + 8 * s) + (bot ? 52 * s : 0) + 86 * s), px = (W - pw) / 2, py = (H - ph) / 2;
+            HudDraw.PanelBox(new Rect(px, py, pw, ph), s);
             if (!set) { GUI.Label(new Rect(px + 20 * s, py + 20 * s, pw, 40 * s), "No characters yet: run Street Life > Rebuild characters in the Editor.", title); return; }
 
             GUI.Label(new Rect(px + 20 * s, py + 14 * s, pw, 32 * s), "Characters", title);
@@ -75,16 +77,19 @@ namespace StreetLife
             GUI.Label(new Rect(tx + 290 * s, py + 18 * s, pw - 480 * s, 30 * s), bot ? "The bot plays a random character each match unless you pick one." : "Picking restarts the match with your new character.", small);
 
             // grid of characters, in the web game's menu order
-            var all = set.All; int cols = 6; float gx = px + 20 * s, gy = py + 60 * s, cw = (pw * .62f - 30 * s) / cols, chh = 64 * s;
+            var all = set.All; int cols = 6; float gx = px + 20 * s, gy = py + 60 * s, cw = (pw * .62f - 30 * s) / cols;
+            if (tileSt == null) tileSt = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false, clipping = TextClipping.Clip };
+            tileSt.fontSize = Mathf.RoundToInt(12 * s); tileSt.normal.textColor = Color.white;
             string cur = bot ? botSel : sel;
             for (int i = 0; i < all.Length; i++)
             {
                 var c = all[i]; var r = new Rect(gx + (i % cols) * cw, gy + (i / cols) * (chh + 8 * s), cw - 8 * s, chh);
                 bool on = c.id == cur;
-                Fill(r, on ? c.Colour : Color.Lerp(c.Colour, new Color(.12f, .13f, .16f), .7f));
-                Fill(new Rect(r.x, r.yMax - 5 * s, r.width, 5 * s), c.Colour);
-                var st = new GUIStyle(btn) { normal = { textColor = on ? Color.black : Color.white, background = null }, hover = { textColor = on ? Color.black : new Color(1, .9f, .6f), background = null } };
-                if (GUI.Button(r, c.name, st)) { if (bot) botSel = c.id; else sel = c.id; }
+                // the menu's character box: picture (MenuPortraits) over the name, white edge when picked or hovered
+                HudDraw.Card(r, on, r.Contains(Event.current.mousePosition), s);
+                HudDraw.Image(new Rect(r.x + 3 * s, r.y + 3 * s, r.width - 6 * s, r.height - 30 * s), MenuPortraits.Get(c.id), 8 * s);
+                GUI.Label(new Rect(r.x + 2 * s, r.yMax - 27 * s, r.width - 4 * s, 24 * s), c.name, tileSt);
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { if (bot) botSel = c.id; else sel = c.id; }
             }
             if (bot)
             {
@@ -98,14 +103,11 @@ namespace StreetLife
             var info = string.IsNullOrEmpty(cur) ? null : set.Get(cur);
             if (info != null)
             {
-                GUI.color = info.Colour; GUI.Label(new Rect(ix, iy, iw, 40 * s), info.name, nameSt); GUI.color = Color.white;
-                GUI.Label(new Rect(ix, iy + 44 * s, iw, 50 * s), info.desc, body);
-                GUI.Label(new Rect(ix, iy + 98 * s, iw, 18 * s), "ABILITY (E)", head);
-                GUI.Label(new Rect(ix, iy + 118 * s, iw, 40 * s), info.ability + ", " + info.cooldown + " s cooldown. Not wired up in Unity yet.", body);
-                GUI.Label(new Rect(ix, iy + 168 * s, iw, 18 * s), "STATS", head);
-                GUI.Label(new Rect(ix, iy + 188 * s, iw, 40 * s), "Speed x" + info.speed.ToString("0.##") + (info.speed > 1 ? " (fastest runner)" : info.speed < 1 ? " (slower)" : "") + "    Health " + info.hp, body);
-                if (info.killFx != null && info.killFx.Length > 0) GUI.Label(new Rect(ix, iy + 220 * s, iw, 40 * s), "Kill effects: " + string.Join(", ", info.killFx), small);
-                if (!info.hasModel) GUI.Label(new Rect(ix, iy + 246 * s, iw, 40 * s), "The classic blocky look (no Tripo model).", small);
+                GUI.Label(new Rect(ix, iy, iw, 40 * s), info.name, nameSt);
+                GUI.Label(new Rect(ix, iy + 44 * s, iw, 50 * s), MainMenu.Bio(info.id), body);
+                GUI.Label(new Rect(ix, iy + 104 * s, iw, 18 * s), "STATS", head);
+                GUI.Label(new Rect(ix, iy + 124 * s, iw, 40 * s), "Speed x" + info.speed.ToString("0.##") + (info.speed > 1 ? " (fastest runner)" : info.speed < 1 ? " (slower)" : "") + "    Health " + info.hp, body);
+                if (!info.hasModel) GUI.Label(new Rect(ix, iy + 156 * s, iw, 40 * s), "The classic blocky look.", small);
             }
             else if (bot) GUI.Label(new Rect(ix, iy, iw, 60 * s), "Random each match: any character but yours.", body);
 

@@ -90,11 +90,14 @@ namespace StreetLife
             nameSt = new GUIStyle(GUI.skin.label) { fontSize = fs(30), fontStyle = FontStyle.Bold };
             body = new GUIStyle(GUI.skin.label) { fontSize = fs(15), wordWrap = true };
             small = new GUIStyle(GUI.skin.label) { fontSize = fs(12), wordWrap = true };
-            head = new GUIStyle(GUI.skin.label) { fontSize = fs(13), fontStyle = FontStyle.Bold, normal = { textColor = new Color(1, .82f, .3f) } };
-            btn = new GUIStyle(GUI.skin.button) { fontSize = fs(15), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-            btnOn = new GUIStyle(btn) { normal = { textColor = Color.black, background = white }, hover = { textColor = Color.black, background = white } };
+            head = new GUIStyle(GUI.skin.label) { fontSize = fs(13), fontStyle = FontStyle.Bold, normal = { textColor = HudSkin.Dim } };   // menu look: grey section heads
+            btn = HudSkin.Button(new GUIStyle(GUI.skin.button) { fontSize = fs(15), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true });   // rounded menu buttons (HudRound.cs)
+            btnOn = HudSkin.Button(btn, true);
         }
 
+        GUIStyle tileSt;
+        static readonly System.Collections.Generic.Dictionary<string, Texture2D> thumbs = new System.Collections.Generic.Dictionary<string, Texture2D>();
+        static Texture2D Thumb(string id) { if (!thumbs.TryGetValue(id, out var t)) thumbs[id] = t = Resources.Load<Texture2D>("StreetLife/MapThumbs/" + id); return t; }   // the main menu's map pictures
         void Fill(Rect r, Color c) => HudRound.Fill(r, c, white);   // rounded corners (HudRound.cs)
 
         void OnGUI()
@@ -112,13 +115,15 @@ namespace StreetLife
             GUI.depth = -10;
             float W = Screen.width, H = Screen.height;
             Fill(new Rect(0, 0, W, H), new Color(0, 0, 0, .7f));
-            float pw = Mathf.Min(W - 40 * s, 1250 * s), ph = Mathf.Min(H - 40 * s, 700 * s), px = (W - pw) / 2, py = (H - ph) / 2;
-            Fill(new Rect(px, py, pw, ph), new Color(.07f, .08f, .1f, .97f));
+            float pw = Mathf.Min(W - 40 * s, 1250 * s), ph = Mathf.Min(H - 40 * s, 720 * s), px = (W - pw) / 2, py = (H - ph) / 2;
+            HudDraw.PanelBox(new Rect(px, py, pw, ph), s);
             GUI.Label(new Rect(px + 20 * s, py + 14 * s, pw, 32 * s), "Maps", title);
             if (!set || set.maps == null) { GUI.Label(new Rect(px + 20 * s, py + 60 * s, pw, 40 * s), "No maps yet: run Street Life > Maps > Rebuild maps in the Editor.", body); return; }
             GUI.Label(new Rect(px + 120 * s, py + 20 * s, pw - 300 * s, 30 * s), "Every map from the web game. Picking one restarts the match there.", small);
 
-            float lx = px + 20 * s, lw = pw * .5f - 30 * s, y = py + 60 * s, bh = 52 * s;
+            float lx = px + 20 * s, lw = pw * .5f - 30 * s, y = py + 60 * s, bh = 92 * s;
+            if (tileSt == null) tileSt = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false, clipping = TextClipping.Clip };
+            tileSt.fontSize = Mathf.RoundToInt(13 * s); tileSt.normal.textColor = Color.white;
             foreach (var g in Groups)
             {
                 GUI.Label(new Rect(lx, y, lw, 20 * s), g.ToUpperInvariant(), head); y += 24 * s;
@@ -127,11 +132,12 @@ namespace StreetLife
                 {
                     if (e == null || e.mode != g) continue;
                     var r = new Rect(lx + col * (cw + 8 * s), y, cw, bh);
-                    bool on = e.id == sel; var sw = e.swatch != null && e.swatch.Length > 0 ? e.swatch : new[] { Color.gray };
-                    Fill(r, on ? new Color(1, 1, 1, .95f) : new Color(.15f, .16f, .19f));
-                    float sx = r.width / sw.Length; for (int i = 0; i < sw.Length; i++) Fill(new Rect(r.x + i * sx, r.yMax - 7 * s, sx, 7 * s), sw[i]);
-                    var st = new GUIStyle(btn) { normal = { textColor = on ? Color.black : Color.white, background = null }, hover = { textColor = on ? Color.black : new Color(1, .9f, .6f), background = null } };
-                    if (Press(r, e.title, st)) sel = e.id;
+                    // the menu's map card: its picture over the name, white edge when picked or hovered
+                    bool on = e.id == sel;
+                    HudDraw.Card(r, on, r.Contains(Event.current.mousePosition), s);
+                    HudDraw.Image(new Rect(r.x + 3 * s, r.y + 3 * s, r.width - 6 * s, r.height - 30 * s), Thumb(e.id), 8 * s);
+                    GUI.Label(new Rect(r.x + 2 * s, r.yMax - 27 * s, r.width - 4 * s, 24 * s), e.title, tileSt);
+                    if (Press(r, "", GUIStyle.none)) sel = e.id;
                     if (++col == 3) { col = 0; y += bh + 8 * s; }
                 }
                 if (col != 0) y += bh + 8 * s;
@@ -143,7 +149,7 @@ namespace StreetLife
             if (info != null)
             {
                 GUI.Label(new Rect(ix, iy, iw, 44 * s), info.title, nameSt);
-                if (info.swatch != null) { float sx = 46 * s; for (int i = 0; i < info.swatch.Length; i++) Fill(new Rect(ix + i * (sx + 6 * s), iy + 48 * s, sx, 10 * s), info.swatch[i]); }
+                { float top = iy + 262 * s, ih = Mathf.Min(iw * 9 / 16f, py + ph - 84 * s - top); if (ih > 60 * s) HudDraw.Image(new Rect(ix, top, ih * 16 / 9f, ih), Thumb(info.id), 12 * s); }
                 GUI.Label(new Rect(ix, iy + 70 * s, iw, 90 * s), info.desc, body);
                 GUI.Label(new Rect(ix, iy + 168 * s, iw, 18 * s), "FROM THE WEB GAME'S " + info.mode.ToUpperInvariant() + " MENU", head);
                 GUI.Label(new Rect(ix, iy + 190 * s, iw, 120 * s), Notes(info.id), small);

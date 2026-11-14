@@ -132,7 +132,7 @@ namespace StreetLife
             {
                 lab = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
                 bar = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft, wordWrap = true };
-                btn = new GUIStyle(GUI.skin.button) { fontStyle = FontStyle.Bold };
+                btn = HudSkin.Button(new GUIStyle(GUI.skin.button) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter });   // rounded menu buttons
             }
             lab.fontSize = Mathf.RoundToInt(13 * s); bar.fontSize = Mathf.RoundToInt(12 * s); btn.fontSize = Mathf.RoundToInt(13 * s);
             var o = GUI.color;

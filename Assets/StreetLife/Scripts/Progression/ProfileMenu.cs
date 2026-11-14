@@ -13,9 +13,10 @@ namespace StreetLife
     public class ProfileMenu : MonoBehaviour
     {
         // the web game's palette (as MainMenu.cs)
-        static readonly Color Bg = new Color32(17, 18, 24, 235), Panel = new Color32(27, 30, 38, 240), Line = new Color32(46, 51, 63, 255),
-            Chip = new Color32(36, 40, 51, 255), Text = new Color32(236, 238, 245, 255), Dim = new Color32(150, 156, 176, 255),
-            Cyan = new Color32(63, 214, 245, 255), Ink = new Color32(16, 20, 28, 255), Gold = new Color(1f, .85f, .3f);
+        // the main menu's monochrome look (black panels, white text, white for what's picked; "Cyan" and "Gold" are white now)
+        static readonly Color Bg = new Color32(6, 6, 6, 235), Panel = new Color32(10, 10, 10, 238), Line = new Color32(70, 70, 70, 255),
+            Chip = new Color32(32, 32, 32, 255), Text = new Color32(245, 245, 245, 255), Dim = new Color32(138, 138, 138, 255),
+            Cyan = new Color32(255, 255, 255, 255), Ink = new Color32(0, 0, 0, 255), Gold = new Color32(255, 255, 255, 255);
 
         VisualElement root, overlay, card;
         Button chip;
@@ -78,12 +79,10 @@ namespace StreetLife
         {
             var b = new Button(click) { text = text };
             b.style.fontSize = size; b.style.color = on ? Ink : Text; b.style.unityFontStyleAndWeight = FontStyle.Bold; b.style.unityTextAlign = TextAnchor.MiddleCenter;
-            Radius(b, 8); Border(b, 1, on ? Cyan : Line); Pad(b, 8, 16);
+            Radius(b, 8); Border(b, 2, on ? Cyan : Line); Pad(b, 8, 16);   // hover edge: MainMenu's handler
             b.style.marginLeft = b.style.marginRight = b.style.marginTop = b.style.marginBottom = 0;
             b.style.flexShrink = 0; b.style.whiteSpace = WhiteSpace.NoWrap;
             b.style.backgroundColor = on ? Cyan : Chip;
-            b.RegisterCallback<PointerEnterEvent>(_ => b.style.opacity = .85f);
-            b.RegisterCallback<PointerLeaveEvent>(_ => b.style.opacity = 1f);
             return b;
         }
 

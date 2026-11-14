@@ -237,6 +237,7 @@ namespace StreetLife
         public static void BuildForBake(Transform root, MapSet.Entry e, RailLookSet set)
         {
             RailLook.BuildForBake(root, e, set, RuleFor, "grass", "tree");
+            TikiBar.ForBake(root, set);   // the bar as the game has it: old fittings out, the shop moved, the new counter, back bar and ladder in
             if (!set || !set.ground || !e.extrasJson || !e.extrasBin) return;
             var x = JsonUtility.FromJson<ExtrasJson>(e.extrasJson.text); var bin = e.extrasBin.bytes;
             if (x == null || x.vc == null) return;

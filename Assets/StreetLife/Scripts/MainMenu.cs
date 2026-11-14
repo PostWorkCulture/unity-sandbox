@@ -190,9 +190,17 @@ namespace StreetLife
             var val = L("", 15, Sel, true); val.style.width = valW; val.style.unityTextAlign = TextAnchor.MiddleCenter;
             int Index() { float v = get(); int best = 0; for (int i = 1; i < steps.Length; i++) if (Mathf.Abs(steps[i] - v) < Mathf.Abs(steps[best] - v)) best = i; return best; }
             void Refresh() => val.text = fmt(steps[Index()]);
-            box.Add(Btn("<", () => { set(steps[Mathf.Max(0, Index() - 1)]); Refresh(); }));
-            box.Add(val);
-            box.Add(Btn(">", () => { set(steps[Mathf.Min(steps.Length - 1, Index() + 1)]); Refresh(); }));
+            // one rounded pill: − value +
+            box.style.backgroundColor = Chip; Radius(box, 10); Border(box, 2, Line); Pad(box, 2, 2);
+            Button Step(string g, int d)
+            {
+                var sb = new Button(() => { set(steps[Mathf.Clamp(Index() + d, 0, steps.Length - 1)]); Refresh(); }) { text = g };
+                sb.style.width = 34; sb.style.height = 30; sb.style.fontSize = 18; sb.style.color = Text; sb.style.unityFontStyleAndWeight = FontStyle.Bold;
+                sb.style.unityTextAlign = TextAnchor.MiddleCenter; sb.style.backgroundColor = new Color(0, 0, 0, 0); Radius(sb, 8); Border(sb, 1, new Color(0, 0, 0, 0)); Pad(sb, 0, 0);
+                sb.style.marginLeft = sb.style.marginRight = sb.style.marginTop = sb.style.marginBottom = 0;
+                return sb;
+            }
+            box.Add(Step("\u2212", -1)); box.Add(val); box.Add(Step("+", 1));
             row.Add(box); Refresh(); return row;
         }
 
@@ -278,8 +286,9 @@ namespace StreetLife
             var grid = Card(460); grid.style.alignSelf = Align.FlexStart; grid.style.overflow = Overflow.Hidden;
             grid.Add(StepHead(2, "Character"));
             charGrid = new VisualElement(); charGrid.style.flexDirection = FlexDirection.Row; charGrid.style.flexWrap = Wrap.Wrap; charGrid.style.marginTop = 12;
+            // the picked character's name and line first, then the boxes, so nothing runs off the bottom of the panel
+            charInfo = new VisualElement(); charInfo.style.marginTop = 10; charInfo.style.minHeight = 84; grid.Add(charInfo);
             grid.Add(charGrid);
-            charInfo = new VisualElement(); charInfo.style.marginTop = 10; grid.Add(charInfo);
             stepB.Add(grid);
             var gap = new VisualElement(); gap.style.flexGrow = 1; gap.pickingMode = PickingMode.Ignore; stepB.Add(gap);   // your fighter, live
             body.Add(stepB);
@@ -454,7 +463,7 @@ namespace StreetLife
         /// what the menu's weapons rack shows for a slot: the Simple kit under Simple rules, nothing in Rumble
         static string RackId(string picked, string simpleKit) => Rules.Rumble ? null : Settings.Rules == "simple" && Rules.OneVOne ? simpleKit : picked;
 
-        static string Bio(string id) => id != null && bios.TryGetValue(id, out var b) ? b : "";
+        public static string Bio(string id) => id != null && bios.TryGetValue(id, out var b) ? b : "";
 
         void BuildCharacters()
         {
@@ -469,9 +478,9 @@ namespace StreetLife
         Button CharTile(string id, string name)
         {
             var t = new Button(() => PickCharacter(id)) { text = "" }; t.name = "ch-" + id;
-            t.style.width = 76; t.style.height = 80; Radius(t, 8); Border(t, 2, Line); t.style.marginLeft = 0; t.style.marginTop = 0; t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 0, 0);
+            t.style.width = 72; t.style.height = 76; Radius(t, 8); Border(t, 2, Line); t.style.marginLeft = 0; t.style.marginTop = 0; t.style.marginRight = 7; t.style.marginBottom = 7; Pad(t, 0, 0);
             t.style.backgroundColor = Chip; t.style.overflow = Overflow.Hidden;
-            var pic = new VisualElement(); pic.name = "pic"; pic.pickingMode = PickingMode.Ignore; pic.style.height = 58; pic.style.flexShrink = 0;
+            var pic = new VisualElement(); pic.name = "pic"; pic.pickingMode = PickingMode.Ignore; pic.style.height = 54; pic.style.flexShrink = 0;
             pic.style.backgroundSize = new StyleBackgroundSize(new BackgroundSize(BackgroundSizeType.Cover));
             if (id == RandomId) { var q = L("?", 30, Text, true); q.style.unityTextAlign = TextAnchor.MiddleCenter; q.style.flexGrow = 1; pic.Add(q); }
             else { var tex = MenuPortraits.Get(id); if (tex) pic.style.backgroundImage = new StyleBackground(tex); }
@@ -537,7 +546,7 @@ namespace StreetLife
             {
                 var g = GunsDb.Gun(id); var c = GunsDb.Cons(id);
                 string name = id == RandomId ? "Random" : c != null ? c.name : g != null ? g.name : id;
-                string stat = id == RandomId ? "Different every match" : c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
+                string stat = id == RandomId ? "Each match" : c != null ? (g != null && g.dmg > 0 ? Mathf.RoundToInt(g.dmg) + " dmg · " : "") + c.meta : g != null ? GunStatLine(g) : "";
                 bool on = id == sel; var pid = id;
                 var b = new Button(() =>
                 {
@@ -546,16 +555,19 @@ namespace StreetLife
                     if (locked) { Settings.Rules = "normal"; Settings.Apply(); foreach (var r in segRefresh) r(); RefreshHint(); }
                     pick(pid); PlayerPrefs.Save(); BuildLoadout();
                 }) { text = "" };
-                b.style.width = 112; b.style.height = 44; Radius(b, 8); Border(b, 2, on ? Sel : Line); Pad(b, 4, 8);
+                b.style.width = 140; b.style.height = 46; Radius(b, 9); Border(b, 2, on ? Sel : Line); Pad(b, 4, 10);
                 b.style.marginLeft = b.style.marginTop = 0; b.style.marginRight = b.style.marginBottom = 7;
                 b.style.backgroundColor = on ? Sel : Chip; b.style.justifyContent = Justify.Center; b.style.alignItems = Align.FlexStart;
                 if (locked && !on) b.style.opacity = .35f;
-                var nl = L(name, 12, on ? Ink : Text, true); nl.style.overflow = Overflow.Hidden; b.Add(nl);
-                var sl = L(stat, 10, on ? new Color(0, 0, 0, .65f) : Dim); sl.style.overflow = Overflow.Hidden; sl.style.marginTop = 2; b.Add(sl);
+                var nl = L(name, 13, on ? Ink : Text, true); OneLine(nl); b.Add(nl);
+                var sl = L(stat, 11, on ? new Color(0, 0, 0, .65f) : Dim); OneLine(sl); sl.style.marginTop = 2; b.Add(sl);
                 row.Add(b);
             }
             loadBox.Add(row);
         }
+
+        /// one line of text, cut with "…" if it doesn't fit (no wrapping into the line below)
+        static void OneLine(Label l) { l.style.whiteSpace = WhiteSpace.NoWrap; l.style.overflow = Overflow.Hidden; l.style.textOverflow = TextOverflow.Ellipsis; l.style.maxWidth = Length.Percent(100); }
 
         static string GunStatLine(GunStat g) => g.IsMelee ? Mathf.RoundToInt(g.dmg) + " dmg · " + g.reach + " m reach"
             : g.IsProj ? Mathf.RoundToInt(g.direct > 0 ? g.direct : g.dmg) + " dmg · " + Mathf.RoundToInt(g.mag) + " rnd"

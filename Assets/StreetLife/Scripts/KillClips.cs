@@ -417,7 +417,7 @@ namespace StreetLife
             bool over = r.Contains(Event.current.mousePosition);
             if (Event.current.type == EventType.Repaint)
             {
-                HudRound.Fill(r, primary ? new Color(1f, .85f, .3f, over ? 1 : .92f) : new Color(1, 1, 1, over ? .26f : .16f), white);
+                HudRound.Fill(r, primary ? new Color(1, 1, 1, over ? 1 : .92f) : new Color(.1f, .1f, .1f, over ? .95f : .85f), white);   // menu look: white primary, dark others
                 GUI.Label(r, text, primary ? btnHi : btn);
             }
             return Hit(r);
