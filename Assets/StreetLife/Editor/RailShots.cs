@@ -138,6 +138,16 @@ namespace StreetLife.EditorTools
                             if (p && v.Length >= 5) { p.Place(new Vector3(F(v[1]), F(v[2]), F(v[3])), F(v[4]) * Mathf.Deg2Rad); p.Frozen = true; }
                             continue;
                         }
+                        if (v[0] == "hit" && v.Length >= 2)
+                        {   // break whatever owns this collision box (a check that props still break as they should)
+                            int bi = int.Parse(v[1]);
+                            if (bi >= 0 && bi < BoxWorld.Boxes.Count)
+                            {
+                                var bx = BoxWorld.Boxes[bi];
+                                Destruction.Hit(bi, 9999, new Vector3((bx.x0 + bx.x1) / 2, (bx.y0 + bx.y1) / 2, (bx.z0 + bx.z1) / 2), Vector3.down, RoundManager.Instance ? RoundManager.Instance.player : null);
+                            }
+                            continue;
+                        }
                         if (v[0] == "top" && v.Length >= 5)
                         {
                             cam.orthographic = true; cam.orthographicSize = F(v[4]);

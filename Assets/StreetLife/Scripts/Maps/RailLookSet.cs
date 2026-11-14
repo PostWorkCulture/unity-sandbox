@@ -22,6 +22,8 @@ namespace StreetLife
         }
         public Surface[] surfaces;
         [Tooltip("Beach Please: the sand (the map's own colours drawn into a texture, with ripples as a detail map)")] public Material ground;
+        [Tooltip("Striped cushions: their own picture goes in, a canvas weave lies over it as a detail map")] public Material cushion;
+        [Tooltip("The fuel drums' hazard label")] public Texture2D drumLabel;
         [Tooltip("The goods shed's sign, reading just SHED")] public Texture2D shedSign;
 
         public Surface Get(string n) { if (surfaces != null) foreach (var s in surfaces) if (s != null && s.name == n) return s; return null; }

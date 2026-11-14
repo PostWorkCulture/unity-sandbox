@@ -55,7 +55,7 @@ namespace StreetLife
         {
             if (!w || !Application.isPlaying) return;
             var set = Resources.Load<RailLookSet>("RailLook");
-            if (set) Surfaces(w, set);
+            if (set) { Surfaces(w, set); MapProps.Rail(w, set); }   // and its fuel drums
             w.gameObject.AddComponent<RailLook>();
             if (BakedLightAvailable()) SceneManager.LoadSceneAsync(LightScene, LoadSceneMode.Additive);
         }

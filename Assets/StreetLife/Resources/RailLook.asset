@@ -104,4 +104,6 @@ MonoBehaviour:
     shift: {r: 1, g: 1, b: 1, a: 1}
     upright: 0
   ground: {fileID: 0}
+  cushion: {fileID: 0}
+  drumLabel: {fileID: 2800000, guid: d75d77be4c945134b84a7cc8d46487e5, type: 3}
   shedSign: {fileID: 2800000, guid: 72be269ff87e4814db114c6267d07b87, type: 3}

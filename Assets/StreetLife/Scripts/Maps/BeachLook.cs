@@ -9,6 +9,7 @@
 //  - The glow cards (behind the three neon signs, round the kiosk's sign, and the painted light pools under the jetty
 //    lamps) are hidden: every one of those has a real light next to it already.
 //  - Bounce light and reflections: MapBakedLight (a box-projected probe in the Tiki Bar).
+//  - Props: MapProps rebuilds the loungers, umbrellas and drums.
 //  - The sea's sun glint is toned down (the water shader breaks it into glitter now).
 using System.Collections.Generic;
 using UnityEngine;
@@ -79,7 +80,7 @@ namespace StreetLife
         {
             if (!w || !Application.isPlaying) return;
             var set = Resources.Load<RailLookSet>("BeachLook");
-            if (set) { Surfaces(w, set); Sand(w, set); }
+            if (set) { Surfaces(w, set); Sand(w, set); MapProps.Beach(w, set); }
             foreach (var mr in w.GetComponentsInChildren<MeshRenderer>())
                 if (mr.name == "Beach sea" && mr.sharedMaterial) { mr.sharedMaterial.SetFloat("_Gloss", 420); mr.sharedMaterial.SetFloat("_Glint", 3.2f); }
             var light = MapBakedLight.Add(w.gameObject, LightScene);

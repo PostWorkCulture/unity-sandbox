@@ -1,5 +1,5 @@
 # Beach Please surfaces (same kit as railtex.py, which must sit next to this file): sand detail and base, rock, deck planks,
-# thatch, bamboo, wicker.   python3 beachtex.py <out folder> [names]
+# thatch, bamboo, wicker, canvas for the props, the drums' label.   python3 beachtex.py <out folder> [names]
 import numpy as np, sys, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 exec(open(os.path.join(HERE, 'railtex.py')).read().split("which = sys.argv[2:]")[0])   # the noise, normal-map and save helpers
@@ -147,5 +147,37 @@ def wicker():
     sm = .3 + fib * .14
     save('wicker', lin2srgb(c), sm * smooth(.1, .5, h), normal_map(blur(norm01(h), .9), .8, .02))
 
-which = sys.argv[2:] or ['sand', 'sand_base', 'rock', 'planks', 'thatch', 'bamboo', 'wicker']
+# ------------------------------------------------------------------ canvas, tinted (0.4 m, 64 threads each way): cushions, pillows, umbrellas
+def fabric():
+    k = 64
+    cu = np.floor(U * k).astype(int); cv = np.floor(V * k).astype(int)
+    over = ((cu + cv) % 2 == 0)
+    fu = U * k - cu; fv = V * k - cv
+    su = np.sqrt(np.clip(1 - (fv * 2 - 1) ** 2, 0, 1)); sv = np.sqrt(np.clip(1 - (fu * 2 - 1) ** 2, 0, 1))
+    hu = su * np.where(over, .65 + .35 * np.sin(fu * np.pi), .5); hv = sv * np.where(~over, .65 + .35 * np.sin(fv * np.pi), .5)
+    h = np.maximum(hu, hv)
+    r = rng(271); slub = np.where(hu >= hv, (.9 + r.random(k) * .2)[cv], (.9 + r.random(k) * .2)[cu])   # uneven threads
+    big = spectral(272, 2.4, 1, 6); mid = spectral(273, 2.0, 3, 30)
+    crease = norm01(ndi.gaussian_filter(spectral(274, 2.2, 2, 14), 3, mode='wrap'))
+    hh = norm01(h * .55 * slub + (crease - .5) * .9 + (mid - .5) * .15)
+    m = (.9 + .1 * smooth(.1, .7, h)) * (.97 + (slub - 1) * .25) * (.95 + big * .08) * (.97 + (crease - .5) * .06)
+    c = np.dstack([m, m, m])
+    save('fabric', np.clip(c, 0, 1), np.full((N, N), .12) + mid * .05, normal_map(blur(hh, .7), .4, .0035))
+    g = .5 + (m - m.mean()) * .9                                       # the same weave as a detail map over a patterned cushion
+    save_detail('fabric', g, normal_map(blur(hh, .7), .4, .0035))
+
+# ------------------------------------------------------------------ the fuel drums' hazard label, sharp (it was 64 px)
+def drum_label():
+    from PIL import ImageDraw
+    S = 4; n = 256 * S
+    im = Image.new('RGBA', (n, n), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    def tri(inset, col):
+        top = (n / 2, inset * 1.15); bl = (inset * .9, n - inset); br = (n - inset * .9, n - inset)
+        d.polygon([top, br, bl], fill=col)
+    tri(10 * S, (28, 29, 34, 255)); tri(24 * S, (244, 194, 43, 255))
+    d.rounded_rectangle([n / 2 - 9 * S, 96 * S, n / 2 + 9 * S, 176 * S], radius=8 * S, fill=(28, 29, 34, 255))
+    d.ellipse([n / 2 - 11 * S, 190 * S, n / 2 + 11 * S, 212 * S], fill=(28, 29, 34, 255))
+    im.resize((256, 256), Image.LANCZOS).save(f'{OUT}/drum_label.png'); print('drum_label')
+
+which = sys.argv[2:] or ['sand', 'sand_base', 'rock', 'planks', 'thatch', 'bamboo', 'wicker', 'fabric', 'drum_label']
 for w in which: globals()[w]()

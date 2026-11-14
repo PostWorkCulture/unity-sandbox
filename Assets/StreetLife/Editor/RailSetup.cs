@@ -36,6 +36,7 @@ namespace StreetLife.EditorTools
             new Def { name = "thatch", metres = 2f, tinted = true },
             new Def { name = "bamboo", metres = 1.2f, reference = "#ffffff" },
             new Def { name = "wicker", metres = .8f, reference = "#ffffff" },
+            new Def { name = "fabric", metres = .4f, tinted = true },
             new Def { name = "post", tex = "wood", dir = RailDir, metres = 1.2f, tinted = true, upright = true },
             new Def { name = "paint", tex = "metal", dir = RailDir, metres = 1.5f, tinted = true, keepGloss = true },
             new Def { name = "grass", dir = RailDir, metres = 6f, tinted = true },
@@ -54,7 +55,15 @@ namespace StreetLife.EditorTools
             string sign = RailDir + "/sign_shed.png";
             if (rail && File.Exists(sign)) { Import(sign, false, true); rail.shedSign = AssetDatabase.LoadAssetAtPath<Texture2D>(sign); EditorUtility.SetDirty(rail); }
             string b = Book(lit, BeachDir, "Assets/StreetLife/Resources/BeachLook.asset", Beach, out var beach);
-            if (beach) { beach.ground = Sand(lit); EditorUtility.SetDirty(beach); }
+            if (beach) { beach.ground = Sand(lit); beach.cushion = Cushion(lit); EditorUtility.SetDirty(beach); }
+            string label = BeachDir + "/drum_label.png";
+            if (File.Exists(label))
+            {
+                Import(label, false, true);
+                var lt = AssetDatabase.LoadAssetAtPath<Texture2D>(label);
+                if (rail) { rail.drumLabel = lt; EditorUtility.SetDirty(rail); }
+                if (beach) { beach.drumLabel = lt; EditorUtility.SetDirty(beach); }
+            }
             AssetDatabase.SaveAssets();
             return "Railed " + a + "; Beach Please " + b + (beach && beach.ground ? " and the sand" : "");
         }
@@ -106,6 +115,25 @@ namespace StreetLife.EditorTools
             m.SetFloat("_Smoothness", 1); m.SetFloat("_Metallic", 0); m.SetFloat("_WorkflowMode", 1);
             m.SetTexture("_DetailAlbedoMap", AssetDatabase.LoadAssetAtPath<Texture2D>(dp)); m.SetTexture("_DetailNormalMap", AssetDatabase.LoadAssetAtPath<Texture2D>(np));
             m.SetTextureScale("_DetailAlbedoMap", new Vector2(200f / 3f, 160f / 3f));   // the texture covers 200 x 160 m, one ripple tile 3 m
+            m.SetFloat("_DetailAlbedoMapScale", 1); m.SetFloat("_DetailNormalMapScale", 1); m.EnableKeyword("_DETAIL_MULX2");
+            m.enableInstancing = true;
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        // the template for striped cushions: MapProps puts each cover's own picture in; the canvas weave is the detail map
+        static Material Cushion(Shader lit)
+        {
+            string dp = BeachDir + "/fabric_detail.png", np = BeachDir + "/fabric_normal.png";
+            if (!File.Exists(dp) || !File.Exists(np)) return null;
+            Import(dp, false); Import(np, true);
+            string mp = BeachDir + "/cushion.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(mp);
+            if (!m) { m = new Material(lit); AssetDatabase.CreateAsset(m, mp); }
+            m.shader = lit;
+            m.SetColor("_BaseColor", Color.white); m.SetFloat("_Smoothness", .16f); m.SetFloat("_Metallic", 0); m.SetFloat("_WorkflowMode", 1);
+            m.SetTexture("_DetailAlbedoMap", AssetDatabase.LoadAssetAtPath<Texture2D>(dp)); m.SetTexture("_DetailNormalMap", AssetDatabase.LoadAssetAtPath<Texture2D>(np));
+            m.SetTextureScale("_DetailAlbedoMap", new Vector2(3.5f, 1.7f));   // a mattress is about 1.4 x 0.7 m, one weave tile 0.4 m
             m.SetFloat("_DetailAlbedoMapScale", 1); m.SetFloat("_DetailNormalMapScale", 1); m.EnableKeyword("_DETAIL_MULX2");
             m.enableInstancing = true;
             EditorUtility.SetDirty(m);
