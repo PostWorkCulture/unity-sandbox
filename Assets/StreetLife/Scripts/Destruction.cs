@@ -508,12 +508,11 @@ namespace StreetLife
             e.alive = false; e.t.gameObject.SetActive(false);
             var p = e.t.position;
             if (e.d.prop == "glass")
-            {   // a bottle or a glass (maps chat): shards, a puff of whatever was in it, and the glass sound (not one per shard-burst when a row goes)
-                Report("glass");
+            {   // a bottle or a glass (maps chat): shards tinted with whatever was in it, and the glass sound (one, not thirty, when a row goes)
+                Report("prop");   // counted with the other loose things, so a shelf of bottles doesn't swamp the count of panes
                 if (Time.time - glassT > .045f) { glassT = Time.time; Sfx.Play("frost", p, .7f, 16, Random.Range(1.25f, 1.75f)); }
                 var col = BaseColor(e); float big = Mathf.Max(e.d.kw, e.d.kh);
                 BreakFx.I.Chunks(p, new Vector3(e.d.kw, e.d.kh, e.d.kd), Vector3.zero, new[] { new Color(.88f, .96f, 1f), Color.Lerp(col, Color.white, .45f), Color.white }, Mathf.Clamp(Mathf.RoundToInt(big * 36), 5, 14), Ground(p.x, p.z, p.y - e.d.kh / 2 - .3f), 2.4f, true);
-                if (e.d.kh > .28f) BreakFx.I.Puffs(p, 2, .12f, .5f, .16f, .45f, new Color(col.r, col.g, col.b, .5f));
                 return;
             }
             Report("prop");

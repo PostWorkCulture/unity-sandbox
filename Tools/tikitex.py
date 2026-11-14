@@ -57,7 +57,7 @@ def onyx(out, w=1024, h=512):
     bands = .5 + .5 * np.sin(2 * np.pi * (yy * 2.2 + flow * 3.4))
     fine = .5 + .5 * np.sin(2 * np.pi * (yy * 9 + flow * 14 + wx * 2))
     t = np.clip(bands * .75 + fine * .25, 0, 1)
-    deep = np.array([198, 118, 40], float); honey = np.array([255, 176, 74], float); cream = np.array([255, 232, 178], float)
+    deep = np.array([206, 142, 78], float); honey = np.array([246, 196, 128], float); cream = np.array([255, 236, 204], float)
     rgb = deep * (1 - ss(0, .55, t))[..., None] + honey * (ss(0, .55, t) * (1 - ss(.6, 1, t)))[..., None] + cream * ss(.6, 1, t)[..., None]
     crack = (1 - np.abs(2 * warp(noise(w, 2.0, 24, h), wx, wy, 60) - 1)) ** 50
     rgb = rgb * (1 - crack[..., None] * .3)

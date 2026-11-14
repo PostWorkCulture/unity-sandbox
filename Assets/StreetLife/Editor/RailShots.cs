@@ -4,6 +4,7 @@
 // map pick. Shots go to Logs/rail/<tag>_<name>.png, a line per run to Logs/rail/log.txt. It refuses while play mode is on,
 // so it never cuts into another chat's test.
 // Logs/railshots-<map>.txt if there is one, else Logs/railshots.txt, one view per line:   name x y z yaw pitch [fov]     |   top name cx cz halfHeight   |   player x y z yawDeg
+// also: hit <box>  |  wait <frames>  |  fps <name> <frames>  |  free (unfreeze the player)  |  tiki <TikiBar.Test arguments>
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -21,7 +22,8 @@ namespace StreetLife.EditorTools
         static readonly string OutDir = Path.Combine(Root, "Logs", "rail"), ListFile = Path.Combine(Root, "Logs", "railshots.txt");
         const int W = 1600, H = 900;
 
-        static List<string[]> views; static int index, shotFrame; static Camera cam; static RenderTexture rt;
+        static List<string[]> views; static int index, shotFrame, holdFrame, fpsFrame; static Camera cam; static RenderTexture rt;
+        static bool armed; static double fpsT; static string fpsName;
 
         static RailShots() { EditorApplication.update -= Tick; EditorApplication.update += Tick; }
 
@@ -116,7 +118,8 @@ namespace StreetLife.EditorTools
                             views.Add(l.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
                         }
                     if (views.Count == 0) views.Add(new[] { "view", "0", "1.8", "-20", "0", "0" });
-                    rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { name = "Rail shots" };
+                    rt = new RenderTexture(W, H, 24, RenderTextureFormat.DefaultHDR) { name = "Rail shots" };   // HDR, so bloom shows as it does in the game
+                    armed = false; holdFrame = 0; fpsName = null;
                     var go = new GameObject("Rail shots camera");
                     cam = go.AddComponent<Camera>(); cam.depth = -50; cam.fieldOfView = 60; cam.nearClipPlane = .1f; cam.farClipPlane = 800; cam.targetTexture = rt;
                     go.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>().renderPostProcessing = true;
@@ -126,8 +129,9 @@ namespace StreetLife.EditorTools
                     return;
                 case 3:
                     if (!EditorApplication.isPlaying) { Finish("stopped by someone else during the shots"); return; }
-                    if (index >= 0 && Time.frameCount < shotFrame) return;
-                    if (index >= 0) Save(views[index][0] == "top" ? views[index][1] : views[index][0]);
+                    if (armed) { if (Time.frameCount < shotFrame) return; Save(views[index][0] == "top" ? views[index][1] : views[index][0]); armed = false; }
+                    if (Time.frameCount < holdFrame) return;
+                    if (fpsName != null) { Log($"{fpsName}: {(Now - fpsT) * 1000 / Mathf.Max(1, Time.frameCount - fpsFrame):0.00} ms a frame over {Time.frameCount - fpsFrame} frames"); fpsName = null; }
                     // next view (player lines are applied on the way)
                     while (++index < views.Count)
                     {
@@ -148,6 +152,10 @@ namespace StreetLife.EditorTools
                             }
                             continue;
                         }
+                        if (v[0] == "wait" && v.Length >= 2) { holdFrame = Time.frameCount + int.Parse(v[1]); return; }   // wait <frames>
+                        if (v[0] == "fps" && v.Length >= 3) { fpsName = v[1]; fpsT = Now; fpsFrame = Time.frameCount; holdFrame = Time.frameCount + int.Parse(v[2]); return; }   // fps <name> <frames>: the frame time, to the log
+                        if (v[0] == "free") { var p = RoundManager.Instance ? RoundManager.Instance.player : null; if (p) p.Frozen = false; continue; }
+                        if (v[0] == "tiki") { Log("tiki " + string.Join(" ", v, 1, v.Length - 1) + ": " + TikiBar.Test(string.Join(" ", v, 1, v.Length - 1))); continue; }   // tiki <TikiBar.Test arguments>
                         if (v[0] == "top" && v.Length >= 5)
                         {
                             cam.orthographic = true; cam.orthographicSize = F(v[4]);
@@ -159,7 +167,7 @@ namespace StreetLife.EditorTools
                             cam.transform.position = new Vector3(F(v[1]), F(v[2]), F(v[3])); cam.transform.rotation = Quaternion.Euler(F(v[5]), F(v[4]), 0);
                         }
                         else continue;
-                        shotFrame = Time.frameCount + 4;
+                        shotFrame = Time.frameCount + 4; armed = true;
                         return;
                     }
                     Finish("took the shots");
@@ -173,10 +181,12 @@ namespace StreetLife.EditorTools
 
         static void Save(string name)
         {
-            var prev = RenderTexture.active; RenderTexture.active = rt;
+            var ldr = RenderTexture.GetTemporary(W, H, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            Graphics.Blit(rt, ldr);
+            var prev = RenderTexture.active; RenderTexture.active = ldr;
             var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
             tex.ReadPixels(new Rect(0, 0, W, H), 0, 0); tex.Apply();
-            RenderTexture.active = prev;
+            RenderTexture.active = prev; RenderTexture.ReleaseTemporary(ldr);
             File.WriteAllBytes(Path.Combine(OutDir, SessionState.GetString(Key + ".tag", "shot") + "_" + name + ".png"), tex.EncodeToPNG());
             UnityEngine.Object.Destroy(tex);
         }

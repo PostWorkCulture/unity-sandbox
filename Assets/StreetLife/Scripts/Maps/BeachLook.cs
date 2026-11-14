@@ -12,6 +12,7 @@
 //  - Props: MapProps rebuilds the loungers, umbrellas and drums.
 //  - The coloured steps up to the terrace: each step's plain block is clad in painted tongue-and-groove boards in its own
 //    colour, with white corner boards, a white nosing on every tread edge and a kickboard at the sand (Steps).
+//  - The Tiki Bar is refitted and filled with things to smash (TikiBar.cs).
 //  - The sea's sun glint is toned down (the water shader breaks it into glitter now).
 using System.Collections.Generic;
 using UnityEngine;
@@ -82,7 +83,7 @@ namespace StreetLife
         {
             if (!w || !Application.isPlaying) return;
             var set = Resources.Load<RailLookSet>("BeachLook");
-            if (set) { Surfaces(w, set); Sand(w, set); MapProps.Beach(w, set); }
+            if (set) { Surfaces(w, set); Sand(w, set); MapProps.Beach(w, set); TikiBar.Build(w, set); }
             foreach (var mr in w.GetComponentsInChildren<MeshRenderer>())
                 if (mr.name == "Beach sea" && mr.sharedMaterial) { mr.sharedMaterial.SetFloat("_Gloss", 420); mr.sharedMaterial.SetFloat("_Glint", 3.2f); }
             var light = MapBakedLight.Add(w.gameObject, LightScene);
@@ -112,10 +113,21 @@ namespace StreetLife
                 if (!src || !mf) continue;
                 // glow cards: unlit, see-through and textured
                 if (src.shader && src.shader.name.Contains("Unlit") && src.renderQueue >= 3000 && src.HasProperty("_BaseMap") && src.GetTexture("_BaseMap")) { t.gameObject.SetActive(false); hidden++; continue; }
-                string rule = RuleFor(src); if (rule == null) continue;
+                string rule = RuleFor(src);
+                if (rule == null)
+                {   // keeps its own material; still loses whatever the new Tiki Bar replaces (the lamp shades)
+                    if (TikiBar.Touches(wj.meshes[i]))
+                    {
+                        var own = MeshIO.Build(bin, wj.meshes[i], nm); int cut = TikiBar.Cut(own);
+                        if (cut == 2) { var was = mf.sharedMesh; mf.sharedMesh = own; if (was) Object.Destroy(was); own.UploadMeshData(true); }
+                        else { Object.Destroy(own); if (cut == 0) t.gameObject.SetActive(false); }
+                    }
+                    continue;
+                }
                 var s = set.Get(rule); if (s == null || !s.material) continue;
                 if (!made.TryGetValue(src, out var m)) { m = RailLook.Make(s, src); made[src] = m; }
                 var mesh = MeshIO.Build(bin, wj.meshes[i], nm);
+                if (TikiBar.Cut(mesh) == 0) { Object.Destroy(mesh); t.gameObject.SetActive(false); continue; }   // old Tiki Bar fittings that TikiBar replaces
                 RailLook.WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == "grass", s.upright);
                 if (rule == "paint" && Rainbow.Contains(ColorUtility.ToHtmlStringRGB(src.GetColor("_BaseColor")).ToLowerInvariant())) rainbow.Add((mesh.vertices, src.GetColor("_BaseColor")));
                 var old = mf.sharedMesh; mf.sharedMesh = mesh; if (old) Object.Destroy(old);
