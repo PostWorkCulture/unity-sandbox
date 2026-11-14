@@ -182,6 +182,14 @@ namespace StreetLife.EditorTools
 
         public static string Unfreeze(string a) { if (B) B.Frozen = false; return "bot free"; }
 
+        /// call StreetLifeTests.MenuPage settings : opens a MainMenu page by its field name
+        public static string MenuPage(string a)
+        {
+            var mm = Object.FindAnyObjectByType<MainMenu>(); if (!mm) return "no main menu";
+            var t = typeof(MainMenu); var fl = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+            var v = t.GetField(a.Trim(), fl)?.GetValue(mm) as UnityEngine.UIElements.VisualElement; if (v == null) return "no page " + a;
+            var show = t.GetMethod("Show", fl); show.Invoke(mm, new object[] { v, null }); return "showing " + a;
+        }
         public static string State(string a)
         {
             var p = P; var b = B; if (!p) return "no player";

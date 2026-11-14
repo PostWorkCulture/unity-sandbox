@@ -111,7 +111,7 @@ namespace StreetLife.EditorTools
         {
             var nb = NamedBuildTarget.Standalone;
             PlayerSettings.productName = "Street Life"; PlayerSettings.companyName = "PostWorkCulture";
-            PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
+            PlayerSettings.fullScreenMode = FullScreenMode.ExclusiveFullScreen;   // true full screen at first run (Settings > Display can change it)
             PlayerSettings.defaultIsNativeResolution = true; PlayerSettings.runInBackground = true;
             PlayerSettings.SetScriptingBackend(nb, ScriptingImplementation.Mono2x);
             var outDir = Path.Combine(ProjectDir, "Builds", "Windows"); Directory.CreateDirectory(outDir);
@@ -119,8 +119,63 @@ namespace StreetLife.EditorTools
             var report = Build(BuildTarget.StandaloneWindows64, BuildTargetGroup.Standalone, exe);
             if (report == null) return;
             long bytes = Directory.GetFiles(outDir, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length);
-            Dlg("Street Life", $"Windows build: {bytes / 1048576f:F0} MB in Builds/Windows, {report.summary.totalTime.TotalMinutes:F1} min ({PlayerSettings.GetScriptingBackend(nb)}). Run StreetLife.exe.", "OK");
-            if (!Quiet) EditorUtility.RevealInFinder(exe);
+            var inst = InstallWindows();
+            Dlg("Street Life", $"Windows build: {bytes / 1048576f:F0} MB in Builds/Windows, {report.summary.totalTime.TotalMinutes:F1} min ({PlayerSettings.GetScriptingBackend(nb)}). {inst}", "OK");
+        }
+
+        // ------------------------------------------------------------------ the playable copy outside the project (match chat)
+        // Every Windows build is copied to C:\Games\Street Life (without Unity's debug folders) and the desktop gets a "Street Life"
+        // shortcut to it, so the game is always one double-click away and a build in progress never touches the copy you play.
+        public const string InstallDir = @"C:\Games\Street Life";
+
+        [MenuItem("Street Life/Build/Install Windows build to C:\\Games")]
+        public static void InstallWindowsMenu() => Dlg("Street Life", InstallWindows(), "OK");
+
+        /// remote: call StreetLifeBuild.Install
+        public static string Install(string a) => InstallWindows();
+
+        public static string InstallWindows()
+        {
+            var src = Path.Combine(ProjectDir, "Builds", "Windows");
+            if (!File.Exists(Path.Combine(src, "StreetLife.exe"))) return "No Windows build to install yet.";
+            try
+            {
+                if (Directory.Exists(InstallDir))
+                {
+                    foreach (var f in Directory.GetFiles(InstallDir, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
+                    Directory.Delete(InstallDir, true);
+                }
+                long bytes = 0;
+                foreach (var dir in Directory.GetDirectories(src, "*", SearchOption.AllDirectories))
+                {
+                    if (dir.Contains("_ButDontShipItWithYourGame") || dir.Contains("_DoNotShip")) continue;
+                    Directory.CreateDirectory(dir.Replace(src, InstallDir));
+                }
+                Directory.CreateDirectory(InstallDir);
+                foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
+                {
+                    if (file.Contains("_ButDontShipItWithYourGame") || file.Contains("_DoNotShip")) continue;
+                    var to = file.Replace(src, InstallDir); Directory.CreateDirectory(Path.GetDirectoryName(to));
+                    File.Copy(file, to, true); bytes += new FileInfo(file).Length;
+                }
+                string sc = DesktopShortcut(Path.Combine(InstallDir, "StreetLife.exe"));
+                return $"Installed to {InstallDir} ({bytes / 1048576f:F0} MB){sc}.";
+            }
+            catch (System.Exception e) { return $"Couldn't install to {InstallDir} (is the game still running?): {e.Message}"; }
+        }
+
+        static string DesktopShortcut(string exe)
+        {
+            try
+            {
+                var desk = System.Environment.GetFolderPath(System.Environment.SpecialFolder.DesktopDirectory);
+                var lnk = Path.Combine(desk, "Street Life.lnk");
+                var ps = $"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');$s.TargetPath='{exe}';$s.WorkingDirectory='{InstallDir}';$s.IconLocation='{exe},0';$s.Description='Street Life';$s.Save()";
+                var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell", "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"" + ps + "\"") { UseShellExecute = false, CreateNoWindow = true });
+                p.WaitForExit(20000);
+                return File.Exists(lnk) ? ", with a Street Life shortcut on the desktop" : " (couldn't make the desktop shortcut)";
+            }
+            catch (System.Exception e) { return " (no desktop shortcut: " + e.Message + ")"; }
         }
 
         [MenuItem("Street Life/Build/Android APK (S24)")]

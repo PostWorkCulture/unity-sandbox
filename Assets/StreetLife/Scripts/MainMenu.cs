@@ -155,12 +155,12 @@ namespace StreetLife
         }
 
         /// ‹ value › stepper (settings): works with no UI theme at all.
-        VisualElement Stepper(string name, float[] steps, Func<float> get, Action<float> set, Func<float, string> fmt)
+        VisualElement Stepper(string name, float[] steps, Func<float> get, Action<float> set, Func<float, string> fmt, int valW = 70)
         {
             var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.alignItems = Align.Center; row.style.justifyContent = Justify.SpaceBetween; row.style.marginBottom = 10;
             row.Add(L(name, 15, Text));
             var box = new VisualElement(); box.style.flexDirection = FlexDirection.Row; box.style.alignItems = Align.Center;
-            var val = L("", 15, Sel, true); val.style.width = 70; val.style.unityTextAlign = TextAnchor.MiddleCenter;
+            var val = L("", 15, Sel, true); val.style.width = valW; val.style.unityTextAlign = TextAnchor.MiddleCenter;
             int Index() { float v = get(); int best = 0; for (int i = 1; i < steps.Length; i++) if (Mathf.Abs(steps[i] - v) < Mathf.Abs(steps[best] - v)) best = i; return best; }
             void Refresh() => val.text = fmt(steps[Index()]);
             box.Add(Btn("<", () => { set(steps[Mathf.Max(0, Index() - 1)]); Refresh(); }));
@@ -639,9 +639,31 @@ namespace StreetLife
                 c2.Add(Segmented(new[] { "60", "90", "120" }, new[] { "60", "90", "120" }, () => Settings.Fps.ToString(), v => { Settings.Fps = int.Parse(v); Settings.Apply(); }));
                 var fh = L("60 keeps the phone cooler and steadier over long sessions.", 12, Dim); fh.style.whiteSpace = WhiteSpace.Normal; fh.style.marginTop = 6; c2.Add(fh);
                 var ed = Btn("Edit button layout", () => { var back = settings; Show(null); TouchLayout.BeginEdit(() => Show(back)); }); ed.style.marginTop = 14; c2.Add(ed);
-                row.Add(c); row.Add(c2); settings.Add(row);
+                row.Add(c); row.Add(c2);
+                if (Settings.IsDesktop) row.Add(BuildDisplayCard());
+                settings.Add(row);
             }
+            else if (Settings.IsDesktop) { var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.alignItems = Align.FlexStart; row.Add(c); row.Add(BuildDisplayCard()); settings.Add(row); }
             else settings.Add(c);
+        }
+
+        // desktop only: how the game takes the screen (match chat)
+        VisualElement BuildDisplayCard()
+        {
+            var c3 = Card(400); c3.style.marginLeft = 16;
+            var t3 = L("Display", 28, Text, true); t3.style.marginBottom = 16; c3.Add(t3);
+            c3.Add(Caps("Screen"));
+            c3.Add(Segmented(new[] { "Full screen", "Borderless", "Windowed" }, new[] { "exclusive", "borderless", "windowed" }, () => Settings.ScreenMode, v => { Settings.ScreenMode = v; Settings.ApplyScreen(); }));
+            var sh = L("Full screen takes over the display (smoothest, lowest input lag). Borderless is a window the size of the screen, quick to Alt+Tab out of. Alt+Enter switches too.", 12, Dim); sh.style.whiteSpace = WhiteSpace.Normal; sh.style.marginTop = 6; sh.style.marginBottom = 10; c3.Add(sh);
+            var res = Settings.Resolutions(); var idx = new float[res.Count]; for (int i = 0; i < idx.Length; i++) idx[i] = i;
+            if (res.Count > 0)
+                c3.Add(Stepper("Resolution", idx, () => Settings.ResolutionIndex(res), v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; Settings.ResW = r.x; Settings.ResH = r.y; Settings.ApplyScreen(); }, v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; return r.x + " x " + r.y; }, 124));
+            c3.Add(Caps("V-sync"));
+            c3.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => Settings.VSync ? "on" : "off", v => { Settings.VSync = v == "on"; Settings.Apply(); }));
+            c3.Add(Caps("Frame rate cap (V-sync off)"));
+            c3.Add(Segmented(new[] { "None", "60", "120", "144", "240" }, new[] { "0", "60", "120", "144", "240" }, () => Settings.FpsCap.ToString(), v => { Settings.FpsCap = int.Parse(v); Settings.Apply(); }));
+            var vh = L("V-sync locks the frame rate to the monitor and stops tearing. Off: as fast as the PC can go, up to the cap.", 12, Dim); vh.style.whiteSpace = WhiteSpace.Normal; vh.style.marginTop = 6; c3.Add(vh);
+            return c3;
         }
 
         void Show(VisualElement v, VisualElement returnTo = null)
@@ -822,6 +844,44 @@ namespace StreetLife
             set => PlayerPrefs.SetString(P + "gfx", value);
         }
 
+        // ---- display (desktop builds and the editor)
+        public static bool IsDesktop => !Application.isMobilePlatform && Application.platform != RuntimePlatform.WebGLPlayer;
+        public static string ScreenMode { get => PlayerPrefs.GetString(P + "screenMode", "exclusive"); set => PlayerPrefs.SetString(P + "screenMode", value); }
+        public static int ResW { get => PlayerPrefs.GetInt(P + "resW", 0); set => PlayerPrefs.SetInt(P + "resW", value); }
+        public static int ResH { get => PlayerPrefs.GetInt(P + "resH", 0); set => PlayerPrefs.SetInt(P + "resH", value); }
+        public static bool VSync { get => PlayerPrefs.GetInt(P + "vsync", 1) == 1; set => PlayerPrefs.SetInt(P + "vsync", value ? 1 : 0); }
+        public static int FpsCap { get => PlayerPrefs.GetInt(P + "fpsCap", 0); set => PlayerPrefs.SetInt(P + "fpsCap", value); }
+        /// the monitor's sizes, biggest last, each once (refresh rates folded together)
+        public static List<Vector2Int> Resolutions()
+        {
+            var l = new List<Vector2Int>();
+            foreach (var r in Screen.resolutions) { var v = new Vector2Int(r.width, r.height); if (v.x >= 1024 && !l.Contains(v)) l.Add(v); }
+            l.Sort((a, b) => a.x != b.x ? a.x.CompareTo(b.x) : a.y.CompareTo(b.y));
+            return l;
+        }
+        public static int ResolutionIndex(List<Vector2Int> l)
+        {
+            int w = ResW > 0 ? ResW : Screen.currentResolution.width, h = ResH > 0 ? ResH : Screen.currentResolution.height;
+            int best = l.Count - 1; for (int i = 0; i < l.Count; i++) if (l[i].x == w && l[i].y == h) best = i; return Mathf.Max(0, best);
+        }
+        public static void ApplyScreen()
+        {
+            if (!IsDesktop || Application.isEditor) return;
+            var mode = ScreenMode == "windowed" ? FullScreenMode.Windowed : ScreenMode == "borderless" ? FullScreenMode.FullScreenWindow : FullScreenMode.ExclusiveFullScreen;
+            int w = ResW > 0 ? ResW : Display.main.systemWidth, h = ResH > 0 ? ResH : Display.main.systemHeight;
+            if (mode == FullScreenMode.Windowed && w >= Display.main.systemWidth) { w = Mathf.RoundToInt(w * .8f); h = Mathf.RoundToInt(h * .8f); }   // a window you can see the edges of
+            Screen.SetResolution(w, h, mode, Screen.currentResolution.refreshRateRatio);
+            PlayerPrefs.Save();
+        }
+        static bool screenApplied;
+        static void ApplyDisplay()
+        {
+            if (!IsDesktop) return;
+            QualitySettings.vSyncCount = VSync ? 1 : 0;   // after the quality level, which sets its own
+            Application.targetFrameRate = VSync || FpsCap <= 0 ? -1 : FpsCap;
+            if (!screenApplied) { screenApplied = true; ApplyScreen(); }   // once a run: Unity remembers the rest
+        }
+
         public static void Apply()
         {
             foreach (var pc in UnityEngine.Object.FindObjectsByType<PlayerController>()) { pc.sensitivity = Sens; pc.adsSensitivity = AimSens; pc.snipeSensitivity = SnipeSens; }
@@ -831,6 +891,7 @@ namespace StreetLife
             Sfx.MusicVolume = Music; Sfx.SfxVolume = Effects;
             var names = QualitySettings.names; string want = Graphics == "smooth" ? "Mobile" : "PC";
             for (int i = 0; i < names.Length; i++) if (names[i] == want && QualitySettings.GetQualityLevel() != i) { QualitySettings.SetQualityLevel(i, true); break; }
+            ApplyDisplay();
             var rm = RoundManager.Instance; if (rm) { rm.difficulty = Difficulty; rm.simpleRules = Rules == "simple"; }
             PlayerPrefs.Save();
         }
