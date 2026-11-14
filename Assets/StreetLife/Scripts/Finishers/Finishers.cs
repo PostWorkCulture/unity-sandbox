@@ -100,22 +100,17 @@ namespace StreetLife
         public Finisher PlayerMove { get { foreach (var F in active) if (F.cine && (F.a == Player || F.v == Player)) return F; return null; } }
 
         // ------------------------------------------------------------------ starting, stopping
-        static string Pick()
-        {
-            if (!string.IsNullOrEmpty(ForceMove) && Dur.ContainsKey(ForceMove)) return ForceMove;
-            var L = new List<string>();
-            foreach (var m in Moves) if (m != lastMove) L.Add(m);
-            if (L.Contains("Pancake")) L.Add("Pancake");     // Pancake comes up twice as often as any other move
-            return L[Random.Range(0, L.Count)];
-        }
-
         /// web finish(): starts a finishing move by a on v. Returns null if it can't.
+        /// The move is planned first (FinPlanner): one that fits where it happens and that the camera can see all of,
+        /// picked at random among those (never the same move twice running; Pancake twice as likely).
         public static Finisher Begin(Fighter a, Fighter v, string force = null)
         {
             if (!I || !CanFinish(a, v)) return null;
-            string fx = !string.IsNullOrEmpty(force) && Dur.ContainsKey(force) ? force : Pick();
-            lastMove = fx;
-            var F = new Finisher(a, v, fx, Dur[fx]);
+            string fx = !string.IsNullOrEmpty(force) && Dur.ContainsKey(force) ? force : !string.IsNullOrEmpty(ForceMove) && Dur.ContainsKey(ForceMove) ? ForceMove : null;
+            bool view = I.Player && (a == I.Player || v == I.Player);
+            var plan = FinPlanner.Choose(a, v, fx, lastMove, view);
+            lastMove = plan.fx;
+            var F = new Finisher(a, v, plan);
             I.active.Add(F);
             v.finishing = F; a.finishingOther = F;
             a.ads = false; a.inFire = false; v.inFire = false;
@@ -294,6 +289,9 @@ namespace StreetLife
         // Queries near one spot (ClearSpot) look only at the boxes round it: tens instead of hundreds.
         static readonly List<Box> scoped = new List<Box>(); static bool scopeOn;
         static List<Box> Boxes => scopeOn ? scoped : BoxWorld.Boxes;
+        /// Floor and room queries look only at the boxes within r of c until ScopeOff (the planner, for speed).
+        public static void ScopeOn(Vector3 c, float r) => Scope(c, r);
+        public static void ScopeOff() { scopeOn = false; }
         static void Scope(Vector3 c, float r)
         {
             scoped.Clear();
@@ -332,6 +330,8 @@ namespace StreetLife
             return max;
         }
         public static void ForgetMap() { scenery = null; }
+        /// The scenery's bounds (beyond them a thrown body falls away).
+        public static Bounds SceneryBounds() { OverMap(0, 0); return scenery.Value; }
 
         /// web surfaceAt: the floor at (x,z) nearest to height y, preferring floors below (box tops, or the ground at 0).
         public static float SurfaceAt(float x, float z, float y)

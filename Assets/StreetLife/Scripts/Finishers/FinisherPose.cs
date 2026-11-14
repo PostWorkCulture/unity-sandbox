@@ -24,6 +24,8 @@ namespace StreetLife
         public bool Hidden;
         /// Overcharge's x-ray flicker: the body vanishes and the skeleton shows.
         public bool Xray;
+        /// Hidden while it stands between the finisher camera and the move (FinisherCam).
+        public bool Occluding;
         bool hidByMe;
         float act, rx, rz, yawS, liftS, phase, dyaw, dyawT;
 
@@ -47,7 +49,7 @@ namespace StreetLife
 
         public void ResetVisual()
         {
-            Hidden = false; Xray = false; tintOn = false; act = 0; rx = rz = 0;
+            Hidden = false; Xray = false; Occluding = false; tintOn = false; act = 0; rx = rz = 0;
             if (hidByMe && rig) rig.SetVisible(true);
             hidByMe = false;
             if (Find()) { root.localScale = Vector3.one * Fighter.SC; RestoreTint(); }
@@ -123,7 +125,7 @@ namespace StreetLife
             else if (!f.alive && f.corpse) { dead = true; yaw = yawS * Mathf.Deg2Rad; }
 
             // visibility
-            bool hide = Hidden || Xray;
+            bool hide = Hidden || Xray || Occluding;
             if (hide) { rig.SetVisible(false); hidByMe = true; }
             else if (hidByMe) { rig.SetVisible(true); hidByMe = false; }
 

@@ -34,17 +34,48 @@
   // phones: render at up to 2x (like the web game's pixel-ratio cap) so the S24 isn't drawing 3x the pixels
   if (/Android|iPhone|iPad/i.test(navigator.userAgent)) config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   var bar = document.querySelector("#bar i"), pct = document.querySelector("#pct");
-  var s = document.createElement("script");
-  s.src = "Build/{{{ LOADER_FILENAME }}}";
-  s.onload = function () {
-    createUnityInstance(canvas, config, function (p) { bar.style.width = (100 * p) + "%"; pct.textContent = p < .9 ? "Downloading… " + Math.round(100 * p) + "%" : "Starting…"; })
-      .then(function (inst) {
-        window.slInstance = inst; window.slLoadedAt = performance.now();
-        document.querySelector("#loading").remove(); canvas.focus();
+  // GitHub won't take a file over 100 MB, so a bigger data file is published in parts (StreetLifeBuild.SplitData cuts it up
+  // and fills this list in): they are fetched here and handed to Unity's loader as one blob.
+  var dataParts = /*SL_DATA_PARTS*/[], dataBytes = /*SL_DATA_BYTES*/0;
+  function showP(p) { bar.style.width = (100 * p) + "%"; pct.textContent = p < .9 ? "Downloading… " + Math.round(100 * p) + "%" : "Starting…"; }
+  function fail(e) { document.querySelector("#err").textContent = String(e); }
+  function part(url, onBytes) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error(url + ": " + r.status);
+      if (!r.body || !r.body.getReader) return r.blob().then(function (b) { onBytes(b.size); return b; });
+      var reader = r.body.getReader(), chunks = [];
+      return (function pump() {
+        return reader.read().then(function (x) {
+          if (x.done) return new Blob(chunks);
+          chunks.push(x.value); onBytes(x.value.length);
+          return pump();
+        });
+      })();
+    });
+  }
+  function boot(share) {   // share: how much of the bar the parts have filled already
+    var s = document.createElement("script");
+    s.src = "Build/{{{ LOADER_FILENAME }}}";
+    s.onload = function () {
+      createUnityInstance(canvas, config, function (p) { showP(share + (1 - share) * p); })
+        .then(function (inst) {
+          window.slInstance = inst; window.slLoadedAt = performance.now();
+          document.querySelector("#loading").remove(); canvas.focus();
+        })
+        .catch(fail);
+    };
+    document.body.appendChild(s);
+  }
+  if (dataParts.length) {
+    var got = 0;
+    Promise.all(dataParts.map(function (u) { return part("Build/" + u, function (n) { got += n; showP(.8 * Math.min(1, got / Math.max(1, dataBytes))); }); }))
+      .then(function (blobs) {
+        config.dataUrl = URL.createObjectURL(new Blob(blobs));
+        config.cacheControl = function (url) { return url.indexOf("blob:") === 0 ? "no-store" : "must-revalidate"; };   // the parts are the browser's to cache
+        boot(.8);
       })
-      .catch(function (e) { document.querySelector("#err").textContent = String(e); });
-  };
-  document.body.appendChild(s);
+      .catch(fail);
+  } else boot(0);
   canvas.addEventListener("pointerdown", function () { canvas.focus(); });
 </script>
 </body>

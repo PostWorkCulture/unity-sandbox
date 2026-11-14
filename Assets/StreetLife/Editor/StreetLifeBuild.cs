@@ -75,8 +75,41 @@ namespace StreetLife.EditorTools
             int secs = Mathf.RoundToInt((float)report.summary.totalTime.TotalSeconds);   // (a format spec right before "}}" came out as "F1184")
             File.WriteAllText(Path.Combine(outDir, "build-info.json"),
                 $"{{\"unity\":\"{Application.unityVersion}\",\"built\":\"{System.DateTime.UtcNow:O}\",\"buildBytes\":{bytes},\"seconds\":{secs}}}");
+            Debug.Log("Street Life build: " + SplitData(""));
             if (Quiet ? QuietPublish : Dlg("Street Life", $"WebGL build done in {report.summary.totalTime.TotalMinutes:F1} min.\nDownload: {bytes / 1048576f:F1} MB (compressed).\n\nPublish it to GitHub Pages now?", "Publish", "Not now"))
                 PublishSite();
+        }
+
+        /// GitHub refuses any file over 100 MB, and the data file with every map in is bigger. Past 95 MB it is cut into 45 MB
+        /// parts here; the page (the template's dataParts) fetches them and hands Unity's loader one blob.
+        /// Remote: call StreetLifeBuild.SplitData   (on the build in Builds/site; does nothing if it is small or already cut)
+        public static string SplitData(string arg)
+        {
+            string dir = Path.Combine(SiteDir, "unity", "Build"), page = Path.Combine(SiteDir, "unity", "index.html");
+            if (!Directory.Exists(dir) || !File.Exists(page)) return "no web build";
+            string html = File.ReadAllText(page);
+            if (!html.Contains("/*SL_DATA_PARTS*/[]")) return html.Contains("/*SL_DATA_PARTS*/") ? "the data file is already in parts" : "this page can't take parts (built from the old template)";
+            string data = Directory.GetFiles(dir, "*.data*").FirstOrDefault(f => !f.Contains(".part"));
+            if (data == null) return "no data file";
+            long len = new FileInfo(data).Length; const long limit = 95L << 20, size = 45L << 20;
+            if (len <= limit) return $"data file is {len >> 20} MB: left whole";
+            var names = new System.Collections.Generic.List<string>(); var buf = new byte[1 << 20];
+            using (var src = File.OpenRead(data))
+            {
+                for (int k = 0; src.Position < len; k++)
+                {
+                    string name = Path.GetFileName(data) + ".part" + k; names.Add(name);
+                    using (var dst = File.Create(Path.Combine(dir, name)))
+                    {
+                        long left = size; int n;
+                        while (left > 0 && (n = src.Read(buf, 0, (int)System.Math.Min(buf.Length, left))) > 0) { dst.Write(buf, 0, n); left -= n; }
+                    }
+                }
+            }
+            File.Delete(data);
+            html = html.Replace("/*SL_DATA_PARTS*/[]", "/*SL_DATA_PARTS*/[" + string.Join(",", names.Select(n => "\"" + n + "\"")) + "]").Replace("/*SL_DATA_BYTES*/0", "/*SL_DATA_BYTES*/" + len);
+            File.WriteAllText(page, html);
+            return $"data file of {len >> 20} MB cut into {names.Count} parts";
         }
 
         [MenuItem("Street Life/Build/Publish site to GitHub Pages")]
@@ -101,6 +134,12 @@ namespace StreetLife.EditorTools
             try { log += Git(SiteDir, $"push -f \"{origin}\" gh-pages", 900); }
             finally { EditorUtility.ClearProgressBar(); }
             Debug.Log("Street Life publish:\n" + log);
+            if (log.Contains("rejected]") || log.Contains("error: failed to push") || log.Contains("fatal:"))
+            {   // git says why on the line starting "remote: error: File" or "fatal:"
+                string why = log.Split('\n').FirstOrDefault(l => l.Contains("exceeds GitHub's file size limit") || l.StartsWith("fatal:")) ?? "see the Console";
+                Dlg("Street Life", "NOT published: the push to gh-pages was refused. " + why.Trim(), "OK");
+                return;
+            }
             var site = PagesUrl(origin);
             Dlg("Street Life", $"Pushed to the gh-pages branch.\n\nIf this is the first time: on GitHub open the repo's Settings > Pages and choose 'Deploy from a branch', gh-pages, / (root).\n\nThen: {site}", "OK");
         }

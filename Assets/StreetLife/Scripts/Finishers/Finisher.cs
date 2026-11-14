@@ -30,17 +30,21 @@ namespace StreetLife
 
     public class Finisher
     {
-        const float SC = Fighter.SC, PI = Mathf.PI, TAU = Mathf.PI * 2, G = 34f;   // FLING_G
+        const float SC = Fighter.SC, PI = Mathf.PI, TAU = Mathf.PI * 2;
+        public const float G = 34f;   // FLING_G
         public readonly Fighter a, v;
         public readonly string fx;
         public float t, dur;
         public Vector3 a0, v0, fwd, side;
         public float yaw0, dA;
-        public class Pre { public float t; public Vector3 av, vv; }
+        public class Pre { public float t, len = .45f; public Vector3 av, vv; }
         public Pre pre;
         public bool cine = true, done, gone, bannerOn;
         // camera (web F.focus / camD / camK / camSide / camBack / side)
-        public Vector3? focus; public float camD = 8.5f, camK = 3.5f, camSide = 1, camBack = .22f; public Vector3? camSideVec; public int camMode;
+        public Vector3? focus; public float camD = 8.5f, camK = 3.5f, camSide = 1, camBack = .22f;
+        /// The planned camera (FinPlanner): a direction from the focus and a scale on the move's distance.
+        public Vector3 camDir; public float camScale = 1; public bool camSet;
+        public readonly FinPlan plan;
         public Vector3? imp; public bool abyss;
         // drawing
         public readonly FPose aP = new FPose(), vP = new FPose();
@@ -49,16 +53,13 @@ namespace StreetLife
         readonly List<GameObject> obj = new List<GameObject>();
         readonly HashSet<int> sfxDone = new HashSet<int>(); readonly Dictionary<int, int> sfxEvery = new Dictionary<int, int>();
 
-        public Finisher(Fighter a, Fighter v, string fx, float dur)
+        public Finisher(Fighter a, Fighter v, FinPlan p)
         {
-            this.a = a; this.v = v; this.fx = fx; this.dur = dur;
-            var fwd0 = v.pos - a.pos; fwd0.y = 0; float dA0 = fwd0.magnitude; if (dA0 < 1e-4f) { fwd0 = a.Forward; dA0 = 1; } fwd0 /= dA0;
-            var sp = FinGeo.ClearSpot(v.pos, 2.6f, 5);
-            v0 = sp; float d = Mathf.Clamp(dA0, 1.2f, 2f);
-            a0 = v0 - fwd0 * d; a0.y = v0.y;
-            if (!FinGeo.BodyFits(a0.x, a0.z, a0.y)) { a0 = v0 - fwd0 * 1.2f; a0.y = v0.y; }
+            this.a = a; this.v = v; fx = p.fx; dur = Finishers.Dur[p.fx]; plan = p;
+            // both shuffle over to the planned spot first (a clear spot, the attacker on the side the plan picked)
+            v0 = p.v0; a0 = p.a0;
             bool moved = (v0 - v.pos).magnitude > .25f || (a0 - a.pos).magnitude > .25f;
-            if (moved) pre = new Pre { av = a.pos, vv = v.pos };
+            if (moved) pre = new Pre { av = a.pos, vv = v.pos, len = Mathf.Clamp(.45f + .08f * Mathf.Max((a0 - a.pos).magnitude, (v0 - v.pos).magnitude), .45f, .75f) };
             else { a0 = a.pos; v0 = v.pos; }
             yaw0 = Mathf.Atan2(v0.x - a0.x, v0.z - a0.z);
             a.yaw = yaw0; v.yaw = yaw0 + PI; a.pitch = 0;
@@ -66,6 +67,7 @@ namespace StreetLife
             dA = Flat(a0 - v0).magnitude;
             a.vel = Vector3.zero; v.vel = Vector3.zero; a.cv = 0;
             aYaw = a.yaw; vYaw = v.yaw;
+            if (p.camSet) { camDir = p.camDir; camScale = p.camScale; camSet = true; }
         }
 
         public bool Involves(Fighter f) => f && (f == a || f == v);
@@ -93,7 +95,7 @@ namespace StreetLife
         Vector3 Hand(Fighter f, bool left) => FinisherPose.Hand(f, left);
         static readonly string[] SPLASH = { "#ffffff", "#dff3ff", "#bfe6f5" };
         static Waterside Water { get { var w = MapWorld.I; return w ? w.GetComponent<Waterside>() : null; } }
-        static float WaterY(float x, float z) { var w = Water; return w ? w.WaterY(x, z) : MapRules.DeepWater ? MapRules.LagoonWaterY(x, z, Time.timeSinceLevelLoad) : MapRules.BeachWaterY(x, z, Time.timeSinceLevelLoad); }
+        public static float WaterY(float x, float z) { var w = Water; return w ? w.WaterY(x, z) : MapRules.DeepWater ? MapRules.LagoonWaterY(x, z, Time.timeSinceLevelLoad) : MapRules.BeachWaterY(x, z, Time.timeSinceLevelLoad); }
         static void Splash(float x, float z, float size) { var w = Water; if (w) w.Splash(x, z, size); }
         void TintV(Color c, float k, float smooth = -1) { var p = FinisherPose.Of(v); if (p) p.Tint(c, k, smooth); }
 
@@ -101,7 +103,7 @@ namespace StreetLife
             FIRE = { "#ff3b1f", "#ff7a1f", "#ffb347", "#ffe08a" }, SMOKE = { "#4a4d55", "#6b6f78" }, SMOKE3 = { "#4a4d55", "#6b6f78", "#8a8f99" },
             ICE = { "#ffffff", "#bfeaff" }, ELEC = { "#7ff3ff", "#ffffff" }, BOLT = { "#fff27a", "#7ff3ff", "#ffffff" }, BLOOD = { "#c8102e", "#7d0d17" },
             SPARK = { "#ffffff", "#ffd23f" }, WHITE = { "#ffffff" }, FUSE = { "#ffd23f", "#ff7a1f", "#ffffff" }, GREY = { "#9aa0a8" }, EMBER = { "#ff7a1f", "#ffb347" },
-            PAW = { "#c9bfae" }, WHISTLE = { "#ffffff", "#ffd23f" }, ASH = { "#6b6f78", "#4a4d55", "#ff7a1f" }, ASH3 = { "#4a4d55", "#6b6f78", "#2b2d33" }, HIT = { "#ffffff", "#ffd23f", "#c9bfae" },
+            PAW = { "#c9bfae" }, LEAVES = { "#3f7a2e", "#5e9b3a", "#2d5a22", "#7aa84a" }, WHISTLE = { "#ffffff", "#ffd23f" }, ASH = { "#6b6f78", "#4a4d55", "#ff7a1f" }, ASH3 = { "#4a4d55", "#6b6f78", "#2b2d33" }, HIT = { "#ffffff", "#ffd23f", "#c9bfae" },
             ICEBITS = { "#e6f7ff", "#bfeaff", "#9fd8f5", "#ffffff" }, WALLDUST = { "#c9bfae", "#9a8f80", "#ffffff" }, BLAST = { "#ffb347", "#ff7a1f", "#ffe08a" }, DRIP = { "#7d0d17", "#c8102e" }, PANRUB = { "#8a7f72", "#a89c8a", "#6e665c" }, JETFIRE = { "#ffb347", "#ff7a1f", "#ffffff" }, JETSMOKE = { "#d8dbe2", "#9aa0a8" };
 
         static void Emit(Vector3 p, int n, float speed, float size, float life, float grav, string[] cols, float up = 0) => FinisherFx.Emit(p, n, speed, size, life, grav, cols, up);
@@ -117,6 +119,14 @@ namespace StreetLife
         float FreeLine(int sgn)
         {
             if (sgn > 0 && ffwd >= 0) return ffwd; if (sgn < 0 && fback >= 0) return fback;
+            float m = FreeLineAt(v0, fwd, sgn);
+            if (sgn > 0) ffwd = m; else fback = m;
+            return m;
+        }
+        /// How far the attacker can stand from v0 along -fwd*sgn: short of walls (taller than a step) and never out over a
+        /// roof edge, open water or a drop. (The planner uses it too.)
+        public static float FreeLineAt(Vector3 v0, Vector3 fwd, int sgn)
+        {
             float m = 12;
             foreach (var y in new[] { .35f, 1.2f, 2.0f })
             {
@@ -124,12 +134,37 @@ namespace StreetLife
                 float h = BoxWorld.Ray(o, d, 12, out int ix);
                 if (h >= 0 && ix >= 0 && BoxWorld.Boxes[ix].y1 - v0.y > Fighter.STEP) m = Mathf.Min(m, h - Fighter.R - .05f);
             }
-            // and never out over a roof edge, open water or a drop
             m = Mathf.Min(m, FinGeo.FloorRun(v0, -fwd * sgn, 12) - Fighter.R * .5f);
-            m = Mathf.Max(0, m);
-            if (sgn > 0) ffwd = m; else fback = m;
-            return m;
+            return Mathf.Max(0, m);
         }
+        /// Roast: which way the burning victim runs (the clearest way out, roughly away from the attacker) and how far.
+        public static (float yaw, float len) RoastRun(Vector3 vpos, Vector3 fwd)
+        {
+            float away = Mathf.Atan2(fwd.x, fwd.z); var o = vpos + up * .9f; float by = away, bl = -1;
+            foreach (var da in new[] { 0f, .35f, -.35f, .7f, -.7f, 1.05f, -1.05f, 1.4f, -1.4f })
+            { float y = away + da; float h = BoxWorld.Ray(o, Fwd(y), 10); float Lh = Mathf.Min(h >= 0 ? h - .9f : 10, FinGeo.FloorRun(vpos, Fwd(y), 10) - .4f); if (bl < 0 || Lh > bl + .4f) { by = y; bl = Lh; } }
+            return (by, Mathf.Clamp(bl, .4f, 1.8f));
+        }
+        /// Dog pile: each dog's spot round the body, where it runs in from (along a clear line on the same floor, up to
+        /// 7 m out) and the way it faces out.
+        public static (Vector3 T, Vector3 st, Vector3 o)[] DogSpots(Vector3 v0, Vector3 fwd, Vector3 side)
+        {
+            var C = v0 + fwd * 1.3f * SC; var spots = new[] { (-1f, .55f), (1f, .55f), (-1f, -.55f), (1f, -.55f) };
+            var r = new (Vector3, Vector3, Vector3)[4];
+            for (int i = 0; i < 4; i++)
+            {
+                var (s, f) = spots[i]; var T = C + side * s * 1.05f * SC + fwd * f * 1.0f * SC; T.y = v0.y;
+                var o = (side * s * .75f + fwd * f * .65f).normalized;
+                float run = FinGeo.FloorRun(new Vector3(T.x, v0.y, T.z), o, 7);
+                foreach (var y in new[] { .25f, .6f }) { float h = BoxWorld.Ray(new Vector3(T.x, v0.y + y, T.z), o, 7); if (h >= 0) run = Mathf.Min(run, h - .45f); }
+                r[i] = (T, T + o * Mathf.Max(.6f, run), o);
+            }
+            return r;
+        }
+        /// Sky drop: how high the jetpack can go above a spot (under any roof, up to 20 m).
+        public static float SkyH(Vector3 apos) { float h = BoxWorld.Ray(apos + up * 2.6f, up, 24); return h >= 0 ? Mathf.Max(0, h - .4f) : 20; }
+        /// Knockout: how high above T the gloves can drop from (under any roof, up to 10 m).
+        public static float GloveTop(Vector3 T) { float h = BoxWorld.Ray(T + up * .5f, up, 10); return h >= 0 ? Mathf.Max(1.2f, h + .5f - .4f) : 10; }
         void SetAtt(float dist, float dt)
         {
             dist = dist >= 0 ? Mathf.Min(dist, FreeLine(1)) : -Mathf.Min(-dist, FreeLine(-1));
@@ -163,7 +198,7 @@ namespace StreetLife
             if (pre != null)
             {
                 // both shuffle over to the clear spot first (web F.pre, .45 s)
-                pre.t += dt; float u = Mathf.Min(1, pre.t / .45f), e = u * u * (3 - 2 * u);
+                pre.t += dt; float u = Mathf.Min(1, pre.t / pre.len), e = u * u * (3 - 2 * u);
                 var pv = Vector3.Lerp(pre.vv, v0, e); var pa = Vector3.Lerp(pre.av, a0, e);
                 v.vel = (pv - v.pos) / dt; a.vel = (pa - a.pos) / dt; v.pos = pv; a.pos = pa;
                 a.yaw = Mathf.Atan2(v.pos.x - a.pos.x, v.pos.z - a.pos.z); v.grounded = a.grounded = true;
@@ -201,37 +236,17 @@ namespace StreetLife
         float TL => Finishers.I ? t - Fighter.SIM * (1 - v.Alpha) : t;
 
         // ------------------------------------------------------------------ flings (web flingOut / flingStart / flingUpd)
-        public class Fall { public Vector3 v; public float rx, t0, spin; public bool pass; public bool? edgeOK; }
+        public class Fall { public Vector3 v; public float rx, t0, spin; public bool pass, leaves; public bool? edgeOK; }
         public Fall fall;
-        public struct Throw { public Vector3 dir; public float up, spd, yaw; }
+        public struct Throw { public Vector3 dir, start; public float up, spd, yaw, cost; public bool ok; public Vector3 vel => dir * spd + Vector3.up * up; }
 
-        /// A throw that takes the body right out of the arena (over the fences): tries 32 directions, works out the speed and
-        /// height to clear whatever's in the way, and picks one of the three cheapest.
-        Throw FlingOut(Vector3 o, float upMin)
+        /// The throw out of the arena from o: the planned one if it's still clear from here, else a fresh one (the planner's
+        /// sweep: high enough to clear everything solid on the way, glass and crates breaking).
+        Throw TakeThrow(Vector3 o, float upMin)
         {
-            var b = BoxWorld.Bounds; var BX = new List<Box>();
-            foreach (var q in BoxWorld.Boxes) if (!FinGeo.EdgeBox(q) && q.y1 > o.y + .5f && q.y1 > -999) BX.Add(q);
-            float a0r = Rnd(0, TAU); var cs = new List<(float y, float up, float spd, float cost)>();
-            for (int i = 0; i < 32; i++)
-            {
-                float y = a0r + i / 32f * TAU, dx = Mathf.Sin(y), dz = Mathf.Cos(y);
-                float tx = dx > 1e-6f ? (b.x1 - o.x) / dx : dx < -1e-6f ? (b.x0 - o.x) / dx : 1e9f, tz = dz > 1e-6f ? (b.z1 - o.z) / dz : dz < -1e-6f ? (b.z0 - o.z) / dz : 1e9f;
-                float Lb = Mathf.Max(1, Mathf.Min(tx, tz)), R = Lb + 7;
-                var tops = new List<(float s, float top)>();
-                for (float s = 1.5f; s <= Lb + 2; s += 1.5f) tops.Add((s, FinGeo.TopAt(o.x + dx * s, o.z + dz * s, BX)));
-                float upv = upMin, spd = R * G / (2 * upv);
-                for (int it = 0; it < 3; it++)
-                {
-                    float need = upMin;
-                    foreach (var (s, top) in tops) { float tt = s / spd; need = Mathf.Max(need, (top - (o.y + 1) + 1.2f + G / 2 * tt * tt) / tt); }
-                    if (need <= upv + .01f) break;
-                    upv = Mathf.Min(40, need); spd = R * G / (2 * upv);
-                }
-                cs.Add((y, upv, spd, R + upv * 1.5f));
-            }
-            cs.Sort((p, q) => p.cost.CompareTo(q.cost));
-            var k = cs[Random.Range(0, Mathf.Min(3, cs.Count))];
-            return new Throw { dir = Fwd(k.y), up = k.up, spd = Mathf.Min(k.spd, 70), yaw = k.y };
+            if (plan != null && plan.thr.HasValue && FinPlanner.Clean(o, plan.thr.Value, v0.y)) { var k = plan.thr.Value; k.start = o; return k; }
+            var L = FinPlanner.Throws(_ => o, upMin, v0.y);
+            return L[0];
         }
 
         void FlingStart(Vector3 dir, float spd, float upV, bool pass)
@@ -244,30 +259,26 @@ namespace StreetLife
         /// Moves the flying body; on impact: a crater (or wall dust), the body bursts into blocks, and the move's call-out.
         bool FlingUpd(float dt, string big, string sub, string lose, float power, float upk, bool stiff = false, System.Action<Vector3, bool> onHit = null)
         {
-            var P = fall; var prev = v.pos + up * SC;
-            P.v.y -= G * dt; v.pos += P.v * dt; P.rx += dt * P.spin; float k = t * 10;
+            var P = fall; var prevFeet = v.pos;
+            P.v.y -= G * dt; P.rx += dt * P.spin; float k = t * 10;
             if (stiff) { if (frozen != null) vP.Copy(frozen); vP.Root(P.rx, v.yaw, 0).Snap(45); }
             else vP.Root(P.rx, v.yaw, Mathf.Sin(P.rx * .7f) * .4f).Ar(-2.8f, 0, .6f + Mathf.Sin(k) * .3f).Al(-2.8f, 0, -.6f - Mathf.Sin(k) * .3f).Ll(.5f).Lr(-.4f).Snap(45);
             if (Random.value < .6f) Emit(v.pos + up, 1, .2f, .25f, .4f, 0, WHITE);
             dur = Mathf.Max(dur, t + .6f);
-            var cur = v.pos + up * SC; var dd = cur - prev; float Ld = dd.magnitude;
-            Vector3? wallAt = null;
-            if (Ld > 1e-4f)
+            // the body (a box round its middle) is swept along this step: glass, crates, bins and drums on the way break and
+            // it carries on, the arena's invisible walls let it out, and anything else stops it (web breakProp / the wall
+            // hit); landing on top of something counts as landing
+            var step = P.v * dt; Vector3? wallAt = null; float topAt = FinGeo.NONE;
+            if (FinPlanner.Step(prevFeet + up * SC, step, null, true, a, out var at, out var nrm))
             {
-                var dir = dd / Ld; var o = prev; float left = Ld + .35f * SC;
-                for (int guard = 0; guard < 4 && left > 0; guard++)
-                {
-                    float h = BoxWorld.Ray(o, dir, left, out int ix); if (h < 0 || ix < 0) break;
-                    var bx = BoxWorld.Boxes[ix]; var at = o + dir * h;
-                    // breakable things on the way (glass, crates, bins) break and the body carries on (web breakProp)
-                    // (glass, crates, bins and drums: not trees or climbing frames, which stop the body like a wall)
-                    if ((bx.glass || (bx.prop && bx.y1 - bx.y0 < 1.8f)) && Destruction.Hit(ix, 1000, at, dir, a)) { P.edgeOK = true; o = at + dir * .05f; left -= h + .05f; continue; }
-                    if (FinGeo.EdgeBox(bx)) { if (P.edgeOK == null) P.edgeOK = P.pass; if (P.edgeOK == true) { o = at + dir * .05f; left -= h + .05f; continue; } }
-                    wallAt = at; break;
-                }
+                if (nrm.y > .5f && P.v.y < 0) { v.pos = at - up * SC; topAt = FinGeo.GroundAt(v.pos.x, v.pos.z, v.pos.y + .6f); }
+                else { wallAt = at; v.pos = at - up * SC; }
             }
+            else v.pos = prevFeet + step;
+            // through a tree's leaves: they're knocked off (leaves aren't solid)
+            if (FinPlanner.InLeaves(v.pos + up * SC)) { if (Random.value < .7f) Emit(v.pos + up * SC, 3, 3, .14f, .9f, 4, LEAVES, 1); if (!P.leaves) { P.leaves = true; Emit(v.pos + up * SC, 24, 5, .16f, 1.2f, 4, LEAVES, 2); Sfx.Play("whiz", v.pos, .6f, 30); } }
             bool over = FinGeo.OverMap(v.pos.x, v.pos.z);
-            float gs = over ? FinGeo.SurfaceAt(v.pos.x, v.pos.z, prev.y - SC + .2f) : FinGeo.NONE;
+            float gs = topAt > FinGeo.NONE + 1 ? topAt : over ? FinGeo.SurfaceAt(v.pos.x, v.pos.z, prevFeet.y + .2f) : FinGeo.NONE;
             // deep water (Lagoon): into the lagoon with a splash, and gone (web: M.waterY)
             if (!wallAt.HasValue && MapRules.DeepWater && gs <= FinGeo.NONE + 1)
             {
@@ -289,7 +300,7 @@ namespace StreetLife
             }
             Vector3? hit = null; bool wall = false;
             if (wallAt.HasValue) { hit = wallAt; wall = true; }
-            else if ((P.v.y < 0 && v.pos.y <= gs) || t - P.t0 > 4) hit = new Vector3(v.pos.x, Mathf.Max(gs, v.pos.y), v.pos.z);
+            else if ((P.v.y < 0 && v.pos.y <= gs + 1e-3f) || t - P.t0 > 4) hit = new Vector3(v.pos.x, Mathf.Max(gs, v.pos.y), v.pos.z);
             if (!hit.HasValue) return false;
             done = true; var c = hit.Value; float fl = !wall ? gs : FinGeo.GroundAt(c.x, c.z, c.y);
             onHit?.Invoke(c, wall);
@@ -343,7 +354,7 @@ namespace StreetLife
             {
                 var c = v.pos + up * 1.3f * SC; Emit(c, 24, 6, .16f, .4f, 6, ICE); Shake(.7f); Slow(.3f);
                 FinisherFx.Flash(c, "#dff6ff", 1.6f);
-                var k = FlingOut(v.pos, 13); FlingStart(k.dir, k.spd, k.up, true); fall.spin *= .45f;
+                var k = TakeThrow(v.pos, 13); FlingStart(k.dir, k.spd, k.up, true); fall.spin *= .45f;
             }
             if (fall != null && !done)
             {
@@ -363,13 +374,14 @@ namespace StreetLife
             var C = v0 + fwd * 1.3f * SC;
             if (dogs == null)
             {
-                string[] cols = { "#8a5a34", "#2b2d33", "#d9a441", "#d8dbe2" }; var spots = new[] { (-1f, .55f), (1f, .55f), (-1f, -.55f), (1f, -.55f) };
+                string[] cols = { "#8a5a34", "#2b2d33", "#d9a441", "#d8dbe2" };
+                // each dog runs in along a clear line on the same floor (never through a wall, car or fence), and back out the same way
+                var spots = DogSpots(v0, fwd, side);
                 dogs = new FinisherProps.Dog[4];
                 for (int i = 0; i < 4; i++)
                 {
-                    var (s, f) = spots[i]; var d = FinisherProps.DogMesh(cols[i]); obj.Add(d.g.gameObject);
-                    d.T = C + side * s * 1.05f * SC + fwd * f * 1.0f * SC;
-                    d.@out = (side * s * .75f + fwd * f * .65f).normalized; d.st = d.T + d.@out * Mathf.Max(3, FinGeo.FloorRun(new Vector3(d.T.x, v0.y, d.T.z), d.@out, 13));
+                    var d = FinisherProps.DogMesh(cols[i]); obj.Add(d.g.gameObject);
+                    (d.T, d.st, d.@out) = spots[i];
                     d.face = Mathf.Atan2(-d.@out.x, -d.@out.z); d.i = i; d.g.position = d.st; d.g.gameObject.SetActive(false); dogs[i] = d;
                 }
             }
@@ -420,7 +432,7 @@ namespace StreetLife
                 if (t < t1 || (done && t >= 3.05f))
                 {
                     bool run = t < t1; float u = run ? EaseOut(Seg(t, t0, t1)) : Seg(t, 3.05f, 3.9f);
-                    var p = run ? Vector3.Lerp(d.st, d.T, u) : d.T + d.@out * u * 14;
+                    var p = run ? Vector3.Lerp(d.st, d.T, u) : Vector3.Lerp(d.T, d.st, u);
                     d.g.position = new Vector3(p.x, v0.y + Mathf.Abs(Mathf.Sin(t * 18)) * .12f, p.z);
                     d.g.rotation = Quaternion.Euler(0, (run ? d.face : d.face + PI) * Mathf.Rad2Deg + 180, 0);
                     float k = t * 20 + d.i;
@@ -446,8 +458,17 @@ namespace StreetLife
         void SkyDrop(float dt)
         {
             if (t < .3f) vDown = false;
-            if (!H.HasValue && t >= .3f) { float h = BoxWorld.Ray(a.pos + up * 2.6f, up, 24); H = h >= 0 ? Mathf.Max(0, h - .4f) : 20; }
-            if (!ty.HasValue && t >= 1.4f) { var k = FlingOut(v0 + up * (H ?? 0), 6); ty = k.yaw; tyK = k; }
+            if (!H.HasValue && t >= .3f) H = SkyH(a.pos);
+            if (!ty.HasValue && t >= 1.4f)
+            {
+                // the planned direction (its flight checked clear from the top), else a fresh one from up here
+                float hy = v0.y + (H ?? 0); var ap = new Vector3(a.pos.x, hy, a.pos.z);
+                System.Func<Vector3, Vector3> from = d => ap + d * .41f + up * 1.69f;
+                Throw k;
+                if (plan != null && plan.thr.HasValue && FinPlanner.Clean(from(plan.thr.Value.dir), plan.thr.Value, v0.y)) k = plan.thr.Value;
+                else k = FinPlanner.Throws(from, 6, v0.y)[0];
+                ty = k.yaw; tyK = k;
+            }
             float Hh = H ?? 0, rise = EaseOut(Seg(t, .55f, 1.55f)), dip = Mathf.Sin(Seg(t, .35f, .55f) * PI) * .3f, down = EaseIO(Seg(t, 2.1f, 3.3f));
             SetAtt(L(dA, 1.0f, EaseIO(Seg(t, .05f, .3f))), dt);
             a.pos = new Vector3(a.pos.x, v0.y + Hh * (t < 2.1f ? rise : 1 - down) - dip, a.pos.z); if (t > .55f) a.vel = Vector3.zero;
@@ -515,7 +536,7 @@ namespace StreetLife
                 pot.g.gameObject.SetActive(false); var c = gp; FinisherFx.Flash(c, "#ffd27a", 3.4f);
                 Emit(c, 60, 11, .35f, .7f, 2, BLAST); Emit(c, 30, 3, .35f, 1.2f, -1.2f, SMOKE3, 3);
                 FinisherFx.Decal(v.pos.x, v0.y, v.pos.z, 1.6f, "#1d1b1a"); charK = .85f; Shake(1); Slow(.4f); Vig(.2f);
-                var k = FlingOut(v.pos, 13); FlingStart(k.dir, k.spd, k.up, true);
+                var k = TakeThrow(v.pos, 13); FlingStart(k.dir, k.spd, k.up, true);
             }
             if (charK > 0) TintV(FinisherFx.C("#231d1a"), charK);
             if (fall != null && !done) FlingUpd(dt, "Hot potato!", "Hot potato", "You held the hot potato", 10, 6);
@@ -588,13 +609,13 @@ namespace StreetLife
             focus = new Vector3((a.pos.x + v0.x) / 2, v0.y + (t > 1.5f && t < 2.6f ? 2.3f : 1.7f), (a.pos.z + v0.z) / 2); camD = 5.6f; camSide = .8f; camBack = -.6f;
         }
 
-        Transform[] gloves; bool ko; Vector3 T; float fy, ph, jolt; int lastI = -1; bool[] caught = new bool[2];
+        Transform[] gloves; bool ko; Vector3 T; float fy, ph, jolt, gloveTop = 10; int lastI = -1; bool[] caught = new bool[2];
         void Knockout(float dt)
         {
             var C = v0 + fwd * 1.15f * SC;
             if (!ko)
             {
-                ko = true; v.yaw = yaw0; T = C + side * 1.15f; fy = Mathf.Atan2(-side.x, -side.z);
+                ko = true; v.yaw = yaw0; T = C + side * 1.15f; fy = Mathf.Atan2(-side.x, -side.z); gloveTop = GloveTop(T);   // the gloves drop from under any roof
                 gloves = new[] { Keep(FinisherProps.GloveMesh()), Keep(FinisherProps.GloveMesh()) };
                 foreach (var g in gloves) g.gameObject.SetActive(false);
                 pal = FinisherFx.Palette(v);
@@ -635,7 +656,7 @@ namespace StreetLife
             {
                 Shake(.9f); Vig(.2f); FinisherFx.Decal(C.x, v0.y, C.z, 1.3f, "#2b2622", "#8a7f72");
                 for (int i = 0; i < 20; i++) { float an = i / 20f * TAU; Emit(new Vector3(C.x + Mathf.Cos(an) * .6f, v0.y + .2f, C.z + Mathf.Sin(an) * .6f), 2, 7, .35f, .6f, 0, DUST, 1); }
-                var k = FlingOut(v.pos, 15); FlingStart(k.dir, k.spd, k.up, true);
+                var k = TakeThrow(v.pos, 15); FlingStart(k.dir, k.spd, k.up, true);
             }
             if (fall != null && !done) FlingUpd(dt, "Knockout!", "Knockout", "You got knocked out", 8, 7);
             focus = new Vector3((a.pos.x + C.x) / 2, v0.y + (look ? 2.6f : 1.2f), (a.pos.z + C.z) / 2); camD = 6.5f; camSide = .9f; camBack = .35f;
@@ -650,7 +671,7 @@ namespace StreetLife
                 if (tl < 1.55f)
                 {
                     // the gloves drop out of the sky, spinning, into his hands
-                    float k = EaseIn(Seg(tl, 1.0f, 1.55f)); var top = T + new Vector3(i == 1 ? -.5f : .5f, 10, 0);
+                    float k = EaseIn(Seg(tl, 1.0f, 1.55f)); var top = T + new Vector3(i == 1 ? -.5f : .5f, gloveTop, 0);
                     g.position = Vector3.Lerp(top, hand, k); g.rotation = Quaternion.Euler((tl * 14 + i) * Mathf.Rad2Deg, tl * 9 * Mathf.Rad2Deg, tl * 6 * Mathf.Rad2Deg);
                 }
                 else { g.rotation = FinisherPose.ArmRot(a, i == 1); g.position = hand; }
@@ -686,13 +707,7 @@ namespace StreetLife
                 else if (t < 1.35f)
                 {
                     // two panicked running steps away from the fire, picking the clearest way out
-                    if (!fd.HasValue)
-                    {
-                        float away = Mathf.Atan2(fwd.x, fwd.z); var o = v.pos + up * .9f; float by = away, bl = -1;
-                        foreach (var da in new[] { 0f, .35f, -.35f, .7f, -.7f, 1.05f, -1.05f, 1.4f, -1.4f })
-                        { float y = away + da; float h = BoxWorld.Ray(o, Fwd(y), 10); float Lh = Mathf.Min(h >= 0 ? h - .9f : 10, FinGeo.FloorRun(v.pos, Fwd(y), 10) - .4f); if (bl < 0 || Lh > bl + .4f) { by = y; bl = Lh; } }
-                        fd = by; fL = Mathf.Clamp(bl, .4f, 1.8f); fs = v.pos;
-                    }
+                    if (!fd.HasValue) { var (ry, rl) = RoastRun(v.pos, fwd); fd = ry; fL = rl; fs = v.pos; }
                     float u = Seg(t, .75f, 1.35f), d = fL * u, zig = Mathf.Sin(u * 6) * .25f * Mathf.Min(1, u * 3);
                     var dir = Fwd(fd.Value); var perp = new Vector3(dir.z, 0, -dir.x);
                     float nx = fs.x + dir.x * d + perp.x * zig, nz = fs.z + dir.z * d + perp.z * zig, ny = FinGeo.GroundAt(nx, nz, v.pos.y + .6f);
@@ -877,7 +892,7 @@ namespace StreetLife
             if (t >= 1.8f && fall == null)
             {
                 FinisherFx.Flash(chest, "#ffe08a", 1.4f); Emit(chest, 30, 9, .16f, .35f, 0, SPARK); Shake(1); Slow(.35f); Vig(.2f);
-                var k = FlingOut(v.pos, 18); FlingStart(k.dir, k.spd, k.up, true);
+                var k = TakeThrow(v.pos, 18); FlingStart(k.dir, k.spd, k.up, true);
             }
             if (fall != null && !done) FlingUpd(dt, "Combat!", "Combat", "You got harpooned and uppercut", 9, 6);
             focus = new Vector3((a.pos.x + v.pos.x) / 2, v0.y + 1.4f, (a.pos.z + v.pos.z) / 2); camD = 8;
