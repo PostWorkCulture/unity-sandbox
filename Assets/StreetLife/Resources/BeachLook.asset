@@ -67,6 +67,15 @@ MonoBehaviour:
     metallic: 0
     shift: {r: 1, g: 1, b: 1, a: 1}
     upright: 0
+  - name: boards
+    material: {fileID: 2100000, guid: 55cd9422589982e4495933e882c18968, type: 2}
+    metres: 1.2
+    tinted: 1
+    reference: {r: 1, g: 1, b: 1, a: 1}
+    keepGloss: 0
+    metallic: 0
+    shift: {r: 1, g: 1, b: 1, a: 1}
+    upright: 1
   - name: post
     material: {fileID: 2100000, guid: 7387b46383ebc394fac1e57563aec572, type: 2}
     metres: 1.2

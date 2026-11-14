@@ -10,6 +10,8 @@
 //    lamps) are hidden: every one of those has a real light next to it already.
 //  - Bounce light and reflections: MapBakedLight (a box-projected probe in the Tiki Bar).
 //  - Props: MapProps rebuilds the loungers, umbrellas and drums.
+//  - The coloured steps up to the terrace: each step's plain block is clad in painted tongue-and-groove boards in its own
+//    colour, with white corner boards, a white nosing on every tread edge and a kickboard at the sand (Steps).
 //  - The sea's sun glint is toned down (the water shader breaks it into glitter now).
 using System.Collections.Generic;
 using UnityEngine;
@@ -98,6 +100,7 @@ namespace StreetLife
             if (wj == null || wj.meshes == null) return;
             var bin = e.mapBin.bytes;
             var made = new Dictionary<Material, Material>();
+            var rainbow = new List<(Vector3[] verts, Color colour)>();
             int n = 0, hidden = 0;
             foreach (Transform t in geo)
             {
@@ -114,12 +117,87 @@ namespace StreetLife
                 if (!made.TryGetValue(src, out var m)) { m = RailLook.Make(s, src); made[src] = m; }
                 var mesh = MeshIO.Build(bin, wj.meshes[i], nm);
                 RailLook.WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == "grass", s.upright);
+                if (rule == "paint" && Rainbow.Contains(ColorUtility.ToHtmlStringRGB(src.GetColor("_BaseColor")).ToLowerInvariant())) rainbow.Add((mesh.vertices, src.GetColor("_BaseColor")));
                 var old = mf.sharedMesh; mf.sharedMesh = mesh; if (old) Object.Destroy(old);
                 mesh.UploadMeshData(true);
                 mr.sharedMaterial = m;
                 n++;
             }
-            Debug.Log("Beach look: " + n + " meshes on " + made.Count + " new surfaces, " + hidden + " glow cards hidden");
+            int steps = Steps(w, set, wj, rainbow);
+            Debug.Log("Beach look: " + n + " meshes on " + made.Count + " new surfaces, " + hidden + " glow cards hidden, " + steps + " steps clad");
+        }
+
+        // ------------------------------------------------------------------ the coloured steps
+        static readonly HashSet<string> Rainbow = new HashSet<string> { "2f7fe0", "f4c22b", "e8463a", "3bb54a", "f08a24", "1f9a9a", "a05ad6", "ff8fab" };
+
+        // A step is a collision box a metre wide standing on the sand whose top front corners are corners of one of the rainbow
+        // meshes: that also tells its colour. The new cladding sits a centimetre outside the old block, so the block is hidden
+        // and nothing about how you walk the steps changes.
+        static int Steps(MapWorld w, RailLookSet set, WorldJson wj, List<(Vector3[] verts, Color colour)> rainbow)
+        {
+            var boards = set.Get("boards"); var paint = set.Get("paint");
+            if (boards == null || !boards.material || paint == null || !paint.material || wj.boxes == null || rainbow.Count == 0) return 0;
+            var steps = new List<(WBox b, Color c)>();
+            foreach (var b in wj.boxes)
+            {
+                if (b.y0 > .5f || Mathf.Abs(b.z1 - b.z0 - 1f) > .03f || b.y1 - b.y0 < .3f) continue;
+                foreach (var r in rainbow)
+                    if (Has(r.verts, b.x1, b.y1, b.z0) && Has(r.verts, b.x1, b.y1, b.z1)) { steps.Add((b, r.colour)); break; }
+            }
+            if (steps.Count == 0) return 0;
+            const float d = .01f;
+            var bodies = new Dictionary<Color, MapProps.Mb>(); var trim = new MapProps.Mb();
+            foreach (var (b, c) in steps)
+            {
+                if (!bodies.TryGetValue(c, out var mb)) { mb = new MapProps.Mb(); bodies[c] = mb; }
+                mb.Box(new Vector3((b.x0 + b.x1 + d) / 2, (b.y0 + b.y1 + d) / 2, (b.z0 + b.z1) / 2), new Vector3(b.x1 + d - b.x0, b.y1 + d - b.y0, b.z1 - b.z0 + d * 2));
+                float zc = (b.z0 + b.z1) / 2, top = b.y1 + d;
+                // nosing along the front of the tread, and along each side that drops to a lower step or to the sand
+                trim.Box(new Vector3(b.x1 - .005f, top - .02f, zc), new Vector3(.08f, .065f, b.z1 - b.z0 + .03f), .014f, Quaternion.identity);
+                foreach (float ze in new[] { b.z0, b.z1 })
+                {
+                    float beyond = ze == b.z0 ? ze - .5f : ze + .5f;
+                    if (TopAt(wj, b.x1 - .6f, beyond, b.y1 + .2f) > b.y1 - .1f) continue;
+                    trim.Box(new Vector3((b.x0 + b.x1) / 2 + .015f, top - .02f, ze), new Vector3(b.x1 - b.x0 + .03f, .065f, .08f), .014f, Quaternion.identity);
+                }
+                // corner boards up the front, and a kickboard along the sand
+                foreach (float ze in new[] { b.z0 + .03f, b.z1 - .03f })
+                    trim.Box(new Vector3(b.x1 + d + .008f, (b.y0 + top - .05f) / 2, ze), new Vector3(.02f, top - .05f - b.y0, .06f));
+                trim.Box(new Vector3(b.x1 + d + .01f, b.y0 + .07f, zc), new Vector3(.025f, .14f, b.z1 - b.z0));
+            }
+            var root = new GameObject("Coloured steps").transform; root.SetParent(w.transform, false);
+            foreach (var kv in bodies)
+            {
+                var mesh = kv.Value.Build("steps"); RailLook.WorldUV(mesh, Mathf.Max(.1f, boards.metres), false, boards.upright);
+                var m = new Material(boards.material) { name = "step boards" }; var c = kv.Key; c.a = 1; m.SetColor("_BaseColor", c); m.SetFloat("_Smoothness", 1f);
+                Piece(root, "steps", mesh, m);
+            }
+            var tm = trim.Build("step trim"); RailLook.WorldUV(tm, Mathf.Max(.1f, paint.metres), false, false);
+            var white = new Material(paint.material) { name = "step trim" }; white.SetColor("_BaseColor", Hex.ToColor("#f4f1ea")); white.SetFloat("_Smoothness", 1f);
+            Piece(root, "trim", tm, white);
+            return steps.Count;
+        }
+
+        static bool Has(Vector3[] verts, float x, float y, float z)
+        {
+            foreach (var v in verts) if (Mathf.Abs(v.x - x) < .03f && Mathf.Abs(v.y - y) < .03f && Mathf.Abs(v.z - z) < .03f) return true;
+            return false;
+        }
+
+        // how high the solid ground stands at a spot (the tallest collision box under it that starts below the given height)
+        static float TopAt(WorldJson wj, float x, float z, float below)
+        {
+            float top = 0;
+            foreach (var b in wj.boxes) if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && b.y0 < below && b.y1 > top) top = b.y1;
+            return top;
+        }
+
+        static void Piece(Transform root, string name, Mesh mesh, Material mat)
+        {
+            var go = new GameObject(name); go.transform.SetParent(root, false);
+            mesh.RecalculateBounds(); mesh.UploadMeshData(true);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
         }
 
         // the sand MapWorld built from the map's extras: mapped onto the sand texture's rectangle and given the standard lit sand

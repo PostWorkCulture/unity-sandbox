@@ -14,7 +14,7 @@ namespace StreetLife
     public static class MapProps
     {
         // ------------------------------------------------------------------ a small mesh builder
-        class Mb
+        internal class Mb
         {
             public readonly List<Vector3> v = new List<Vector3>(), n = new List<Vector3>();
             public readonly List<Vector2> uv = new List<Vector2>();

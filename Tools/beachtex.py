@@ -1,5 +1,5 @@
 # Beach Please surfaces (same kit as railtex.py, which must sit next to this file): sand detail and base, rock, deck planks,
-# thatch, bamboo, wicker, canvas for the props, the drums' label.   python3 beachtex.py <out folder> [names]
+# thatch, bamboo, wicker, canvas for the props, the drums' label, painted boards for the steps.   python3 beachtex.py <out folder> [names]
 import numpy as np, sys, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 exec(open(os.path.join(HERE, 'railtex.py')).read().split("which = sys.argv[2:]")[0])   # the noise, normal-map and save helpers
@@ -60,11 +60,11 @@ def rock():
     beds = norm01(np.sin((V * 9 + (ndi.gaussian_filter(spectral(224, 2.2, 1, 6), (0, 40), mode='wrap') - .5) * 3.2 + (mid - .5) * .5) * 6.2831853))
     beds = smooth(.2, .8, beds)
     F1, F2, ids, n = worley(225, 4, 1.0)
-    crack = (1 - smooth(.0, .03, F2 - F1 + (mid - .5) * .06)) * smooth(.35, .7, spectral(229, 2.2, 1, 6))
+    crack = (1 - smooth(.0, .016, F2 - F1 + (mid - .5) * .05)) * smooth(.45, .8, spectral(229, 2.2, 1, 6))   # a few fine joints, not a net
     r = rng(226); blockh = r.random(n)[ids]
     pits = smooth(.8, .88, spectral(227, .9, 40))
-    h = norm01(.5 + (big - .5) * .7 + (beds - .5) * .07 + (blockh - .5) * .3 + (mid - .5) * .45 + (fine - .5) * .1 - crack * .3 - pits * .12)
-    m = (.84 + big * .18) * (.97 + beds * .05) * (.92 + (blockh - .5) * .14) * (.95 + fine * .08) * (1 - crack * .25) * (1 - pits * .2)
+    h = norm01(.5 + (big - .5) * .7 + (beds - .5) * .07 + (blockh - .5) * .1 + (mid - .5) * .5 + (fine - .5) * .1 - crack * .1 - pits * .12)
+    m = (.84 + big * .18) * (.97 + beds * .05) * (.97 + (blockh - .5) * .05) * (.95 + fine * .08) * (1 - crack * .12) * (1 - pits * .2)
     m *= (.8 + .2 * cavity(h, 6))
     warm = smooth(.5, .9, spectral(228, 2.4, 1, 5))
     c = np.dstack([m * (1 + warm * .05), m, m * (1 - warm * .07)])
@@ -179,5 +179,23 @@ def drum_label():
     d.ellipse([n / 2 - 11 * S, 190 * S, n / 2 + 11 * S, 212 * S], fill=(28, 29, 34, 255))
     im.resize((256, 256), Image.LANCZOS).save(f'{OUT}/drum_label.png'); print('drum_label')
 
-which = sys.argv[2:] or ['sand', 'sand_base', 'rock', 'planks', 'thatch', 'bamboo', 'wicker', 'fabric', 'drum_label']
+# ------------------------------------------------------------------ painted tongue-and-groove boards, tinted (1.2 m: 10 boards along u): the coloured steps
+def boards():
+    nb = 10; r = rng(281)
+    row = np.floor(V * nb).astype(int); fv = V * nb - row
+    edge = np.minimum(fv, 1 - fv)
+    groove = 1 - smooth(.0, .06, edge)                                 # the V between two boards
+    round_ = smooth(.0, .2, edge)
+    tone = (.965 + r.random(nb) * .07)[row]; lift = (r.random(nb) - .5)[row]
+    grain = norm01(ndi.gaussian_filter(spectral(282, 1.2, 4, 110), (.7, 30), mode='wrap'))
+    brush = norm01(ndi.gaussian_filter(spectral(283, .6, 60), (.5, 46), mode='wrap'))
+    big = spectral(284, 2.4, 1, 6); mid = spectral(285, 2.0, 3, 30)
+    chip = smooth(.9, .97, spectral(286, 1.4, 14, 90)) * (1 - smooth(.03, .16, edge))   # paint worn off along the edges
+    h = norm01(round_ * .5 + lift * .08 + (grain - .5) * .1 + (brush - .5) * .05 - groove * .9 - chip * .08)
+    m = tone * (.975 + (grain - .5) * .05) * (.985 + (brush - .5) * .04) * (.96 + big * .06) * (1 - groove * .5) * (1 - chip * .22)
+    c = np.dstack([m, m, m])
+    sm = .44 + (mid - .5) * .12 + (brush - .5) * .06 - groove * .25 - chip * .25
+    save('boards', np.clip(c, 0, 1), sm, normal_map(blur(h, .6), 1.2, .009))
+
+which = sys.argv[2:] or ['sand', 'sand_base', 'rock', 'planks', 'thatch', 'bamboo', 'wicker', 'fabric', 'drum_label', 'boards']
 for w in which: globals()[w]()

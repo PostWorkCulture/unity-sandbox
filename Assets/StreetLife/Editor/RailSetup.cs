@@ -37,6 +37,7 @@ namespace StreetLife.EditorTools
             new Def { name = "bamboo", metres = 1.2f, reference = "#ffffff" },
             new Def { name = "wicker", metres = .8f, reference = "#ffffff" },
             new Def { name = "fabric", metres = .4f, tinted = true },
+            new Def { name = "boards", metres = 1.2f, tinted = true, upright = true },
             new Def { name = "post", tex = "wood", dir = RailDir, metres = 1.2f, tinted = true, upright = true },
             new Def { name = "paint", tex = "metal", dir = RailDir, metres = 1.5f, tinted = true, keepGloss = true },
             new Def { name = "grass", dir = RailDir, metres = 6f, tinted = true },
