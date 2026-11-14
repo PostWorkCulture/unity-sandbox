@@ -72,8 +72,9 @@ namespace StreetLife.EditorTools
             if (File.Exists(cmp)) File.Copy(cmp, Path.Combine(SiteDir, "index.html"), true);
             File.WriteAllText(Path.Combine(SiteDir, ".nojekyll"), "");
             long bytes = Directory.GetFiles(Path.Combine(outDir, "Build")).Sum(f => new FileInfo(f).Length);
+            int secs = Mathf.RoundToInt((float)report.summary.totalTime.TotalSeconds);   // (a format spec right before "}}" came out as "F1184")
             File.WriteAllText(Path.Combine(outDir, "build-info.json"),
-                $"{{\"unity\":\"{Application.unityVersion}\",\"built\":\"{System.DateTime.UtcNow:O}\",\"buildBytes\":{bytes},\"seconds\":{report.summary.totalTime.TotalSeconds:F0}}}");
+                $"{{\"unity\":\"{Application.unityVersion}\",\"built\":\"{System.DateTime.UtcNow:O}\",\"buildBytes\":{bytes},\"seconds\":{secs}}}");
             if (Quiet ? QuietPublish : Dlg("Street Life", $"WebGL build done in {report.summary.totalTime.TotalMinutes:F1} min.\nDownload: {bytes / 1048576f:F1} MB (compressed).\n\nPublish it to GitHub Pages now?", "Publish", "Not now"))
                 PublishSite();
         }
