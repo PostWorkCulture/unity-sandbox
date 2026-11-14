@@ -34,6 +34,7 @@ namespace StreetLife.EditorTools
                 EditorApplication.playModeStateChanged -= AfterPlay; EditorApplication.playModeStateChanged += AfterPlay;
                 return Log("in play mode: the commit will be made when play mode ends");
             }
+            if (BuildPipeline.isBuildingPlayer) return Log("refused: a build is running (a Street-Life-only WebGL build blanks the other maps until it ends); try again after");   // match chat
             if (EditorApplication.isCompiling || EditorUtility.scriptCompilationFailed) return Log("refused: the scripts don't compile right now");
             if (pushing) return Log("refused: a push is still running");
             if (string.IsNullOrWhiteSpace(message)) return Log("refused: no commit message");
