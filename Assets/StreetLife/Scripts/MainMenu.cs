@@ -654,7 +654,7 @@ namespace StreetLife
             var t3 = L("Display", 28, Text, true); t3.style.marginBottom = 16; c3.Add(t3);
             c3.Add(Caps("Screen"));
             c3.Add(Segmented(new[] { "Full screen", "Borderless", "Windowed" }, new[] { "exclusive", "borderless", "windowed" }, () => Settings.ScreenMode, v => { Settings.ScreenMode = v; Settings.ApplyScreen(); }));
-            var sh = L("Full screen takes over the display (smoothest, lowest input lag). Borderless is a window the size of the screen, quick to Alt+Tab out of. Alt+Enter switches too.", 12, Dim); sh.style.whiteSpace = WhiteSpace.Normal; sh.style.marginTop = 6; sh.style.marginBottom = 10; c3.Add(sh);
+            var sh = L("Borderless fills the screen and Alt+Tabs instantly (the default). Full screen takes the display over exclusively; some laptops don't allow it and fall back to borderless.", 12, Dim); sh.style.whiteSpace = WhiteSpace.Normal; sh.style.marginTop = 6; sh.style.marginBottom = 10; c3.Add(sh);
             var res = Settings.Resolutions(); var idx = new float[res.Count]; for (int i = 0; i < idx.Length; i++) idx[i] = i;
             if (res.Count > 0)
                 c3.Add(Stepper("Resolution", idx, () => Settings.ResolutionIndex(res), v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; Settings.ResW = r.x; Settings.ResH = r.y; Settings.ApplyScreen(); }, v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; return r.x + " x " + r.y; }, 124));
@@ -846,7 +846,7 @@ namespace StreetLife
 
         // ---- display (desktop builds and the editor)
         public static bool IsDesktop => !Application.isMobilePlatform && Application.platform != RuntimePlatform.WebGLPlayer;
-        public static string ScreenMode { get => PlayerPrefs.GetString(P + "screenMode", "exclusive"); set => PlayerPrefs.SetString(P + "screenMode", value); }
+        public static string ScreenMode { get => PlayerPrefs.GetString(P + "screenMode", "borderless"); set => PlayerPrefs.SetString(P + "screenMode", value); }
         public static int ResW { get => PlayerPrefs.GetInt(P + "resW", 0); set => PlayerPrefs.SetInt(P + "resW", value); }
         public static int ResH { get => PlayerPrefs.GetInt(P + "resH", 0); set => PlayerPrefs.SetInt(P + "resH", value); }
         public static bool VSync { get => PlayerPrefs.GetInt(P + "vsync", 1) == 1; set => PlayerPrefs.SetInt(P + "vsync", value ? 1 : 0); }

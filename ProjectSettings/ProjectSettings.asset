@@ -113,7 +113,7 @@ PlayerSettings:
   xboxEnableFitness: 0
   visibleInBackground: 1
   allowFullscreenSwitch: 1
-  fullscreenMode: 0
+  fullscreenMode: 1
   xboxSpeechDB: 0
   xboxEnableHeadOrientation: 0
   xboxEnableGuest: 0
@@ -897,7 +897,7 @@ PlayerSettings:
   apiCompatibilityLevel: 6
   captureStartupLogs: {}
   activeInputHandler: 1
-  windowsGamepadBackendHint: 0
+  windowsGamepadBackendHint: 1
   enableDirectStorage: 0
   cloudProjectId: 2886eb32-c4c5-43ca-9725-142d5b3eda2b
   framebufferDepthMemorylessMode: 0

@@ -113,8 +113,11 @@ namespace StreetLife.EditorTools
             if (System.Diagnostics.Process.GetProcessesByName("StreetLife").Length > 0) { Dlg("Street Life", "Close Street Life first: the game is still running, and building under it corrupts its data files.", "OK"); return; }
             var nb = NamedBuildTarget.Standalone;
             PlayerSettings.productName = "Street Life"; PlayerSettings.companyName = "PostWorkCulture";
-            PlayerSettings.fullScreenMode = FullScreenMode.ExclusiveFullScreen;   // true full screen at first run (Settings > Display can change it)
+            PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;   // borderless full screen: exclusive at launch hangs on this laptop (hybrid GPU); Settings > Display offers it
             PlayerSettings.defaultIsNativeResolution = true; PlayerSettings.runInBackground = true;
+            // Windows.Gaming.Input hangs the player at startup when it's launched from Explorer on this PC (a shortcut double-click
+            // never got past "Using Windows.Gaming.Input"); XInput covers Xbox-style pads and the Input System still sees the rest
+            PlayerSettings.windowsGamepadBackendHint = WindowsGamepadBackendHint.WindowsGamepadBackendHintXInput;
             PlayerSettings.SetScriptingBackend(nb, ScriptingImplementation.Mono2x);
             var outDir = Path.Combine(ProjectDir, "Builds", "Windows"); Directory.CreateDirectory(outDir);
             var exe = Path.Combine(outDir, "StreetLife.exe");
@@ -163,6 +166,9 @@ namespace StreetLife.EditorTools
                     var to = file.Replace(src, InstallDir); Directory.CreateDirectory(Path.GetDirectoryName(to));
                     File.Copy(file, to, true); bytes += new FileInfo(file).Length;
                 }
+                // the game hangs on load when Windows starts it straight from a .lnk on this PC (it never gets past the input setup),
+                // yet starts fine any other way: so the shortcut runs a one-line launcher that starts the game itself
+                File.WriteAllText(Path.Combine(InstallDir, "Launch.vbs"), "Set s = CreateObject(\"WScript.Shell\")\r\ns.CurrentDirectory = \"" + InstallDir + "\"\r\ns.Run \"\"\"\" & s.CurrentDirectory & \"\\StreetLife.exe\"\"\", 1, False\r\n");
                 string sc = DesktopShortcut(Path.Combine(InstallDir, "StreetLife.exe"));
                 return $"Installed to {InstallDir} ({bytes / 1048576f:F0} MB){sc}.";
             }
@@ -179,6 +185,31 @@ namespace StreetLife.EditorTools
                 sb.Append($"pid {p.Id} {path} started {p.StartTime:HH:mm:ss} responding {p.Responding} window '{p.MainWindowTitle}' mem {p.WorkingSet64 / 1048576} MB; ");
                 if (a == "kill") { try { p.Kill(); sb.Append("killed; "); } catch (System.Exception e) { sb.Append(e.Message + "; "); } }
             }
+            if (a.StartsWith("args "))   // call StreetLifeBuild.GameProbe args -screen-fullscreen 0
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(InstallDir, "StreetLife.exe"), a.Substring(5)) { WorkingDirectory = InstallDir, UseShellExecute = false });
+                sb.Append("started with " + a.Substring(5));
+            }
+            if (a.StartsWith("via "))   // via cmd | via explorer | via env: how it's started, to find what a shortcut launch does differently
+            {
+                var exe = Path.Combine(InstallDir, "StreetLife.exe"); var how = a.Substring(4).Trim();
+                System.Diagnostics.ProcessStartInfo psi;
+                if (how == "cmd") psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c start \"\" \"{exe}\"");
+                else if (how == "explorer") psi = new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{exe}\"");
+                else psi = new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = InstallDir };
+                if (how != "shell") psi.UseShellExecute = false;
+                System.Diagnostics.Process.Start(psi); sb.Append("started via " + how);
+            }
+            if (a == "env")
+            {
+                foreach (System.Collections.DictionaryEntry e in System.Environment.GetEnvironmentVariables()) sb.Append(e.Key + "=" + (e.Value + "").Substring(0, System.Math.Min(80, (e.Value + "").Length)) + " | ");
+            }
+            if (a == "shortcut")   // exactly what a double-click on the desktop shortcut does
+            {
+                var lnk = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.DesktopDirectory), "Street Life.lnk");
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(lnk) { UseShellExecute = true });
+                sb.Append("started from the desktop shortcut");
+            }
             if (a == "run")
             {
                 var log = Path.Combine(ProjectDir, "Logs", "game.log");
@@ -194,7 +225,7 @@ namespace StreetLife.EditorTools
             {
                 var desk = System.Environment.GetFolderPath(System.Environment.SpecialFolder.DesktopDirectory);
                 var lnk = Path.Combine(desk, "Street Life.lnk");
-                var ps = $"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');$s.TargetPath='{exe}';$s.WorkingDirectory='{InstallDir}';$s.IconLocation='{exe},0';$s.Description='Street Life';$s.Save()";
+                var ps = $"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');$s.TargetPath=$env:WINDIR+'\\System32\\wscript.exe';$s.Arguments=[char]34+'{InstallDir}\\Launch.vbs'+[char]34;$s.WorkingDirectory='{InstallDir}';$s.IconLocation='{exe},0';$s.Description='Street Life';$s.Save()";
                 var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell", "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"" + ps + "\"") { UseShellExecute = false, CreateNoWindow = true });
                 p.WaitForExit(20000);
                 return File.Exists(lnk) ? ", with a Street Life shortcut on the desktop" : " (couldn't make the desktop shortcut)";
