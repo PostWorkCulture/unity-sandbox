@@ -12,7 +12,7 @@ namespace StreetLife
     public class ViewModelPolish : MonoBehaviour
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void Boot() { UnityEngine.SceneManagement.SceneManager.sceneLoaded += (s, m) => Ensure(); Ensure(); }
+        static void Boot() => Ensure();   // RoundManager.Reboot runs this again after every scene reload
         static void Ensure()
         {
             if (!Application.isPlaying || FindAnyObjectByType<ViewModelPolish>()) return;

@@ -22,7 +22,7 @@ namespace StreetLife
     {
         static Intel I;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void Boot() { UnityEngine.SceneManagement.SceneManager.sceneLoaded += (s, m) => Ensure(); Ensure(); }
+        static void Boot() => Ensure();   // RoundManager.Reboot runs this again after every scene reload
         static void Ensure()
         {
             if (I || !Application.isPlaying || !FindAnyObjectByType<MapBuilder>()) return;

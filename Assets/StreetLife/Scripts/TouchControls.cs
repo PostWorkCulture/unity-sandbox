@@ -37,6 +37,14 @@ namespace StreetLife
             public Action<bool> onPress; public int finger = -1; public Color color = new Color(1, 1, 1, .22f);
         }
         readonly List<Button> buttons = new List<Button>();
+        // for the layout editor (TouchLayout) and settings
+        public IReadOnlyList<Button> Buttons => buttons;
+        public Vector2 CentreOf(Button b) => Centre(b);
+        public float CssPx => S;
+        public Vector2 StickHomePos => StickHome;
+        public float StickRadius => StickR;
+        [NonSerialized] public bool autoAds; [NonSerialized] public float aimSens = 1, snipeSens = 1;
+        bool autoR; Weapons wpn;
         Fighter f;
         int stickFinger = -1, lookFinger = -1; Vector2 stick, stickOrigin;
         bool seenTouch, wasDown, wasDowned;
@@ -106,10 +114,10 @@ namespace StreetLife
         void OnDestroy() { if (I == this) I = null; }
 
         // ------------------------------------------------------------------ layout (screen px, origin bottom left)
-        Vector2 StickHome { get { var sa = Safe; return new Vector2(sa.xMin + (24 + 66) * S, sa.yMin + (22 + 66) * S); } }
+        Vector2 StickHome { get { var sa = Safe; return new Vector2(sa.xMin + (24 + 66 + TouchLayout.Dx("stick")) * S, sa.yMin + (22 + 66 + TouchLayout.Dy("stick")) * S); } }
         Vector2 StickCentre => stickFinger >= 0 ? stickOrigin : StickHome;
-        float StickR => 66 * S;
-        Vector2 Centre(Button b) { var sa = Safe; return new Vector2(sa.xMax - (10 + b.x) * S, sa.yMin + b.y * S); }
+        float StickR => 66 * S * TouchLayout.Scale("stick");
+        Vector2 Centre(Button b) { var sa = Safe; return new Vector2(sa.xMax - (10 + b.x - TouchLayout.Dx(b.id)) * S, sa.yMin + (b.y + TouchLayout.Dy(b.id)) * S); }
         Rect RematchRect { get { var sa = Safe; float w = 190 * S, h = 50 * S; return new Rect(sa.center.x - w / 2, sa.yMin + 72 * S - h / 2, w, h); } }
 
         bool InStickZone(Vector2 p)
@@ -134,7 +142,7 @@ namespace StreetLife
 
         Button Hit(Vector2 p, bool menu)
         {
-            foreach (var b in buttons) if (Live(b, menu) && Vector2.Distance(p, Centre(b)) <= b.size * .5f * S * 1.15f) return b;
+            foreach (var b in buttons) if (Live(b, menu) && Vector2.Distance(p, Centre(b)) <= b.size * TouchLayout.Scale(b.id) * .5f * S * 1.15f) return b;
             return null;
         }
 
@@ -143,7 +151,9 @@ namespace StreetLife
         {
             var d = deltaPx / S;                                   // CSS px, like the web game
             float sp = d.magnitude, acc = 1 + .7f * Mathf.Clamp01((sp - 6) / 34f);
-            float k = .0055f * sensitivity * (f.ads ? .65f : 1f) * acc;
+            if (!wpn) wpn = f.GetComponent<Weapons>();
+            bool scoped = wpn && (wpn.Gun == "sniper" || wpn.Gun == "scout");
+            float k = .0055f * sensitivity * (f.ads ? .65f * (scoped ? snipeSens : aimSens) : 1f) * acc;
             // aim assist, part 1: the camera slows down while the crosshair is over the enemy
             if (assistTarget && aimAssist > 0 && assistOff < assistCone)
                 k *= 1 - Mathf.Min(.6f, .35f * aimAssist) * (1 - assistOff / assistCone);
@@ -207,12 +217,17 @@ namespace StreetLife
         {
             switch (b.id)
             {
-                case "fire": f.inFire = down; break;
+                case "fire":
+                    f.inFire = down;
+                    // Settings > Aim when firing: Fire also aims, and lets go of it after (unless you'd aimed yourself)
+                    if (down && autoAds && !Rules.Rumble) { var a = buttons.Find(q => q.id == "aim"); if (a != null && !a.on) { SetAim(true); autoR = true; } }
+                    else if (!down && autoR) { autoR = false; SetAim(false); }
+                    break;
                 case "jump": f.inJump = down; if (down) f.inJumpPress = true; break;
                 case "crouch": if (down) f.crouchOn = !f.crouchOn; break;
-                case "aim": break;
+                case "aim": autoR = false; break;
                 case "shop":
-                    if (down) { var h = FindAnyObjectByType<WeaponHud>(); if (h) h.SendMessage("SetMenu", !WeaponHud.MenuOpen, SendMessageOptions.DontRequireReceiver); }
+                    if (down) { var h = FindAnyObjectByType<WeaponHud>(); if (h) h.ToggleMenu(); }
                     break;
             }
             b.onPress?.Invoke(down);
@@ -259,7 +274,7 @@ namespace StreetLife
             if (!EnhancedTouchSupport.enabled) EnhancedTouchSupport.Enable();   // also after a script reload in play mode
             var touches = ETouch.activeTouches;
             if (touches.Count > 0) seenTouch = true;
-            if (!Showing) return;
+            if (!Showing || TouchLayout.Editing) return;
 
             float dt = Time.deltaTime;
             var rm = RoundManager.Instance;
@@ -279,7 +294,7 @@ namespace StreetLife
                 switch (t.phase)
                 {
                     case UnityEngine.InputSystem.TouchPhase.Began:
-                        if (matchEnd && RematchRect.Contains(p)) { rm.StartMatch(); break; }
+                        if (matchEnd && !KillClips.Viewing && RematchRect.Contains(p)) { rm.StartMatch(); break; }
                         var b = Hit(p, menu);
                         if (b != null && b.finger < 0)
                         {
@@ -353,7 +368,7 @@ namespace StreetLife
             label.fontSize = Mathf.RoundToInt(13 * s);
 
             var rm = RoundManager.Instance;
-            if (rm && rm.state == RoundManager.State.MatchEnd)
+            if (rm && rm.state == RoundManager.State.MatchEnd && !KillClips.Viewing)
             {
                 var r = RematchRect;
                 Pill(r, new Color(1, 1, 1, .92f));
@@ -361,6 +376,7 @@ namespace StreetLife
                 GUI.Label(new Rect(r.x, Screen.height - r.yMax, r.width, r.height), "Rematch", label);
                 label.fontSize = Mathf.RoundToInt(13 * s);
             }
+            if (Cine.HideHud) { GUI.color = Color.white; return; }   // the throne room or Man Down: no game buttons over it
             if (!f.alive) { GUI.color = Color.white; return; }
 
             bool menu = WeaponHud.MenuOpen, down = Down;
@@ -375,9 +391,11 @@ namespace StreetLife
                 if (!Live(b, menu)) continue;
                 if (b.id == "shop") b.label = menu ? "Close" : "Shop";
                 var c = Centre(b); bool lit = b.held || b.on;
-                Disc(c, b.size * s, lit ? new Color(1, 1, 1, .55f) : b.color);
+                float bs = b.size * TouchLayout.Scale(b.id), ba = TouchLayout.Alpha(b.id); var bc = lit ? new Color(1, 1, 1, .55f) : b.color; bc.a *= ba;
+                Disc(c, bs * s, bc);
                 GUI.color = lit ? Color.black : Color.white;
-                GUI.Label(new Rect(c.x - b.size * s / 2, Screen.height - c.y - b.size * s / 2, b.size * s, b.size * s), b.label, label);
+                GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, Mathf.Max(.35f, ba));
+                GUI.Label(new Rect(c.x - bs * s / 2, Screen.height - c.y - bs * s / 2, bs * s, bs * s), b.label, label);
             }
             GUI.color = Color.white;
         }

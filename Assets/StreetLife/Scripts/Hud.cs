@@ -69,6 +69,7 @@ namespace StreetLife
             Styles();
             float W = Screen.width / s, H = Screen.height / s;
             var rm = RoundManager.Instance;
+            if (Cine.HideHud) { if (rm && rm.player) Banners(rm, W, H); return; }   // the throne room or Man Down: only the results
 
             Vitals(H);
             if (fighter.alive) { if (drawCrosshair) Crosshair(W, H); HitArc(W, H); }
@@ -114,7 +115,7 @@ namespace StreetLife
             Shadowed(R(x + 10, y + 27, 140, 22), ready ? (TouchControls.I && TouchControls.I.Showing ? "ready" : "G  ready") : Mathf.CeilToInt(left) + "s", small, ready ? new Color(1f, .82f, .3f) : new Color(1, 1, 1, .6f));
             string st = fighter.shieldT > 0 ? "Shield " + Mathf.CeilToInt(fighter.shieldT) + "s" : fighter.thornT > 0 ? "Thorns " + Mathf.CeilToInt(fighter.thornT) + "s" : fighter.ghostT > 0 ? "Vanished " + Mathf.CeilToInt(fighter.ghostT) + "s" : fighter.zipT > 0 ? "Sprint " + Mathf.CeilToInt(fighter.zipT) + "s" : fighter.boostT > 0 ? "Jetpack" : null;
             if (st != null) Shadowed(R(x, y - 22, 200, 20), st, small, new Color(.75f, .95f, 1f));
-            if (fighter.slowT > 0) FrostEdges(Mathf.Clamp01(fighter.slowT / 1.5f));
+            // (slowed by frost: ScreenFx frosts the screen edges)
         }
 
         /// walls left, the shop kiosk, HeartBeat and tagging (match chat)
@@ -305,7 +306,7 @@ namespace StreetLife
             {
                 case RoundManager.State.Intro:
                     Fill(R(0, H / 2 - 90, W, 180), new Color(0, 0, 0, .55f));
-                    Shadowed(R(0, H / 2 - 70, W, 90), "Street Life", huge, Color.white);
+                    Shadowed(R(0, H / 2 - 70, W, 90), MapSet.CurrentEntry != null && !string.IsNullOrEmpty(MapSet.CurrentEntry.title) ? MapSet.CurrentEntry.title : "Street Life", huge, Color.white);
                     Shadowed(R(0, H / 2 + 20, W, 40), rm.Deathmatch ? $"{Rules.Tag}   ·   {rm.fighters.Count} players   ·   First to {rm.toWin} kills" : $"Round 1   ·   {Rules.Tag}   ·   First to {rm.toWin}", big, new Color(1, 1, 1, .85f));
                     break;
                 case RoundManager.State.Countdown:
@@ -327,21 +328,22 @@ namespace StreetLife
                 case RoundManager.State.MatchEnd:
                     {
                         bool won = rm.PlayerWonMatch;
-                        Fill(R(0, 0, W, H), new Color(0, 0, 0, .55f));
-                        Shadowed(R(0, H / 2 - 190, W, 100), won ? "You caught the W!" : "Took the L this time :(", huge, won ? new Color(1f, .85f, .3f) : new Color(1f, .55f, .5f));
+                        Fill(R(0, 0, W, H), new Color(0, 0, 0, Crowning.Active ? .3f : .55f));   // lighter over the throne room
+                        bool cr = Crowning.Active; float c0 = cr ? (HudLayout.Touch ? 380 : 210) : H / 2;   // over the throne room: up top, the thrones below
+                        Shadowed(R(0, c0 - 190, W, 100), won ? "You caught the W!" : "Took the L this time :(", huge, won ? new Color(1f, .85f, .3f) : new Color(1f, .55f, .5f));
                         int oth = 0; foreach (var o in rm.fighters) if (o.team != fighter.team) oth = Mathf.Max(oth, rm.score[o.team]);
-                        Shadowed(R(0, H / 2 - 80, W, 50), rm.Deathmatch ? $"{fighter.kills} kills   ·   {(rm.LastWinnerFighter ? rm.LastWinnerFighter.displayName : "")} wins" : $"{rm.score[fighter.team]}  -  {oth}", big, Color.white);
+                        Shadowed(R(0, c0 - 80, W, 50), rm.Deathmatch ? $"{fighter.kills} kills   ·   {(rm.LastWinnerFighter ? rm.LastWinnerFighter.displayName : "")} wins" : $"{rm.score[fighter.team]}  -  {oth}", big, Color.white);
                         var f = fighter;
                         int acc = f.shots > 0 ? Mathf.RoundToInt(100f * f.hits / f.shots) : 0;
                         string[] k = { "Kills", "Damage", "Accuracy", "Headshots" };
                         string[] v = { f.kills.ToString(), Mathf.RoundToInt(f.damageDealt).ToString(), acc + "%", f.headshots.ToString() };
                         float x0 = W / 2 - 300;
-                        for (int i = 0; i < 4; i++)
+                        for (int i = 0; i < 4 && !cr; i++)   // (the kills and damage are on the thrones)
                         {
                             Shadowed(R(x0 + i * 150, H / 2 - 10, 150, 50), v[i], big, Color.white);
                             Shadowed(R(x0 + i * 150, H / 2 + 36, 150, 24), k[i], center, new Color(1, 1, 1, .8f));
                         }
-                        Shadowed(R(0, H / 2 + 100, W, 30), $"{(TouchControls.I && TouchControls.I.Showing ? "Tap Rematch" : "Enter: rematch")}   (starts by itself in {Mathf.CeilToInt(rm.stateT)} s)", center, new Color(1, 1, 1, .85f));
+                        Shadowed(R(0, cr ? c0 - 25 : H / 2 + 100, W, 30), $"{(TouchControls.I && TouchControls.I.Showing ? "Tap Rematch" : "Enter: rematch")}   (starts by itself in {Mathf.CeilToInt(rm.stateT)} s)", center, new Color(1, 1, 1, .85f));
                     }
                     break;
             }

@@ -71,7 +71,7 @@ namespace StreetLife
 
         void OnGUI()
         {
-            var fin = Finishers.I; if (!fin) return;
+            var fin = Finishers.I; if (!fin || Cine.HideHud) return;
             var me = fin.Player; if (!me) return;
             GUI.depth = -10;
             s = Screen.height / 1080f * 1.4f;

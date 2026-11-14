@@ -82,6 +82,6 @@ namespace StreetLife
 
         // ---- end screen
         /// The XP panel: under the match stats on desktop; above the title on phones (the Rematch button is at the bottom).
-        public static float XpPanelY => Touch ? 92 : H / 2 + 140;
+        public static float XpPanelY => Touch ? 92 : Crowning.Active ? 225 : H / 2 + 140;   // (crowning: under the compact results)
     }
 }

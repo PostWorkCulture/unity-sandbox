@@ -13,6 +13,9 @@ namespace StreetLife
         [Range(.1f, 6f)] public float sensitivity = 1f;
         [Tooltip("Aim sensitivity for non-sniper guns (web game default 1)")]
         [Range(.1f, 1f)] public float adsSensitivity = 1f;
+        [Tooltip("Sniper scope sensitivity (HDR, Kar98), web game default 1")]
+        [Range(.1f, 2f)] public float snipeSensitivity = 1f;
+        Weapons wpn;
         Fighter f;
         int spawnIx = -1;
         bool lockClick;
@@ -36,7 +39,7 @@ namespace StreetLife
             if (kb == null || ms == null) return;
 
             if (kb.escapeKey.wasPressedThisFrame) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-            if (ms.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; lockClick = true; }
+            if (ms.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !KillClips.WantsCursor) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; lockClick = true; }
             bool locked = Cursor.lockState == CursorLockMode.Locked;
 
             if (locked)
@@ -44,7 +47,9 @@ namespace StreetLife
                 var d = ms.delta.ReadValue();
                 if (Mathf.Abs(d.x) < 250 && Mathf.Abs(d.y) < 250)
                 {
-                    float sc = sensitivity * (f.ads ? adsSensitivity * .65f : 1f);
+                    if (!wpn) wpn = f.GetComponent<Weapons>();
+                    bool scoped = wpn && (wpn.Gun == "sniper" || wpn.Gun == "scout");
+                    float sc = sensitivity * (f.ads ? (scoped ? snipeSensitivity : adsSensitivity) * .65f : 1f);
                     f.yaw += d.x * .0022f * sc;
                     f.pitch = Mathf.Clamp(f.pitch + d.y * .0022f * sc, -1.3f, 1.3f);
                 }

@@ -11,6 +11,7 @@ namespace StreetLife
     [DefaultExecutionOrder(100)]   // after CharacterRig's run cycle, so the arms are ours
     public class WeaponPose : MonoBehaviour
     {
+        static bool warnedNoArms;
         public Fighter fighter;
         public Weapons weapons;
         public CharacterRig rig;
@@ -42,7 +43,7 @@ namespace StreetLife
             if (built) return true;
             if (!rig || !rig.Built || !GunsDb.Loaded) return false;
             root = Find("root"); upIn = Find("upIn"); aLp = Find("aL.p"); aRp = Find("aR.p"); aLe = Find("aL.e"); aRe = Find("aR.e");
-            if (!upIn || !aLp || !aRp || !aLe || !aRe) { built = true; enabled = false; Debug.LogWarning("Street Life: the character has no arm joints; weapons won't be posed."); return false; }
+            if (!upIn || !aLp || !aRp || !aLe || !aRe) { built = true; enabled = false; if (!warnedNoArms) { warnedNoArms = true; Debug.LogWarning("Street Life: the character has no arm joints (Isaac); weapons won't be posed."); } return false; }
             // each character's own arm lengths and hand offsets (characters chat), Wednesday's when there are none
             var A = GunsDb.Data.arms; armL = A.aL; armR = A.aR; handY = A.handY;
             var cs = CharacterSet.Load(); var who = CharacterSkin.Of(rig);

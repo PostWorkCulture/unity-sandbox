@@ -597,6 +597,7 @@ namespace StreetLife
             var f2 = new float[] { .25f, .5f, .75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f, 3.5f, 4f };
             c.Add(Stepper("Look sensitivity", f2, () => Settings.Sens, v => { Settings.Sens = v; Settings.Apply(); }, v => v.ToString("0.##")));
             c.Add(Stepper("Aim sensitivity", new[] { .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f }, () => Settings.AimSens, v => { Settings.AimSens = v; Settings.Apply(); }, v => v.ToString("0.0")));
+            c.Add(Stepper("Sniper scope sensitivity", new[] { .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f, 1.25f, 1.5f }, () => Settings.SnipeSens, v => { Settings.SnipeSens = v; Settings.Apply(); }, v => v.ToString("0.0#")));
             var vol = new float[] { 0, .1f, .2f, .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f };
             c.Add(Stepper("Music", vol, () => Settings.Music, v => { Settings.Music = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
             c.Add(Stepper("Effects", vol, () => Settings.Effects, v => { Settings.Effects = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
@@ -621,11 +622,14 @@ namespace StreetLife
                     v => { Settings.AimAssist = v == "off" ? 0f : v == "strong" ? 1.6f : 1f; Settings.Apply(); }));
                 c2.Add(Caps("Gyro aim"));
                 c2.Add(Segmented(new[] { "Off", "When aiming", "Always" }, new[] { "off", "aim", "always" }, () => Settings.Gyro, v => { Settings.Gyro = v; Settings.Apply(); }));
+                c2.Add(Caps("Aim when firing"));
+                c2.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => Settings.AutoAds ? "on" : "off", v => { Settings.AutoAds = v == "on"; Settings.Apply(); }));
                 c2.Add(Caps("Vibration"));
                 c2.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => Settings.Vibration ? "on" : "off", v => { Settings.Vibration = v == "on"; Settings.Apply(); }));
                 c2.Add(Caps("Frame rate"));
                 c2.Add(Segmented(new[] { "60", "90", "120" }, new[] { "60", "90", "120" }, () => Settings.Fps.ToString(), v => { Settings.Fps = int.Parse(v); Settings.Apply(); }));
                 var fh = L("60 keeps the phone cooler and steadier over long sessions.", 12, Dim); fh.style.whiteSpace = WhiteSpace.Normal; fh.style.marginTop = 6; c2.Add(fh);
+                var ed = Btn("Edit button layout", () => { var back = settings; Show(null); TouchLayout.BeginEdit(() => Show(back)); }); ed.style.marginTop = 14; c2.Add(ed);
                 row.Add(c); row.Add(c2); settings.Add(row);
             }
             else settings.Add(c);
@@ -720,7 +724,7 @@ namespace StreetLife
             MaybeTakeThumb();
             if (pauseBtn != null) pauseBtn.style.display = !Open && !Paused && TouchControls.I && TouchControls.I.Showing ? DisplayStyle.Flex : DisplayStyle.None;
             var kb = Keyboard.current;
-            if (!Open && kb != null && kb.escapeKey.wasPressedThisFrame && !MapPicker.Open && !CharacterPicker.Open)
+            if (!Open && kb != null && kb.escapeKey.wasPressedThisFrame && !MapPicker.Open && !CharacterPicker.Open && !KillClips.Viewing)
             {
                 if (Paused) { if (settings.style.display == DisplayStyle.Flex) Show(pause); else Resume(); }
                 else Pause();
@@ -775,6 +779,8 @@ namespace StreetLife
         const string P = "StreetLife.";
         public static float Sens { get => PlayerPrefs.GetFloat(P + "sens", 1f); set => PlayerPrefs.SetFloat(P + "sens", value); }
         public static float AimSens { get => PlayerPrefs.GetFloat(P + "aimSens", 1f); set => PlayerPrefs.SetFloat(P + "aimSens", value); }
+        public static float SnipeSens { get => PlayerPrefs.GetFloat(P + "snipeSens", AimSens); set => PlayerPrefs.SetFloat(P + "snipeSens", value); }
+        public static bool AutoAds { get => PlayerPrefs.GetInt(P + "autoAds", 0) == 1; set => PlayerPrefs.SetInt(P + "autoAds", value ? 1 : 0); }
         public static float Music { get => PlayerPrefs.GetFloat(P + "music", .5f); set => PlayerPrefs.SetFloat(P + "music", value); }
         public static float Effects { get => PlayerPrefs.GetFloat(P + "sfx", 1f); set => PlayerPrefs.SetFloat(P + "sfx", value); }
         public static string Difficulty { get => PlayerPrefs.GetString(P + "difficulty", "normal"); set => PlayerPrefs.SetString(P + "difficulty", value); }
@@ -806,9 +812,9 @@ namespace StreetLife
 
         public static void Apply()
         {
-            foreach (var pc in UnityEngine.Object.FindObjectsByType<PlayerController>()) { pc.sensitivity = Sens; pc.adsSensitivity = AimSens; }
+            foreach (var pc in UnityEngine.Object.FindObjectsByType<PlayerController>()) { pc.sensitivity = Sens; pc.adsSensitivity = AimSens; pc.snipeSensitivity = SnipeSens; }
             TouchControls.Mode = Touch;
-            if (TouchControls.I) { TouchControls.I.sensitivity = Sens; TouchControls.I.aimAssist = AimAssist; TouchControls.I.gyro = Gyro; }
+            if (TouchControls.I) { TouchControls.I.sensitivity = Sens; TouchControls.I.aimAssist = AimAssist; TouchControls.I.gyro = Gyro; TouchControls.I.autoAds = AutoAds; TouchControls.I.aimSens = AimSens; TouchControls.I.snipeSens = SnipeSens; }
             Haptics.On = Vibration; ApplyFps();
             Sfx.MusicVolume = Music; Sfx.SfxVolume = Effects;
             var names = QualitySettings.names; string want = Graphics == "smooth" ? "Mobile" : "PC";

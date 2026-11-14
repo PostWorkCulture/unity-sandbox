@@ -123,6 +123,43 @@ namespace StreetLife.EditorTools
 
         public static string Map(string a) { PlayerPrefs.SetString("StreetLife.map", a.Trim()); PlayerPrefs.Save(); return "map pick " + a.Trim() + " (takes effect on next play)"; }
 
+        /// the player takes out every enemy (down, then out): for kill clips and round flow
+        public static string KillAll(string a)
+        {
+            var p = P; if (!p || !RM) return "no player";
+            int n = 0; foreach (var f in RM.fighters) if (f && f.alive && f.team != p.team) { f.Damage(500, p, a == "head"); if (f.alive) f.Damage(500, p, false); n++; }
+            return $"took out {n}, state {RM.state} score {RM.score[0]}-{RM.score[1]}";
+        }
+
+        /// Rumble: the player drops onto the bot from above and punches (the air strike)
+        public static string AirPunch(string a)
+        {
+            var p = P; var b = B; if (!p || !b) return "no fighters";
+            if (!Rules.Rumble) return "set rumble first (SetRules rumble 1v1)";
+            b.Frozen = true; float hp0 = b.hp + b.armor;
+            var fwd = new Vector3(Mathf.Sin(b.yaw), 0, Mathf.Cos(b.yaw));
+            p.Place(b.pos + fwd * 1.6f + Vector3.up * 1.3f, b.yaw + Mathf.PI);
+            p.grounded = false; p.vel = new Vector3(0, -3, 0);
+            var w = p.GetComponent<Weapons>();
+            var m = typeof(Weapons).GetMethod("Melee", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            m.Invoke(w, new object[] { w.G });
+            return $"gun {w.Gun}: bot {hp0:F0} -> {b.hp + b.armor:F0}, stunT {b.stunT:F2}, bot vel {b.vel}";
+        }
+
+        /// the player goes down, then fires a marker at the bot (tagging)
+        public static string Tag(string a)
+        {
+            var p = P; var b = B; if (!p || !b) return "no fighters";
+            b.Frozen = true;
+            if (!p.downed) p.Damage(Mathf.Max(1, p.hp + p.armor), b, false);
+            if (!p.downed) return "player didn't go down (hp " + p.hp + ")";
+            var cam = Camera.main; cam.transform.position = p.pos + Vector3.up * 1.4f + (b.pos - p.pos).normalized * .3f; cam.transform.LookAt(b.pos + Vector3.up * 1.2f);
+            var intel = Object.FindAnyObjectByType<Intel>();
+            var m = typeof(Intel).GetMethod("TagShot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            m.Invoke(intel, new object[] { p });
+            return $"bot tagged {b.Tagged} (for {b.tagT - Time.time:F1} s)";
+        }
+
         public static string Unfreeze(string a) { if (B) B.Frozen = false; return "bot free"; }
 
         public static string State(string a)

@@ -55,6 +55,9 @@ namespace StreetLife
             ClickedUi = false;
         }
 
+        /// open or close the weapon picker and shop (the touch Shop button)
+        public void ToggleMenu() => SetMenu(!MenuOpen);
+
         void SetMenu(bool on)
         {
             MenuOpen = on;
@@ -117,7 +120,7 @@ namespace StreetLife
         // ------------------------------------------------------------------ the HUD
         void OnGUI()
         {
-            if (!weapons || !GunsDb.Loaded) return;
+            if (!weapons || !GunsDb.Loaded || Cine.HideHud) return;
             Styles();
             var w = weapons; var f = w.F; var g = w.G; var cam = Camera.main; if (!cam) return;
             float s = Screen.height / 1080f * 1.4f; var m0 = GUI.matrix; GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));

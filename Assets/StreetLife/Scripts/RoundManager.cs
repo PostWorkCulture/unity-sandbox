@@ -66,8 +66,29 @@ namespace StreetLife
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
+            if (!rebootHooked) { rebootHooked = true; UnityEngine.SceneManagement.SceneManager.sceneLoaded += Reboot; }
             if (Instance || !FindAnyObjectByType<MapBuilder>()) return;
             new GameObject("Match").AddComponent<RoundManager>();
+        }
+
+        // Unity runs [RuntimeInitializeOnLoadMethod(AfterSceneLoad)] once, for the first scene only. Picking a map or a character reloads
+        // the scene, which takes the match, weapons, finishers and the rest with it: run every Street Life boot again for the new scene.
+        // Each boot checks for its own instance first, so nothing is made twice (MapPicker kept its own copy of this until now).
+        static bool rebootHooked;
+        static void Reboot(UnityEngine.SceneManagement.Scene sc, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            if (mode != UnityEngine.SceneManagement.LoadSceneMode.Single) return;
+            foreach (var t in typeof(RoundManager).Assembly.GetTypes())
+            {
+                if (t.Namespace == null || !t.Namespace.StartsWith("StreetLife")) continue;
+                foreach (var m in t.GetMethods(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly))
+                {
+                    if (m.GetParameters().Length != 0) continue;
+                    foreach (var a in m.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false))
+                        if (((RuntimeInitializeOnLoadMethodAttribute)a).loadType == RuntimeInitializeLoadType.AfterSceneLoad)
+                        { try { m.Invoke(null, null); } catch (Exception e) { Debug.LogException(e); } }
+                }
+            }
         }
 
         void Awake() { Instance = this; }
@@ -228,6 +249,7 @@ namespace StreetLife
                     }
                     break;
                 case State.MatchEnd:
+                    if (KillClips.Viewing) break;   // the clip list or viewer is open: hold the rematch
                     stateT -= dt;
                     var kb = Keyboard.current;
                     if ((kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) || stateT <= 0) StartMatch();
@@ -257,6 +279,7 @@ namespace StreetLife
                     if (o == br.target) sc -= 8;
                     if (o.ghostT > 0) sc += 15;
                     if (o.Tagged) sc -= 10;
+                    sc += KillCalls.TargetBias(f, o, this);   // grudges, lean towards the leader
                     if (sc < bs) { bs = sc; best = o; }
                 }
                 if (best) br.target = best;
