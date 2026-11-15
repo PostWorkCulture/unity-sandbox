@@ -39,7 +39,7 @@ namespace StreetLife
             if (kb == null || ms == null) return;
 
             if (kb.escapeKey.wasPressedThisFrame) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-            if (ms.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !KillClips.WantsCursor) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; lockClick = true; }
+            if (ms.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !(RoundManager.Instance && RoundManager.Instance.state == RoundManager.State.MatchEnd)) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; lockClick = true; }
             bool locked = Cursor.lockState == CursorLockMode.Locked;
 
             if (locked)

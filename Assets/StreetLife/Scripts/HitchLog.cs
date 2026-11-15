@@ -2,7 +2,6 @@
 // 50 ms is logged with what the main thread, render thread and GPU spent, the managed memory allocated that frame and
 // whether a garbage collection ran, plus a summary every 10 s (average fps, 1% low, worst frame, GC per second).
 // -perfrun also starts a match from the menu after 4 s and quits after -perfsecs (default 70) seconds, for unattended runs.
-// -noclips turns off kill-clip capture, to compare.
 using System;
 using System.Collections.Generic;
 using Unity.Profiling;
@@ -28,7 +27,6 @@ namespace StreetLife
                 if (a == "-perf") On = true;
                 if (a == "-perfrun") { On = true; run = true; }
                 if (a == "-perfsecs" && i + 1 < args.Length) float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out runSecs);
-                if (a == "-noclips") KillClips.Enabled = false;
             }
             if (!On) return;
             var go = new GameObject("HitchLog"); DontDestroyOnLoad(go); I = go.AddComponent<HitchLog>();
@@ -47,14 +45,14 @@ namespace StreetLife
             mainT = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "Main Thread", 1);
             renderT = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Render Thread", 1);
             winStart = t0 = Time.realtimeSinceStartup; gcAtWin = GC.CollectionCount(0);
-            Debug.Log($"[perf] on: {Screen.width}x{Screen.height} {Screen.fullScreenMode}, vSync {QualitySettings.vSyncCount}, target {Application.targetFrameRate}, quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}, clips {KillClips.Enabled}, {SystemInfo.graphicsDeviceName} {SystemInfo.graphicsDeviceType}, recorders gc {gcAlloc.Valid} main {mainT.Valid} render {renderT.Valid}");
+            Debug.Log($"[perf] on: {Screen.width}x{Screen.height} {Screen.fullScreenMode}, vSync {QualitySettings.vSyncCount}, target {Application.targetFrameRate}, quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}, {SystemInfo.graphicsDeviceName} {SystemInfo.graphicsDeviceType}, recorders gc {gcAlloc.Valid} main {mainT.Valid} render {renderT.Valid}");
         }
         void OnDisable() { gcAlloc.Dispose(); gcCount.Dispose(); mainT.Dispose(); renderT.Dispose(); }
 
         static string State()
         {
             var rm = RoundManager.Instance;
-            return (MainMenu.Open ? "menu" : rm ? rm.state.ToString() : "-") + (KillClips.Enabled ? "" : " noclips");
+            return (MainMenu.Open ? "menu" : rm ? rm.state.ToString() : "-");
         }
 
         void Update()

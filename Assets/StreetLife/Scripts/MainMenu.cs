@@ -694,8 +694,8 @@ namespace StreetLife
             var c3 = Card(400); c3.style.marginLeft = 16;
             var t3 = L("Display", 28, Text, true); t3.style.marginBottom = 16; c3.Add(t3);
             c3.Add(Caps("Screen"));
-            c3.Add(Segmented(new[] { "Full screen", "Borderless", "Windowed" }, new[] { "exclusive", "borderless", "windowed" }, () => Settings.ScreenMode, v => { Settings.ScreenMode = v; Settings.ApplyScreen(); }));
-            var sh = L("Borderless fills the screen and Alt+Tabs instantly (the default). Full screen takes the display over exclusively; some laptops don't allow it and fall back to borderless.", 12, Dim); sh.style.whiteSpace = WhiteSpace.Normal; sh.style.marginTop = 6; sh.style.marginBottom = 10; c3.Add(sh);
+            c3.Add(Segmented(new[] { "Full screen", "Windowed" }, new[] { "borderless", "windowed" }, () => Settings.ScreenMode, v => { Settings.ScreenMode = v; Settings.ApplyScreen(); }));
+            var sh = L("Full screen fills the whole screen (as a borderless window, so Alt+Tab is instant and nothing freezes when you switch). Windowed puts the game in a normal window.", 12, Dim); sh.style.whiteSpace = WhiteSpace.Normal; sh.style.marginTop = 6; sh.style.marginBottom = 10; c3.Add(sh);
             var res = Settings.Resolutions(); var idx = new float[res.Count]; for (int i = 0; i < idx.Length; i++) idx[i] = i;
             if (res.Count > 0)
                 c3.Add(Stepper("Resolution", idx, () => Settings.ResolutionIndex(res), v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; Settings.ResW = r.x; Settings.ResH = r.y; Settings.ApplyScreen(); }, v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; return r.x + " x " + r.y; }, 124));
@@ -829,7 +829,7 @@ namespace StreetLife
             MaybeTakeThumb();
             if (pauseBtn != null) pauseBtn.style.display = !Open && !Paused && TouchControls.I && TouchControls.I.Showing ? DisplayStyle.Flex : DisplayStyle.None;
             var kb = Keyboard.current;
-            if (!Open && kb != null && kb.escapeKey.wasPressedThisFrame && !MapPicker.Open && !CharacterPicker.Open && !KillClips.Viewing)
+            if (!Open && kb != null && kb.escapeKey.wasPressedThisFrame && !MapPicker.Open && !CharacterPicker.Open)
             {
                 if (Paused) { if (settings.style.display == DisplayStyle.Flex) Show(pause); else Resume(); }
                 else Pause();
@@ -920,7 +920,8 @@ namespace StreetLife
 
         // ---- display (desktop builds and the editor)
         public static bool IsDesktop => !Application.isMobilePlatform && Application.platform != RuntimePlatform.WebGLPlayer;
-        public static string ScreenMode { get => PlayerPrefs.GetString(P + "screenMode", "borderless"); set => PlayerPrefs.SetString(P + "screenMode", value); }
+        /// "borderless" (full screen) or "windowed". Exclusive full screen is gone: on Pete's laptop it froze for seconds and locked to 30 fps (street-life-performance.md)
+        public static string ScreenMode { get => PlayerPrefs.GetString(P + "screenMode", "borderless") == "windowed" ? "windowed" : "borderless"; set => PlayerPrefs.SetString(P + "screenMode", value); }
         public static int ResW { get => PlayerPrefs.GetInt(P + "resW", 0); set => PlayerPrefs.SetInt(P + "resW", value); }
         public static int ResH { get => PlayerPrefs.GetInt(P + "resH", 0); set => PlayerPrefs.SetInt(P + "resH", value); }
         public static bool VSyncAuto { get => PlayerPrefs.GetInt(P + "vsyncAuto", 1) == 1; set => PlayerPrefs.SetInt(P + "vsyncAuto", value ? 1 : 0); }
@@ -942,11 +943,21 @@ namespace StreetLife
         public static void ApplyScreen()
         {
             if (!IsDesktop || Application.isEditor) return;
-            var mode = ScreenMode == "windowed" ? FullScreenMode.Windowed : ScreenMode == "borderless" ? FullScreenMode.FullScreenWindow : FullScreenMode.ExclusiveFullScreen;
+            var mode = ScreenMode == "windowed" ? FullScreenMode.Windowed : FullScreenMode.FullScreenWindow;
             int w = ResW > 0 ? ResW : Display.main.systemWidth, h = ResH > 0 ? ResH : Display.main.systemHeight;
             if (mode == FullScreenMode.Windowed && w >= Display.main.systemWidth) { w = Mathf.RoundToInt(w * .8f); h = Mathf.RoundToInt(h * .8f); }   // a window you can see the edges of
+            if (Screen.fullScreenMode == mode && Screen.width == w && Screen.height == h) return;   // already right: a mode switch costs a hitch
             Screen.SetResolution(w, h, mode, Screen.currentResolution.refreshRateRatio);
             PlayerPrefs.Save();
+        }
+        // Unity starts in whatever mode the last run used (it keeps it in the registry), so a copy that last ran in exclusive full
+        // screen would start that way and then switch: move it to borderless before the first frame instead
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
+        static void EarlyScreen()
+        {
+            if (!IsDesktop || Application.isEditor) return;
+            if (Screen.fullScreenMode == FullScreenMode.ExclusiveFullScreen || (ScreenMode == "borderless" && Screen.fullScreenMode == FullScreenMode.MaximizedWindow))
+                Screen.fullScreenMode = FullScreenMode.FullScreenWindow;
         }
         static bool screenApplied;
         static void ApplyDisplay()

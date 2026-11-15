@@ -249,7 +249,6 @@ namespace StreetLife
                     }
                     break;
                 case State.MatchEnd:
-                    if (KillClips.Viewing) break;   // the clip list or viewer is open: hold the rematch
                     stateT -= dt;
                     var kb = Keyboard.current;
                     if ((kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) || stateT <= 0) StartMatch();

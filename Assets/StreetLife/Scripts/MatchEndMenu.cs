@@ -24,7 +24,7 @@ namespace StreetLife
         void Update()
         {
             var rm = RoundManager.Instance;
-            show = rm && rm.state == RoundManager.State.MatchEnd && !MainMenu.Open && !MainMenu.Paused && !KillClips.Viewing;
+            show = rm && rm.state == RoundManager.State.MatchEnd && !MainMenu.Open && !MainMenu.Paused;
         }
 
         void OnGUI()
@@ -47,9 +47,9 @@ namespace StreetLife
                 y = Screen.height - (sa.yMin + 72 * S) - bh / 2;
             }
             else
-            {   // under the Clips button (KillClips: centre, H/2 + 262, 38 high), or at the bottom while the throne scene plays
+            {   // under the results, or at the bottom while the throne scene plays
                 bw = 170 * s; bh = 44 * s; gap = 12 * s; x0 = (Screen.width - (3 * bw + 2 * gap)) / 2;
-                y = Crowning.Active ? Screen.height - 112 * s : Screen.height / 2f + 310 * s;
+                y = Crowning.Active ? Screen.height - 112 * s : Screen.height / 2f + 262 * s;
             }
             if (GUI.Button(new Rect(x0, y, bw, bh), "Rematch", btnOn)) { var rm = RoundManager.Instance; if (rm) rm.StartMatch(); }
             if (GUI.Button(new Rect(x0 + bw + gap, y, bw, bh), "Random map", btn)) MainMenu.PlayRandomMap();

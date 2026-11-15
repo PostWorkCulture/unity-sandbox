@@ -190,6 +190,22 @@ namespace StreetLife.EditorTools
             var v = t.GetField(a.Trim(), fl)?.GetValue(mm) as UnityEngine.UIElements.VisualElement; if (v == null) return "no page " + a;
             var show = t.GetMethod("Show", fl); show.Invoke(mm, new object[] { v, null }); return "showing " + a;
         }
+        /// call StreetLifeTests.TypeInfo GraphicsStateCollection : finds a Unity type by name and lists its public members
+        public static string TypeInfo(string a)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                System.Type[] ts; try { ts = asm.GetTypes(); } catch { continue; }
+                foreach (var t in ts) if (t.Name == a.Trim())
+                    {
+                        sb.Append(t.FullName + " in " + asm.GetName().Name + ": ");
+                        foreach (var m in t.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly))
+                            sb.Append(m.MemberType == System.Reflection.MemberTypes.Method ? m.ToString().Replace("UnityEngine.", "").Replace("System.", "") : m.Name).Append(" | ");
+                    }
+            }
+            return sb.Length == 0 ? "not found" : sb.ToString();
+        }
         public static string State(string a)
         {
             var p = P; var b = B; if (!p) return "no player";
