@@ -703,7 +703,7 @@ namespace StreetLife
             c3.Add(Segmented(new[] { "Auto", "Off", "On" }, new[] { "auto", "off", "on" }, () => Settings.VSyncAuto ? "auto" : Settings.VSync ? "on" : "off", v => { Settings.VSyncAuto = v == "auto"; if (v != "auto") Settings.VSync = v == "on"; Settings.Apply(); }));
             c3.Add(Caps("Frame rate cap (V-sync off)"));
             c3.Add(Segmented(new[] { "None", "60", "120", "144", "240" }, new[] { "0", "60", "120", "144", "240" }, () => Settings.FpsCap.ToString(), v => { Settings.FpsCap = int.Parse(v); Settings.Apply(); }));
-            var vh = L("Auto: v-sync at the monitor's rate, and if the PC can't hold it, a steady lower cap (144, 120, 90 or 60) instead of judder. On locks to the monitor and stops tearing. Off: as fast as the PC can go, up to the cap.", 12, Dim); vh.style.whiteSpace = WhiteSpace.Normal; vh.style.marginTop = 6; c3.Add(vh);
+            var vh = L("Auto: no v-sync; the frame rate is capped at the monitor's rate (up to 144) and steps down to 120, 90 or 60 if the PC can't hold it, before the graphics are lowered. On locks to the monitor and stops tearing (on some laptops it stutters badly). Off: as fast as the PC can go, up to the cap.", 12, Dim); vh.style.whiteSpace = WhiteSpace.Normal; vh.style.marginTop = 6; c3.Add(vh);
             return c3;
         }
 
@@ -963,7 +963,7 @@ namespace StreetLife
         static void ApplyDisplay()
         {
             if (!IsDesktop) return;
-            if (VSyncAuto) { int cap = AutoQuality.PcCap; QualitySettings.vSyncCount = cap > 0 ? 0 : 1; Application.targetFrameRate = cap > 0 ? cap : -1; }
+            if (VSyncAuto) { int cap = AutoQuality.PcCap; QualitySettings.vSyncCount = 0; Application.targetFrameRate = cap > 0 ? cap : AutoQuality.PcStart; }   // Auto never uses v-sync: see AutoQuality
             else
             {
                 QualitySettings.vSyncCount = VSync ? 1 : 0;   // after the quality level, which sets its own

@@ -75,7 +75,16 @@ namespace StreetLife
         {
             if (i < 0 || i >= Boxes.Count || parked.ContainsKey(i)) return;
             var o = Boxes[i]; Boxes[i] = b;
-            NavGrid.Refresh(Mathf.Min(o.x0, b.x0), Mathf.Max(o.x1, b.x1), Mathf.Min(o.z0, b.z0), Mathf.Max(o.z1, b.z1));
+            // Refresh only where the box was and where it is. A box moved to or from the parking spot far off the map (wall
+            // slots, 15 Nov) used to refresh one rectangle spanning the whole map: every node against every dynamic box,
+            // 0.2 s at first and over 4 s once walls had come and gone (the freezes on Pete's laptop).
+            bool oFar = o.x0 < -9000, bFar = b.x0 < -9000;
+            if (oFar && bFar) return;
+            if (oFar) { NavGrid.Refresh(b); return; }
+            if (bFar) { NavGrid.Refresh(o); return; }
+            float gap = Mathf.Max(Mathf.Max(o.x0, b.x0) - Mathf.Min(o.x1, b.x1), Mathf.Max(o.z0, b.z0) - Mathf.Min(o.z1, b.z1));
+            if (gap > 1f) { NavGrid.Refresh(o); NavGrid.Refresh(b); }
+            else NavGrid.Refresh(Mathf.Min(o.x0, b.x0), Mathf.Max(o.x1, b.x1), Mathf.Min(o.z0, b.z0), Mathf.Max(o.z1, b.z1));
         }
         public static void ClearParked() => parked.Clear();
 
