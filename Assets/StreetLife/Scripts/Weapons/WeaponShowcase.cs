@@ -23,7 +23,7 @@ namespace StreetLife
             Dim = new Color32(138, 138, 138, 255), Track = new Color32(40, 40, 40, 255), Bar = new Color32(245, 245, 245, 255);
 
         Camera cam; RenderTexture rt; VolumeProfile look; Transform pivot, model; ReflectionProbe probe; Cubemap studioMap;
-        Light key, fill, rimA, rimB, glint;
+        Light key, fill, rimA, rimB, glint, front, top;
         Image view; Label title, sub, note; readonly Dictionary<string, VisualElement> bars = new Dictionary<string, VisualElement>();
         string shown; bool active;
         float yaw = -25, pitch = 8, zoom = 1, spinV, idleT = 99, radius = .6f, halfW = .5f, halfH = .2f, glintT;
@@ -147,11 +147,14 @@ namespace StreetLife
             vol.isGlobal = true; vol.priority = 50; look = ScriptableObject.CreateInstance<VolumeProfile>(); vol.sharedProfile = look;
             var tm = look.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
             var bl = look.Add<Bloom>(true); bl.intensity.Override(.55f); bl.threshold.Override(1f); bl.scatter.Override(.6f);
-            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f);
+            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.35f);   // brighter overall: dark guns read (Pete, 15 Nov)
 
             // lights: warm key from above front-left, cool fill low right, two hard rims behind, a glint that sweeps over the top
-            key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 26, 14);
-            fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 8, 10);
+            key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 40, 14);
+            fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 20, 10);
+            // more light so dark guns are easy to see: a soft front light by the camera and a softbox overhead
+            front = MakeLight("front", LightType.Point, new Color(1f, .98f, .95f), 16, 10);
+            top = MakeLight("top", LightType.Point, Color.white, 18, 10);
             rimA = MakeLight("rim A", LightType.Spot, Color.white, 55, 14);
             rimB = MakeLight("rim B", LightType.Spot, new Color(.9f, .94f, 1f), 40, 14);
             glint = MakeLight("glint", LightType.Point, Color.white, 14, 4);
@@ -160,7 +163,7 @@ namespace StreetLife
             // studio reflections: an HDR cube of a dark room with softbox strips, so metal has bright edges to mirror
             studioMap = MakeStudioMap(128);
             probe = new GameObject("studio reflections").AddComponent<ReflectionProbe>(); probe.transform.SetParent(transform, false);
-            probe.mode = ReflectionProbeMode.Custom; probe.customBakedTexture = studioMap; probe.size = Vector3.one * 12; probe.importance = 100; probe.intensity = 1.2f;
+            probe.mode = ReflectionProbeMode.Custom; probe.customBakedTexture = studioMap; probe.size = Vector3.one * 12; probe.importance = 100; probe.intensity = 1.7f;
             probe.boxProjection = false;
         }
 
@@ -301,6 +304,12 @@ namespace StreetLife
                 // metal gets a mirror polish; paint and plastic only a soft sheen, so dark parts stay dark under the studio lights
                 p.SetFloat("_Smoothness", mt > .3f ? Mathf.Lerp(sm, .93f, .6f) : Mathf.Clamp(sm, .3f, .45f));
             }
+            // near-black paint and plastic lifted a little in the showroom only, so their shape shows (the game's materials are untouched)
+            if (p.HasProperty("_BaseColor"))
+            {
+                var bc = p.GetColor("_BaseColor"); float lum = bc.r * .3f + bc.g * .59f + bc.b * .11f;
+                if (lum < .14f) { float k = (.14f - lum) / .14f; p.SetColor("_BaseColor", Color.Lerp(bc, new Color(.16f, .16f, .17f, bc.a), k * .8f)); }
+            }
             if (p.HasProperty("_SpecularHighlights")) p.SetFloat("_SpecularHighlights", 1);
             if (p.HasProperty("_EnvironmentReflections")) p.SetFloat("_EnvironmentReflections", 1);
             p.DisableKeyword("_SPECULARHIGHLIGHTS_OFF"); p.DisableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
@@ -387,6 +396,9 @@ namespace StreetLife
             float sweep = Mathf.Sin(glintT * .9f);
             glint.transform.position = c + new Vector3(sweep * 1.2f, .75f + .15f * Mathf.Cos(glintT * .5f), -.55f) * s;
             glint.range = 3.2f * s;
+            front.transform.position = c + new Vector3(.25f, .45f, -1.7f) * s;
+            top.transform.position = c + new Vector3(0, 1.7f, -.2f) * s;
+            front.range = top.range = 5 * s;
             foreach (var l in new[] { key, rimA, rimB }) l.range = 5 * s;
             fill.range = 5 * s;
         }

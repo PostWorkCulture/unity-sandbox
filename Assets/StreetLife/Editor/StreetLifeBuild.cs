@@ -169,6 +169,15 @@ namespace StreetLife.EditorTools
             Dlg("Street Life", $"Windows build: {bytes / 1048576f:F0} MB in Builds/Windows, {report.summary.totalTime.TotalMinutes:F1} min ({PlayerSettings.GetScriptingBackend(nb)}). {inst}", "OK");
         }
 
+        /// remote: call StreetLifeBuild.BuildWindowsTrace : a development build in Builds/WindowsTrace, only for recording the
+        /// graphics warm-up (GfxWarmup -gfxtrace): release players don't record pipeline states
+        public static string BuildWindowsTrace(string a)
+        {
+            var outDir = Path.Combine(ProjectDir, "Builds", "WindowsTrace"); Directory.CreateDirectory(outDir);
+            var report = Build(BuildTarget.StandaloneWindows64, BuildTargetGroup.Standalone, Path.Combine(outDir, "StreetLife.exe"), BuildOptions.Development);
+            return report == null ? "trace build failed" : $"trace build in Builds/WindowsTrace, {report.summary.totalTime.TotalMinutes:F1} min";
+        }
+
         // ------------------------------------------------------------------ the playable copy outside the project (match chat)
         // Every Windows build is copied to C:\Games\Street Life (without Unity's debug folders) and the desktop gets a "Street Life"
         // shortcut to it, so the game is always one double-click away and a build in progress never touches the copy you play.
@@ -223,6 +232,12 @@ namespace StreetLife.EditorTools
                 string path = "?"; try { path = p.MainModule.FileName; } catch { }
                 sb.Append($"pid {p.Id} {path} started {p.StartTime:HH:mm:ss} responding {p.Responding} window '{p.MainWindowTitle}' mem {p.WorkingSet64 / 1048576} MB; ");
                 if (a == "kill") { try { p.Kill(); sb.Append("killed; "); } catch (System.Exception e) { sb.Append(e.Message + "; "); } }
+            }
+            if (a.StartsWith("trace "))   // call StreetLifeBuild.GameProbe trace <args>: the development build in Builds/WindowsTrace
+            {
+                var dir = Path.Combine(ProjectDir, "Builds", "WindowsTrace");
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(dir, "StreetLife.exe"), a.Substring(6)) { WorkingDirectory = dir, UseShellExecute = false });
+                sb.Append("started the trace build with " + a.Substring(6));
             }
             if (a.StartsWith("args "))   // call StreetLifeBuild.GameProbe args -screen-fullscreen 0
             {
@@ -325,11 +340,11 @@ namespace StreetLife.EditorTools
             return list.ToArray();
         }
 
-        static BuildReport Build(BuildTarget target, BuildTargetGroup group, string path)
+        static BuildReport Build(BuildTarget target, BuildTargetGroup group, string path, BuildOptions extra = BuildOptions.None)
         {
             if (EditorUserBuildSettings.activeBuildTarget != target && !EditorUserBuildSettings.SwitchActiveBuildTarget(group, target))
             { Dlg("Street Life", "Couldn't switch the project to " + target + ".", "OK"); return null; }
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = Scenes(target), locationPathName = path, target = target, targetGroup = group, options = BuildOptions.None });
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = Scenes(target), locationPathName = path, target = target, targetGroup = group, options = extra });
             if (report.summary.result != BuildResult.Succeeded)
             {
                 var errs = string.Join("\n", report.steps.SelectMany(s => s.messages).Where(m => m.type == LogType.Error || m.type == LogType.Exception).Select(m => m.content).Take(6));
