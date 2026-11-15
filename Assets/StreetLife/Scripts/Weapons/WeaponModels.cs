@@ -32,7 +32,7 @@ namespace StreetLife
                 {
                     trimBlack = new Material(Mats[1]) { name = "gun trim black" };
                     if (trimBlack.HasProperty("_BaseColor")) trimBlack.SetColor("_BaseColor", new Color(.012f, .012f, .014f, 1));
-                    if (trimBlack.HasProperty("_Smoothness")) trimBlack.SetFloat("_Smoothness", .62f);
+                    if (trimBlack.HasProperty("_Smoothness")) trimBlack.SetFloat("_Smoothness", .38f);
                     if (trimBlack.HasProperty("_Metallic")) trimBlack.SetFloat("_Metallic", .15f);
                 }
                 if (trimBlack) return trimBlack;

@@ -167,6 +167,7 @@ def checkering(m,panel,step,lw,x,h,sx,border=True):
 
 # ---------------------------------------------------------------- the parts
 BLACK, DARKSTEEL, STEEL, GOLD, CHROME, RUBBER, WOOD_DARK, RED_SHELL, BRASS = 1, 73, 74, 2, 32, 7, 85, 79, 52
+TRIM = 1001   # gloss-black trim (WeaponModels.TrimBlack): stays black in the menu's showroom
 parts=[]
 def part(gun,name,mat,m): parts.append({"gun":gun,"name":name,"mat":mat,"v":[round(c,4) for p in m.v for c in p],"n":[round(c,3) for p in m.n for c in p],"t":m.t})
 
@@ -174,8 +175,8 @@ def part(gun,name,mat,m): parts.append({"gun":gun,"name":name,"mat":mat,"v":[rou
 KAR_SIDE=[(1.0,0.06),(0.55,0.075),(0.42,0.03),(0.3,0.062),(-0.95,0.062),(-0.95,0.0),(-0.1,-0.04),(0.2,-0.05),(0.3,-0.15),(0.38,-0.14),(0.44,-0.07),(1.0,-0.22)]
 KX=.0425
 def kar_trim(m,sx):
-    band(m,KAR_SIDE,.004,.013,KX,.0016,sx)               # the frame round the side
-    band(m,KAR_SIDE,.019,.0215,KX,.0012,sx)              # a pinstripe inside it
+    band(m,KAR_SIDE,.003,.019,KX,.0018,sx)               # the frame round the side
+    band(m,KAR_SIDE,.025,.029,KX,.0014,sx)               # a pinstripe inside it
     checkering(m,[(0.305,0.026),(0.392,0.0),(0.386,-0.088),(0.318,-0.098)],.011,.0022,KX,.0012,sx)   # wrist
     checkering(m,[(-0.80,0.036),(-0.56,0.030),(-0.56,0.006),(-0.80,0.013)],.011,.0022,KX,.0012,sx)  # fore-end
 m=both(kar_trim)
@@ -183,7 +184,7 @@ m=both(kar_trim)
 box(m,(0,-0.080,1.0315),(.0875,.330,.026))
 box(m,(0,0.031,-0.972),(.088,.112,.03))
 prism(m,[(0.287,-0.168),(0.393,-0.158),(0.392,-0.172),(0.289,-0.183)],-0.036,0.036)
-part("scout","kar black trim",BLACK,m)
+part("scout","kar black trim",TRIM,m)
 m=MB()
 # barrel bands round fore-end and barrel, with the sling swivels on the lower band and under the butt
 for zc,ybot,ytop in ((-0.885,-0.028,0.128),(-0.585,-0.042,0.128)):
@@ -198,8 +199,10 @@ part("scout","kar steel fittings",DARKSTEEL,m)
 # ===== Shotty Horror (autoshot): engraved receiver, vent rib, trigger guard, shell carrier, gold-framed stock
 AS_SIDE=[(0.26,-0.1),(0.2,-0.065),(0.2,0.06),(0.34,0.03),(0.5,0.052),(0.92,0.03),(0.92,-0.24),(0.86,-0.26),(0.46,-0.12),(0.4,-0.2),(0.32,-0.2)]
 AX=.0425
+BOLT=[(0.267,-0.017),(0.36,-0.06),(0.39,-0.18),(0.30,-0.09)]   # the lightning inlay on the wrist
 def as_stock(m,sx):
     band(m,AS_SIDE,.006,.0105,AX,.0014,sx)
+    band(m,BOLT,-.0065,-.002,AX,.0034,sx)                 # gold edge round the inlay
 m=both(as_stock)
 # receiver side plates: gold frame and screws, hinge pin
 def as_recv(m,sx):
@@ -237,23 +240,23 @@ k=-0.95
 while k< -0.06:
     box(m,(0,0.076,k),(.010,.010,.012)); k+=.055
 box(m,(0,0.005,-0.52),(.014,.010,.90))
-# shell carrier on the right of the butt: a leather pad with five shells held by a strap
-box(m,(0.0465,-0.055,0.70),(.008,.115,.28))
-box(m,(0.0755,-0.050,0.70),(.005,.020,.29))
-for i in range(6): box(m,(0.062,-0.050,0.5625+i*.055),(.03,.020,.004))   # strap stitching between the loops
+# shell carrier on the right of the butt (-x, the bolt side in this data): a leather pad with five shells held by a strap
+box(m,(-0.0465,-0.055,0.70),(.008,.115,.28))
+box(m,(-0.0755,-0.050,0.70),(.005,.020,.29))
+for i in range(6): box(m,(-0.062,-0.050,0.5625+i*.055),(.03,.020,.004))   # strap stitching between the loops
 part("autoshot","shotty black",BLACK,m)
 m=MB()
 for i in range(5):
-    cyl(m,(0.062,-0.055,0.59+i*.055),(0,1,0),.0115,.085)
+    cyl(m,(-0.062,-0.055,0.59+i*.055),(0,1,0),.0115,.085)
 part("autoshot","shotty shells",RED_SHELL,m)
 m=MB()
 for i in range(5):
-    cyl(m,(0.062,0.0005,0.59+i*.055),(0,1,0),.0122,.026)
-    cyl(m,(0.062,0.0145,0.59+i*.055),(0,1,0),.0128,.003)
+    cyl(m,(-0.062,0.0005,0.59+i*.055),(0,1,0),.0122,.026)
+    cyl(m,(-0.062,0.0145,0.59+i*.055),(0,1,0),.0128,.003)
 part("autoshot","shotty shell heads",BRASS,m)
 m=MB()
 def as_check(m,sx):
-    checkering(m,[(0.302,-0.004),(0.43,0.006),(0.405,-0.118),(0.315,-0.124)],.011,.0022,AX,.0012,sx)
+    checkering(m,[(0.405,0.022),(0.47,0.026),(0.465,-0.092),(0.405,-0.104)],.010,.0022,AX,.0012,sx)
     checkering(m,[(-0.41,0.022),(-0.09,0.022),(-0.09,-0.040),(-0.41,-0.040)],.012,.0024,.0602,.0012,sx)
 m.add(both(as_check))
 prism(m,[(0.318,-0.198),(0.402,-0.198),(0.402,-0.212),(0.318,-0.212)],-0.036,0.036)   # grip cap
