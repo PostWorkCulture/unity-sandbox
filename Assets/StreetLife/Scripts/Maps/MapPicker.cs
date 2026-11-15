@@ -70,8 +70,7 @@ namespace StreetLife
         {
             var set = MapSet.Load(); if (!set || set.Get(sel) == null || sel == MapSet.Current) return;
             MapSet.Choice = sel; Toggle(false);
-            var sc = SceneManager.GetActiveScene();
-            if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+            Loading.ReloadScene();   // behind the loading screen, not a frozen picture
         }
 
         // acts on the press itself, so nothing that grabs the mouse on the same click can swallow it

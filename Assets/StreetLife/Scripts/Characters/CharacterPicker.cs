@@ -120,8 +120,7 @@ namespace StreetLife
             {
                 CharacterSkin.PlayerChoice = sel; CharacterSkin.BotChoice = botSel;
                 Open = false; Cursor.lockState = CursorLockMode.None;
-                var sc = SceneManager.GetActiveScene();
-                if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+                Loading.ReloadScene();   // behind the loading screen, not a frozen picture
             }
             GUI.enabled = true;
             if (GUI.Button(new Rect(br.xMax + 10 * s, br.y, 130 * s, 44 * s), "Close (F3)", btn)) Toggle(false);

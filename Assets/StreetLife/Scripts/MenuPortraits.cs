@@ -60,7 +60,9 @@ namespace StreetLife
 
         void Update()
         {
-            if (queue.Count == 0 || !Setup()) return;
+            if (queue.Count == 0) return;
+            if (!GfxWarmup.Done || Time.frameCount < 30) return;   // 15 Nov: not in the menu's first frames, where the first picture added ~0.4 s to the opening pause
+            if (!Setup()) return;
             var id = queue[0]; queue.RemoveAt(0);
             if (pics.ContainsKey(id)) return;
             try { var t = Shoot(id); if (t) { pics[id] = t; Ready?.Invoke(id, t); } }

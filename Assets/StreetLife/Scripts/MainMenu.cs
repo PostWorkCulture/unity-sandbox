@@ -766,8 +766,7 @@ namespace StreetLife
             if (selMap != MapSet.Current && MapSet.Load() && MapSet.Load().Get(selMap) != null)
             {
                 MapSet.Choice = selMap; skipOnce = true;
-                var sc = SceneManager.GetActiveScene();
-                if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+                Loading.ReloadScene();   // behind the loading screen, not a frozen picture
                 return;
             }
             ApplyLoadout();
@@ -799,8 +798,7 @@ namespace StreetLife
         public static void GoHome()
         {
             Time.timeScale = 1; Paused = false; skipOnce = false;
-            var sc = SceneManager.GetActiveScene();
-            if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+            Loading.ReloadScene();   // behind the loading screen, not a frozen picture
         }
 
         /// straight into a new match on a random map other than this one (same mode, players, character and loadout)
@@ -810,15 +808,13 @@ namespace StreetLife
             if (set && set.maps != null) foreach (var m in set.maps) if (Usable(m) && m.id != MapSet.Current) ids.Add(m.id);
             if (ids.Count == 0) { var rm = RoundManager.Instance; if (rm) rm.StartMatch(); return; }
             MapSet.Choice = Pick(ids); skipOnce = true; Time.timeScale = 1;
-            var sc = SceneManager.GetActiveScene();
-            if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+            Loading.ReloadScene();   // behind the loading screen, not a frozen picture
         }
 
         void ToMenu()
         {
             Time.timeScale = 1; Paused = false;
-            var sc = SceneManager.GetActiveScene();
-            if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+            Loading.ReloadScene();   // behind the loading screen, not a frozen picture
         }
 
         Label autoNow; float autoNowT;

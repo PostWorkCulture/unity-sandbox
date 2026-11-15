@@ -57,6 +57,7 @@ namespace StreetLife
                 int c0 = Mathf.Clamp(Mathf.FloorToInt((b.z0 - CLR - Z0) / BK), 0, bh - 1), c1 = Mathf.Clamp(Mathf.FloorToInt((b.z1 + CLR - Z0) / BK), 0, bh - 1);
                 for (int x = a0; x <= a1; x++) for (int z = c0; z <= c1; z++) (bucket[x + z * bw] ??= new List<int>()).Add(i);
             }
+            bk = bucket; bkW = bw; bkH = bh; bkS = BK;   // the edge checks below look only at nearby boxes (15 Nov: they scanned every box per edge)
 
             var cand = new List<float>(8);
             for (int iz = 0; iz < H; iz++)
@@ -146,6 +147,7 @@ namespace StreetLife
                 comp++;
             }
             MainComp = best;
+            bk = null;
             blocked = new bool[Nodes.Count];
             foreach (var i in Dynamic) if (i >= 0 && i < B.Count) { var b = B[i]; Refresh(b.x0, b.x1, b.z0, b.z1); }
             Ready = true;
@@ -161,20 +163,35 @@ namespace StreetLife
         }
 
         /// A step between two cell heights (stairs whose treads are narrower than a cell): some box top lies between them.
+        // During Build: the static boxes in 4 m buckets (each box listed in every bucket it reaches, grown by CLR), so a check
+        // near a point only looks at that point's bucket. Outside Build (null) the checks scan every box as before.
+        static List<int>[] bk; static int bkW, bkH; static float bkS;
+        static readonly List<int> allBoxes = new List<int>();
+        static List<int> BoxesNear(float x, float z)
+        {
+            if (bk != null)
+            {
+                int a = Mathf.Clamp(Mathf.FloorToInt((x - X0) / bkS), 0, bkW - 1), c = Mathf.Clamp(Mathf.FloorToInt((z - Z0) / bkS), 0, bkH - 1);
+                return bk[a + c * bkW] ?? allBoxes;   // allBoxes is empty here: nothing near
+            }
+            allBoxes.Clear(); for (int i = 0; i < BoxWorld.Boxes.Count; i++) if (!Dynamic.Contains(i)) allBoxes.Add(i);
+            var r = new List<int>(allBoxes); allBoxes.Clear(); return r;
+        }
+
         static bool StairBetween(NavNode a, NavNode b)
         {
             var lo = a.p.y < b.p.y ? a : b; var hi = lo == a ? b : a;
             float mx = (a.p.x + b.p.x) / 2, mz = (a.p.z + b.p.z) / 2;
-            for (int i = 0; i < BoxWorld.Boxes.Count; i++)
-                { if (Dynamic.Contains(i)) continue; var x = BoxWorld.Boxes[i]; if (x.x0 <= mx + .2f && x.x1 >= mx - .2f && x.z0 <= mz + .2f && x.z1 >= mz - .2f && x.y1 - lo.p.y > .05f && x.y1 - lo.p.y <= Fighter.STEP + .01f && hi.p.y - x.y1 <= Fighter.STEP + .01f) return true; }
+            foreach (var i in BoxesNear(mx, mz))
+                { var x = BoxWorld.Boxes[i]; if (x.x0 <= mx + .2f && x.x1 >= mx - .2f && x.z0 <= mz + .2f && x.z1 >= mz - .2f && x.y1 - lo.p.y > .05f && x.y1 - lo.p.y <= Fighter.STEP + .01f && hi.p.y - x.y1 <= Fighter.STEP + .01f) return true; }
             return false;
         }
 
         static bool HeadroomAbove(NavNode n, float topY)
         {
             float need = topY + NAV_H;
-            for (int i = 0; i < BoxWorld.Boxes.Count; i++)
-                { if (Dynamic.Contains(i)) continue; var b = BoxWorld.Boxes[i]; if (b.x0 < n.p.x + CLR && b.x1 > n.p.x - CLR && b.z0 < n.p.z + CLR && b.z1 > n.p.z - CLR && b.y0 > n.p.y + .1f && b.y0 < need) return false; }
+            foreach (var i in BoxesNear(n.p.x, n.p.z))
+                { var b = BoxWorld.Boxes[i]; if (b.x0 < n.p.x + CLR && b.x1 > n.p.x - CLR && b.z0 < n.p.z + CLR && b.z1 > n.p.z - CLR && b.y0 > n.p.y + .1f && b.y0 < need) return false; }
             return true;
         }
 
