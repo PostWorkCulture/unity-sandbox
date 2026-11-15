@@ -148,14 +148,14 @@ namespace StreetLife
             vol.isGlobal = true; vol.priority = 50; look = ScriptableObject.CreateInstance<VolumeProfile>(); vol.sharedProfile = look;
             var tm = look.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
             var bl = look.Add<Bloom>(true); bl.intensity.Override(.55f); bl.threshold.Override(1f); bl.scatter.Override(.6f);
-            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.55f);   // brighter overall: dark guns read (Pete, 15 Nov)
+            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.3f);   // brighter overall: dark guns read (Pete, 15 Nov)
 
             // lights: warm key from above front-left, cool fill low right, two hard rims behind, a glint that sweeps over the top
             key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 40, 14);
             fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 20, 10);
             // more light so dark guns are easy to see: a soft front light by the camera and a softbox overhead
-            front = MakeLight("front", LightType.Point, new Color(1f, .98f, .95f), 24, 10);
-            top = MakeLight("top", LightType.Point, Color.white, 18, 10);
+            front = MakeLight("front", LightType.Point, new Color(1f, .98f, .95f), 16, 10);
+            top = MakeLight("top", LightType.Point, Color.white, 12, 10);
             rimA = MakeLight("rim A", LightType.Spot, Color.white, 55, 14);
             rimB = MakeLight("rim B", LightType.Spot, new Color(.9f, .94f, 1f), 40, 14);
             glint = MakeLight("glint", LightType.Point, Color.white, 14, 4);
@@ -174,7 +174,7 @@ namespace StreetLife
             // studio reflections: an HDR cube of a dark room with softbox strips, so metal has bright edges to mirror
             studioMap = MakeStudioMap(128);
             probe = new GameObject("studio reflections").AddComponent<ReflectionProbe>(); probe.transform.SetParent(transform, false);
-            probe.mode = ReflectionProbeMode.Custom; probe.customBakedTexture = studioMap; probe.size = Vector3.one * 12; probe.importance = 100; probe.intensity = 1.7f;
+            probe.mode = ReflectionProbeMode.Custom; probe.customBakedTexture = studioMap; probe.size = Vector3.one * 12; probe.importance = 100; probe.intensity = 1.3f;
             probe.boxProjection = false;
         }
 
