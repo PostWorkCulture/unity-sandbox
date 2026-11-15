@@ -229,6 +229,7 @@ namespace StreetLife
             var unity = L("  Unity edition", 14, Dim); unity.style.marginBottom = 8; title.Add(unity);
             top.Add(title);
             top.Add(Btn("Settings", () => Show(settings, menu)));
+            if (CanQuit) { var qb = Btn("Quit", QuitGame); qb.style.marginLeft = 10; top.Add(qb); }   // after Settings (ProfileMenu finds Settings by its text)
             menu.Add(top);
 
             // the two steps share one panel; the middle stays open so the live map / your fighter show through
@@ -623,8 +624,8 @@ namespace StreetLife
             var t = L("Paused", 30, Text, true); t.style.unityTextAlign = TextAnchor.MiddleCenter; t.style.marginBottom = 16; c.Add(t);
             foreach (var (label, act, primary) in new (string, Action, bool)[] {
                 ("Resume", new Action(Resume), true), ("Settings", new Action(() => Show(settings, pause)), false), ("Main menu", new Action(ToMenu), false),
-#if !UNITY_WEBGL && !UNITY_EDITOR
-                ("Quit", new Action(Application.Quit), false),
+#if !UNITY_WEBGL
+                ("Quit game", new Action(QuitGame), false),   // in the editor it stops play mode
 #endif
             })
             { var b = Btn(label, act, primary); b.style.marginBottom = 10; c.Add(b); }
@@ -650,8 +651,9 @@ namespace StreetLife
             c.Add(Stepper("Music", vol, () => Settings.Music, v => { Settings.Music = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
             c.Add(Stepper("Effects", vol, () => Settings.Effects, v => { Settings.Effects = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
             c.Add(Caps("Graphics"));
-            c.Add(Segmented(new[] { "High", "Smooth" }, new[] { "high", "smooth" }, () => Settings.Graphics, v => { Settings.Graphics = v; Settings.Apply(); }));
-            var gh = L("High: 4K shadows, full ambient occlusion, 4x anti-aliasing. Smooth: the lighter settings phones use.", 12, Dim); gh.style.whiteSpace = WhiteSpace.Normal; gh.style.marginTop = 6; c.Add(gh);
+            c.Add(Segmented(new[] { "Auto", "High", "Smooth" }, new[] { "auto", "high", "smooth" }, () => Settings.Graphics, v => { Settings.Graphics = v; Settings.Apply(); }));
+            var gh = L("Auto picks from your hardware and drops to Smooth if the game can't keep up. High: 4K shadows, full ambient occlusion, 4x anti-aliasing. Smooth: the lighter settings phones use.", 12, Dim); gh.style.whiteSpace = WhiteSpace.Normal; gh.style.marginTop = 6; c.Add(gh);
+            autoNow = L("", 12, Text); autoNow.style.whiteSpace = WhiteSpace.Normal; autoNow.style.marginTop = 4; c.Add(autoNow);   // what Auto is doing now (Update)
             c.Add(Caps("Touch controls"));
             c.Add(Segmented(new[] { "Auto", "On", "Off" }, new[] { "auto", "on", "off" }, () => Settings.Touch, v => { Settings.Touch = v; Settings.Apply(); }));
             var th = L("Auto: on phones, or once you touch the screen. Off hides the on-screen buttons and stick.", 12, Dim); th.style.whiteSpace = WhiteSpace.Normal; th.style.marginTop = 6; c.Add(th);
@@ -675,8 +677,8 @@ namespace StreetLife
                 c2.Add(Caps("Vibration"));
                 c2.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => Settings.Vibration ? "on" : "off", v => { Settings.Vibration = v == "on"; Settings.Apply(); }));
                 c2.Add(Caps("Frame rate"));
-                c2.Add(Segmented(new[] { "60", "90", "120" }, new[] { "60", "90", "120" }, () => Settings.Fps.ToString(), v => { Settings.Fps = int.Parse(v); Settings.Apply(); }));
-                var fh = L("60 keeps the phone cooler and steadier over long sessions.", 12, Dim); fh.style.whiteSpace = WhiteSpace.Normal; fh.style.marginTop = 6; c2.Add(fh);
+                c2.Add(Segmented(new[] { "Auto", "60", "90", "120" }, new[] { "0", "60", "90", "120" }, () => Settings.Fps <= 0 ? "0" : Settings.Fps.ToString(), v => { Settings.Fps = int.Parse(v); Settings.Apply(); }));
+                var fh = L("Auto runs at the screen's own rate and steps down to 90 or 60 if the phone can't hold it. 60 keeps the phone cooler over long sessions.", 12, Dim); fh.style.whiteSpace = WhiteSpace.Normal; fh.style.marginTop = 6; c2.Add(fh);
                 var ed = Btn("Edit button layout", () => { var back = settings; Show(null); TouchLayout.BeginEdit(() => Show(back)); }); ed.style.marginTop = 14; c2.Add(ed);
                 row.Add(c); row.Add(c2);
                 if (Settings.IsDesktop) row.Add(BuildDisplayCard());
@@ -698,10 +700,10 @@ namespace StreetLife
             if (res.Count > 0)
                 c3.Add(Stepper("Resolution", idx, () => Settings.ResolutionIndex(res), v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; Settings.ResW = r.x; Settings.ResH = r.y; Settings.ApplyScreen(); }, v => { var r = res[Mathf.Clamp(Mathf.RoundToInt(v), 0, res.Count - 1)]; return r.x + " x " + r.y; }, 124));
             c3.Add(Caps("V-sync"));
-            c3.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => Settings.VSync ? "on" : "off", v => { Settings.VSync = v == "on"; Settings.Apply(); }));
+            c3.Add(Segmented(new[] { "Auto", "Off", "On" }, new[] { "auto", "off", "on" }, () => Settings.VSyncAuto ? "auto" : Settings.VSync ? "on" : "off", v => { Settings.VSyncAuto = v == "auto"; if (v != "auto") Settings.VSync = v == "on"; Settings.Apply(); }));
             c3.Add(Caps("Frame rate cap (V-sync off)"));
             c3.Add(Segmented(new[] { "None", "60", "120", "144", "240" }, new[] { "0", "60", "120", "144", "240" }, () => Settings.FpsCap.ToString(), v => { Settings.FpsCap = int.Parse(v); Settings.Apply(); }));
-            var vh = L("V-sync locks the frame rate to the monitor and stops tearing. Off: as fast as the PC can go, up to the cap.", 12, Dim); vh.style.whiteSpace = WhiteSpace.Normal; vh.style.marginTop = 6; c3.Add(vh);
+            var vh = L("Auto: v-sync at the monitor's rate, and if the PC can't hold it, a steady lower cap (144, 120, 90 or 60) instead of judder. On locks to the monitor and stops tearing. Off: as fast as the PC can go, up to the cap.", 12, Dim); vh.style.whiteSpace = WhiteSpace.Normal; vh.style.marginTop = 6; c3.Add(vh);
             return c3;
         }
 
@@ -782,6 +784,36 @@ namespace StreetLife
         }
 
         void Resume() { Paused = false; Time.timeScale = 1; Show(null); HideGame(false); }
+        // ---- quitting, and the after-match buttons (MatchEndMenu)
+        static bool CanQuit => Application.platform != RuntimePlatform.WebGLPlayer;   // a browser tab can't be closed from the game
+        public static void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        /// back to the main menu (the scene reloads with the menu up)
+        public static void GoHome()
+        {
+            Time.timeScale = 1; Paused = false; skipOnce = false;
+            var sc = SceneManager.GetActiveScene();
+            if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+        }
+
+        /// straight into a new match on a random map other than this one (same mode, players, character and loadout)
+        public static void PlayRandomMap()
+        {
+            var set = MapSet.Load(); var ids = new List<string>();
+            if (set && set.maps != null) foreach (var m in set.maps) if (Usable(m) && m.id != MapSet.Current) ids.Add(m.id);
+            if (ids.Count == 0) { var rm = RoundManager.Instance; if (rm) rm.StartMatch(); return; }
+            MapSet.Choice = Pick(ids); skipOnce = true; Time.timeScale = 1;
+            var sc = SceneManager.GetActiveScene();
+            if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
+        }
+
         void ToMenu()
         {
             Time.timeScale = 1; Paused = false;
@@ -789,8 +821,11 @@ namespace StreetLife
             if (sc.buildIndex >= 0) SceneManager.LoadScene(sc.buildIndex); else SceneManager.LoadScene(sc.name);
         }
 
+        Label autoNow; float autoNowT;
         void Update()
         {
+            if (autoNow != null && settings != null && settings.style.display == DisplayStyle.Flex && (autoNowT -= Time.unscaledDeltaTime) <= 0)
+            { autoNowT = .5f; autoNow.text = AutoQuality.GraphicsAuto || AutoQuality.FpsAuto ? AutoQuality.Describe() : ""; }
             MaybeTakeThumb();
             if (pauseBtn != null) pauseBtn.style.display = !Open && !Paused && TouchControls.I && TouchControls.I.Showing ? DisplayStyle.Flex : DisplayStyle.None;
             var kb = Keyboard.current;
@@ -866,21 +901,21 @@ namespace StreetLife
         public static float AimAssist { get => PlayerPrefs.GetFloat(P + "assist", 1f); set => PlayerPrefs.SetFloat(P + "assist", value); }
         public static string Gyro { get => PlayerPrefs.GetString(P + "gyro", "off"); set => PlayerPrefs.SetString(P + "gyro", value); }
         public static bool Vibration { get => PlayerPrefs.GetInt(P + "vibe", 1) == 1; set => PlayerPrefs.SetInt(P + "vibe", value ? 1 : 0); }
-        public static int Fps { get => PlayerPrefs.GetInt(P + "fps", 60); set => PlayerPrefs.SetInt(P + "fps", value); }
+        public static int Fps { get => PlayerPrefs.GetInt(P + "fps2", 0); set => PlayerPrefs.SetInt(P + "fps2", value); }   // 0 = Auto (AutoQuality)
         /// phones: run at the chosen rate, capped at the screen's own (60 by default: cooler and steadier over long sessions)
         public static void ApplyFps()
         {
             if (!Application.isMobilePlatform || Application.platform == RuntimePlatform.WebGLPlayer) return;
             int hz = Mathf.Max(60, Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value));
-            Application.targetFrameRate = Mathf.Min(Fps, hz);
+            Application.targetFrameRate = Fps <= 0 ? AutoQuality.PhoneTarget : Mathf.Min(Fps, hz);
         }
         public static bool RandomMap { get => PlayerPrefs.GetInt(P + "randomMap", 0) == 1; set => PlayerPrefs.SetInt(P + "randomMap", value ? 1 : 0); }
         public static bool RandomChar { get => PlayerPrefs.GetInt(P + "randomChar", 0) == 1; set => PlayerPrefs.SetInt(P + "randomChar", value ? 1 : 0); }
         public static string Touch { get => PlayerPrefs.GetString(P + "touch", "auto"); set => PlayerPrefs.SetString(P + "touch", value); }
         public static string Graphics
         {
-            get => PlayerPrefs.GetString(P + "gfx", Application.isMobilePlatform ? "smooth" : "high");
-            set => PlayerPrefs.SetString(P + "gfx", value);
+            get => PlayerPrefs.GetString(P + "gfx2", "auto");   // "auto" (AutoQuality), "high" or "smooth"
+            set => PlayerPrefs.SetString(P + "gfx2", value);
         }
 
         // ---- display (desktop builds and the editor)
@@ -888,6 +923,7 @@ namespace StreetLife
         public static string ScreenMode { get => PlayerPrefs.GetString(P + "screenMode", "borderless"); set => PlayerPrefs.SetString(P + "screenMode", value); }
         public static int ResW { get => PlayerPrefs.GetInt(P + "resW", 0); set => PlayerPrefs.SetInt(P + "resW", value); }
         public static int ResH { get => PlayerPrefs.GetInt(P + "resH", 0); set => PlayerPrefs.SetInt(P + "resH", value); }
+        public static bool VSyncAuto { get => PlayerPrefs.GetInt(P + "vsyncAuto", 1) == 1; set => PlayerPrefs.SetInt(P + "vsyncAuto", value ? 1 : 0); }
         public static bool VSync { get => PlayerPrefs.GetInt(P + "vsync", 1) == 1; set => PlayerPrefs.SetInt(P + "vsync", value ? 1 : 0); }
         public static int FpsCap { get => PlayerPrefs.GetInt(P + "fpsCap", 0); set => PlayerPrefs.SetInt(P + "fpsCap", value); }
         /// the monitor's sizes, biggest last, each once (refresh rates folded together)
@@ -916,8 +952,12 @@ namespace StreetLife
         static void ApplyDisplay()
         {
             if (!IsDesktop) return;
-            QualitySettings.vSyncCount = VSync ? 1 : 0;   // after the quality level, which sets its own
-            Application.targetFrameRate = VSync || FpsCap <= 0 ? -1 : FpsCap;
+            if (VSyncAuto) { int cap = AutoQuality.PcCap; QualitySettings.vSyncCount = cap > 0 ? 0 : 1; Application.targetFrameRate = cap > 0 ? cap : -1; }
+            else
+            {
+                QualitySettings.vSyncCount = VSync ? 1 : 0;   // after the quality level, which sets its own
+                Application.targetFrameRate = VSync || FpsCap <= 0 ? -1 : FpsCap;
+            }
             if (!screenApplied) { screenApplied = true; ApplyScreen(); }   // once a run: Unity remembers the rest
         }
 
@@ -928,7 +968,7 @@ namespace StreetLife
             if (TouchControls.I) { TouchControls.I.sensitivity = Sens; TouchControls.I.aimAssist = AimAssist; TouchControls.I.gyro = Gyro; TouchControls.I.autoAds = AutoAds; TouchControls.I.aimSens = AimSens; TouchControls.I.snipeSens = SnipeSens; }
             Haptics.On = Vibration; ApplyFps();
             Sfx.MusicVolume = Music; Sfx.SfxVolume = Effects;
-            var names = QualitySettings.names; string want = Graphics == "smooth" ? "Mobile" : "PC";
+            var names = QualitySettings.names; string want = Graphics == "auto" ? AutoQuality.Level : Graphics == "smooth" ? "Mobile" : "PC";
             for (int i = 0; i < names.Length; i++) if (names[i] == want && QualitySettings.GetQualityLevel() != i) { QualitySettings.SetQualityLevel(i, true); break; }
             ApplyDisplay();
             var rm = RoundManager.Instance; if (rm) { rm.difficulty = Difficulty; rm.simpleRules = Rules == "simple"; }

@@ -153,7 +153,7 @@ namespace StreetLife.EditorTools
             var nb = NamedBuildTarget.Standalone;
             PlayerSettings.productName = "Street Life"; PlayerSettings.companyName = "PostWorkCulture";
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;   // borderless full screen: exclusive at launch hangs on this laptop (hybrid GPU); Settings > Display offers it
-            PlayerSettings.defaultIsNativeResolution = true; PlayerSettings.runInBackground = true;
+            PlayerSettings.defaultIsNativeResolution = true; PlayerSettings.runInBackground = true; PlayerSettings.enableFrameTimingStats = true;   // PerfProbe reads main/render/GPU times
             // Windows.Gaming.Input hangs the player at startup when it's launched from Explorer on this PC (a shortcut double-click
             // never got past "Using Windows.Gaming.Input"); XInput covers Xbox-style pads and the Input System still sees the rest
             PlayerSettings.windowsGamepadBackendHint = WindowsGamepadBackendHint.WindowsGamepadBackendHintXInput;

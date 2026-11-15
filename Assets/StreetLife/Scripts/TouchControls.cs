@@ -294,7 +294,7 @@ namespace StreetLife
                 switch (t.phase)
                 {
                     case UnityEngine.InputSystem.TouchPhase.Began:
-                        if (matchEnd && !KillClips.Viewing && RematchRect.Contains(p)) { rm.StartMatch(); break; }
+                        if (matchEnd && !KillClips.Viewing && !MatchEndMenu.Active && RematchRect.Contains(p)) { rm.StartMatch(); break; }   // MatchEndMenu has its own Rematch
                         var b = Hit(p, menu);
                         if (b != null && b.finger < 0)
                         {
@@ -368,7 +368,7 @@ namespace StreetLife
             label.fontSize = Mathf.RoundToInt(13 * s);
 
             var rm = RoundManager.Instance;
-            if (rm && rm.state == RoundManager.State.MatchEnd && !KillClips.Viewing)
+            if (rm && rm.state == RoundManager.State.MatchEnd && !KillClips.Viewing && !MatchEndMenu.Active)
             {
                 var r = RematchRect;
                 Pill(r, new Color(1, 1, 1, .92f));
