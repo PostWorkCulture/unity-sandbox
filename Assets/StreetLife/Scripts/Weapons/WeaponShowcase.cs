@@ -65,6 +65,13 @@ namespace StreetLife
             card.Add(st);
             var hint = L("DRAG TO TURN", 10, Dim, true); hint.style.letterSpacing = 1.5f; hint.style.position = Position.Absolute; hint.style.right = 22; hint.style.top = 24; hint.pickingMode = PickingMode.Ignore;
             card.Add(hint);
+            // on the light studio, labels get a soft shadow and the dim ones a lighter grey, so they stay readable
+            var lightDim = new Color32(214, 214, 214, 255);
+            card.Query<Label>().ForEach(l =>
+            {
+                l.style.textShadow = new TextShadow { offset = new Vector2(0, 1), blurRadius = 4, color = new Color(0, 0, 0, .75f) };
+                if (l.resolvedStyle.color == Dim || l.style.color.value == Dim) l.style.color = (Color)lightDim;
+            });
 
             // turning and zooming
             var v = s.view;
@@ -105,13 +112,35 @@ namespace StreetLife
         /// The showroom renders only while the Loadout step is on screen.
         public static void SetActive(bool on, string first = null)
         {
-            if (!on) { if (I) { I.active = false; if (I.cam) I.cam.enabled = false; } return; }   // never makes a showroom just to switch it off
-            var s = Get(); s.active = true; if (s.cam) s.cam.enabled = true;
+            if (!on) { if (I) { I.active = false; if (I.cam) I.cam.enabled = false; } Lights(false); return; }   // never makes a showroom just to switch it off
+            var s = Get(); s.active = true; if (s.cam) s.cam.enabled = true; Lights(true);
             if (s.shown == null || first != null) s.SetWeapon(first ?? Settings.Primary);
             // keep the showroom to itself: the map's cameras don't draw it and the sun doesn't light it
             var mc = Camera.main; if (mc) mc.cullingMask &= ~(1 << Layer);
             foreach (var l in FindObjectsByType<Light>())
                 if (l.type == LightType.Directional) l.cullingMask &= ~(1 << Layer);
+        }
+
+        // The studio has seven lights on the weapon. The Mobile quality level (phones and the web build) allows only 4 per
+        // object, which left the preview dark in the browser; while the showroom is on, the limit is raised to 8 and put back after.
+        static int savedLightLimit = -1;
+        static void Lights(bool on)
+        {
+            var urp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset; if (!urp) return;
+            if (on && savedLightLimit < 0 && urp.maxAdditionalLightsCount < 8) { savedLightLimit = urp.maxAdditionalLightsCount; urp.maxAdditionalLightsCount = 8; }
+            else if (!on && savedLightLimit >= 0) { urp.maxAdditionalLightsCount = savedLightLimit; savedLightLimit = -1; }
+        }
+
+        /// remote test: switch the quality level by name, e.g. Mobile or PC (call WeaponShowcase.Quality Mobile)
+        public static string Quality(string name)
+        {
+            Lights(false);
+            var names = QualitySettings.names; int i = System.Array.FindIndex(names, n => n.ToLowerInvariant() == (name ?? "").Trim().ToLowerInvariant());
+            if (i < 0) return "levels: " + string.Join(", ", names);
+            QualitySettings.SetQualityLevel(i, true);
+            if (I && I.active) Lights(true);
+            var urp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+            return "quality " + names[i] + ", lights per object " + (urp ? urp.maxAdditionalLightsCount : -1);
         }
 
         static Label L(string t, int size, Color c, bool bold = false)
@@ -129,14 +158,14 @@ namespace StreetLife
 
         // ================================================================== the studio
         void Awake() { I = this; transform.position = Studio; BuildStudio(); }
-        void OnDestroy() { if (I == this) I = null; if (rt) { rt.Release(); Destroy(rt); } if (studioMap) Destroy(studioMap); if (look) Destroy(look); foreach (var p in polished.Values) if (p) Destroy(p); }
+        void OnDestroy() { Lights(false); if (I == this) I = null; if (rt) { rt.Release(); Destroy(rt); } if (studioMap) Destroy(studioMap); if (look) Destroy(look); foreach (var p in polished.Values) if (p) Destroy(p); }
 
         void BuildStudio()
         {
             pivot = new GameObject("pivot").transform; pivot.SetParent(transform, false);
             var cg = new GameObject("Showroom camera"); cg.transform.SetParent(transform, false);
             cam = cg.AddComponent<Camera>(); cam.cullingMask = 1 << Layer; cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(.05f, .05f, .056f, 1); cam.fieldOfView = 26; cam.nearClipPlane = .02f; cam.farClipPlane = 40; cam.depth = -50;
+            cam.backgroundColor = new Color(.24f, .245f, .26f, 1);   // a light grey studio, so dark guns read (Pete, 15 Nov) cam.fieldOfView = 26; cam.nearClipPlane = .02f; cam.farClipPlane = 40; cam.depth = -50;
             cam.allowHDR = true; cam.enabled = false;
             cam.useOcclusionCulling = false;   // GPU occlusion culling would work from a stale depth (camera off, or another weapon) and drop parts
             var d = cam.GetUniversalAdditionalCameraData();
@@ -162,12 +191,12 @@ namespace StreetLife
             glint = MakeLight("glint", LightType.Point, Color.white, 14, 4);
             key.spotAngle = 55; key.innerSpotAngle = 25; rimA.spotAngle = rimB.spotAngle = 45; rimA.innerSpotAngle = rimB.innerSpotAngle = 20;
 
-            // backdrop: a quad behind the weapon with a radial glow (grey in the middle, black at the edges), unlit
+            // backdrop: a quad behind the weapon with a radial glow (light grey in the middle, mid grey at the edges), unlit
             var bq = GameObject.CreatePrimitive(PrimitiveType.Quad); var bcol = bq.GetComponent<Collider>(); if (bcol) Destroy(bcol);
             bq.name = "backdrop"; bq.layer = Layer; bq.transform.SetParent(transform, false); backdrop = bq.transform;
             var glow = new Texture2D(128, 128, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "backdrop glow" };
             for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++)
-                { float dx = (x - 63.5f) / 64f, dy = (y - 63.5f) / 64f * 1.15f, r = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy)); float v = Mathf.Lerp(.26f, .05f, Mathf.SmoothStep(0, 1, r)); glow.SetPixel(x, y, new Color(v, v, v * 1.04f, 1)); }
+                { float dx = (x - 63.5f) / 64f, dy = (y - 63.5f) / 64f * 1.15f, r = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy)); float v = Mathf.Lerp(.70f, .38f, Mathf.SmoothStep(0, 1, r)); glow.SetPixel(x, y, new Color(v, v, v * 1.04f, 1)); }
             glow.Apply();
             var bm = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { name = "backdrop" }; bm.SetTexture("_BaseMap", glow); bm.SetColor("_BaseColor", Color.white);
             var br = bq.GetComponent<MeshRenderer>(); br.sharedMaterial = bm; br.shadowCastingMode = ShadowCastingMode.Off; br.receiveShadows = false;

@@ -175,8 +175,8 @@ def part(gun,name,mat,m): parts.append({"gun":gun,"name":name,"mat":mat,"v":[rou
 KAR_SIDE=[(1.0,0.06),(0.55,0.075),(0.42,0.03),(0.3,0.062),(-0.95,0.062),(-0.95,0.0),(-0.1,-0.04),(0.2,-0.05),(0.3,-0.15),(0.38,-0.14),(0.44,-0.07),(1.0,-0.22)]
 KX=.0425
 def kar_trim(m,sx):
-    band(m,KAR_SIDE,.003,.019,KX,.0018,sx)               # the frame round the side
-    band(m,KAR_SIDE,.025,.029,KX,.0014,sx)               # a pinstripe inside it
+    band(m,KAR_SIDE,.003,.023,KX,.0022,sx)               # the frame round the side
+    band(m,KAR_SIDE,.030,.036,KX,.0016,sx)               # a pinstripe inside it
     checkering(m,[(0.305,0.026),(0.392,0.0),(0.386,-0.088),(0.318,-0.098)],.011,.0022,KX,.0012,sx)   # wrist
     checkering(m,[(-0.80,0.036),(-0.56,0.030),(-0.56,0.006),(-0.80,0.013)],.011,.0022,KX,.0012,sx)  # fore-end
 m=both(kar_trim)
