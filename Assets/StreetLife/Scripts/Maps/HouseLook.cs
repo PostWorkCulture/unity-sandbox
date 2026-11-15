@@ -286,7 +286,7 @@ namespace StreetLife
         }
 
         // ------------------------------------------------------------------ loose things
-        static void Protos(TikiBar k)
+        internal static void Protos(TikiBar k)
         {
             TikiBar.PS = TikiBar.Small;
             var china = k.Gloss("#f4f1ea", .85f);

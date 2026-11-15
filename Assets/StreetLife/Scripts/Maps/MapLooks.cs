@@ -15,6 +15,7 @@ namespace StreetLife
         public string id, set, stem;                              // map id, Resources name of its RailLookSet, name of its light scene
         public Dictionary<string, string> rules;                  // exported colour (+ had a texture, - had none) -> surface
         public string fromAbove = "grass";                        // the surface that is always mapped top-down
+        public Dictionary<string, string> tint;                   // exported colour -> the colour its surface is given instead
         public HashSet<string> hide;                              // exported colours whose meshes go (plain blocks the dressing replaces)
         public Bounds[] gone;                                     // or boxes: every triangle and outline wholly inside one goes
         public System.Action<EnvJson> env;                        // changes to the sky and lights (null: the map's own)
@@ -36,7 +37,7 @@ namespace StreetLife
             {
                 if (all != null) return all;
                 all = new Dictionary<string, MapLook>();
-                foreach (var l in new[] { SkyLook.Def, LagoonLook.Def, HouseLook.Def }) all[l.id] = l;
+                foreach (var l in new[] { SkyLook.Def, LagoonLook.Def, HouseLook.Def, YardLook.Def }) all[l.id] = l;
                 return all;
             }
         }
@@ -118,7 +119,11 @@ namespace StreetLife
                     }
                     continue;
                 }
-                if (!made.TryGetValue(src, out var m)) { m = RailLook.Make(s, src); made[src] = m; }
+                if (!made.TryGetValue(src, out var m))
+                {
+                    m = RailLook.Make(s, src); made[src] = m;
+                    if (l.tint != null && src.HasProperty("_BaseColor") && l.tint.TryGetValue(ColorUtility.ToHtmlStringRGB(src.GetColor("_BaseColor")).ToLowerInvariant(), out var th)) m.SetColor("_BaseColor", Hex.ToColor(th));
+                }
                 var mesh = MeshIO.Build(bin, rec, nm);
                 if (touches && Cut(mesh, l.gone) == 0) { Object.Destroy(mesh); t.gameObject.SetActive(false); hidden++; continue; }
                 RailLook.WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == l.fromAbove, s.upright);
@@ -184,6 +189,7 @@ namespace StreetLife
                 foreach (var mf in t.GetComponentsInChildren<MeshFilter>())
                 {
                     var old = mf.sharedMesh; var mr = mf.GetComponent<MeshRenderer>(); if (!old || !mr) continue;
+                    if (old.GetIndexCount(0) > 36) continue;   // a model (a chair), not a plain block
                     var b = old.bounds; if (b.size.y < .3f || b.size.x < .5f || b.size.z < .5f) continue;
                     var mb = new MapProps.Mb(); float top = Mathf.Min(.09f, b.size.y * .2f), leg = .09f;
                     mb.Box(new Vector3(b.center.x, b.max.y - top / 2, b.center.z), new Vector3(b.size.x, top, b.size.z), .015f, Quaternion.identity);

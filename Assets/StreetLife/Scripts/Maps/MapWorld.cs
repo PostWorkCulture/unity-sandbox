@@ -62,6 +62,7 @@ namespace StreetLife
             if (MapRules.Wading || MapRules.DeepWater) gameObject.AddComponent<Waterside>().Init(this);
             FindTouchGlass();
             QuietTownLife();
+            TameUnlit();
             Fighter.WentOverEdge += OnOverEdge; Fighter.HitWater += OnHitWater; RoundManager.RoundStarted += OnRound;
         }
 
@@ -163,14 +164,45 @@ namespace StreetLife
             var l = new LookSet { cover = .52f, alpha = .95f, lit = Color.white, shade = new Color(.62f, .68f, .78f), bloom = -1, ev = .15f };
             switch (id)
             {
-                case "wreck": l.cover = .35f; l.temp = 3; l.sat = 8; l.contrast = 6; break;                                                         // bright beach day
-                case "rail": l.cover = .5f; l.lit = new Color(1f, .84f, .66f); l.shade = new Color(.52f, .44f, .56f); l.temp = 2; l.sat = 6; l.contrast = 4; break;   // golden hour (RailLook.Env)
-                case "skyhigh": l.cover = .55f; l.lit = new Color(1f, .8f, .62f); l.shade = new Color(.55f, .38f, .45f); l.temp = 10; l.sat = 8; break;   // golden hour
-                case "lagoon": l.cover = .52f; l.lit = new Color(1f, .82f, .86f); l.shade = new Color(.55f, .42f, .62f); l.temp = 6; l.sat = 10; break; // sunset
-                case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 8; l.bloom = .35f; l.ev = -.35f; break; // night
+                // Colour review (Pete, 14 Nov: "colouring a bit over the top, hard to see the enemy"): every map now shares one grade
+                // (the shared look: no extra saturation, contrast +8); a map only changes white balance for its time of day, plus a
+                // touch of contrast where the light is flat. No per-map saturation any more: it was +16 to +20 on four maps.
+                case "wreck": l.cover = .35f; l.temp = 1; l.contrast = 2; break;                                                         // bright beach day
+                case "rail": l.cover = .5f; l.lit = new Color(1f, .84f, .66f); l.shade = new Color(.52f, .44f, .56f); l.temp = 2; l.contrast = 2; break;   // golden hour (RailLook.Env)
+                case "skyhigh": l.cover = .55f; l.lit = new Color(1f, .8f, .62f); l.shade = new Color(.55f, .38f, .45f); l.temp = 5; break;   // golden hour
+                case "lagoon": l.cover = .52f; l.lit = new Color(1f, .82f, .86f); l.shade = new Color(.55f, .42f, .62f); l.temp = 3; break; // sunset
+                case "arena": l.cover = .22f; l.alpha = .55f; l.lit = new Color(.2f, .23f, .36f); l.shade = new Color(.07f, .08f, .15f); l.contrast = 4; l.ev = -.35f; break; // night
                 case "house": case "yard": l.cover = .5f; break;
             }
             return l;
+        }
+
+        // Self-lit surfaces (screens, LED strips, neon, signs: the web game's "unlit" materials). The web game shows them at their
+        // exact colour, untouched by exposure; here they went through the +0.8 stop exposure and ACES like everything else, so
+        // they came out about 1.8x brighter than the lit world round them and drew the eye away from the fighters. Each map's
+        // unlit opaque materials are copied (never the assets) at 62%, which puts them back level with the lit surfaces.
+        const float UnlitLevel = .62f;
+        void TameUnlit()
+        {
+            var root = builder ? builder.transform.Find("__Generated") : null; if (!root) return;
+            var made = new Dictionary<Material, Material>();
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials; bool changed = false;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (!m || m.renderQueue >= 3000 || !m.shader || !m.shader.name.Contains("Unlit") || !m.HasProperty("_BaseColor")) continue;
+                    if (m.name.StartsWith("line ") || m.name.StartsWith("Beam")) continue;   // outlines stay dark, beams have their own shader
+                    if (!made.TryGetValue(m, out var c))
+                    {
+                        c = new Material(m) { name = m.name + " (level)" }; var col = m.GetColor("_BaseColor");
+                        c.SetColor("_BaseColor", new Color(col.r * UnlitLevel, col.g * UnlitLevel, col.b * UnlitLevel, col.a)); made[m] = c;
+                    }
+                    mats[i] = c; changed = true;
+                }
+                if (changed) r.sharedMaterials = mats;
+            }
         }
 
         // Floodlight beams (Arena): huge see-through cones that the web game draws at 5.5% white. Overlapping, they stacked into a

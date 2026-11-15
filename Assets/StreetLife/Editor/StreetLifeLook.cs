@@ -113,10 +113,12 @@ namespace StreetLife.EditorTools
             var p = AssetDatabase.LoadAssetAtPath<VolumeProfile>("Assets/StreetLife/Settings/StreetLifeVolume.asset");
             if (!p) return;
             Get<Tonemapping>(p).mode.Override(TonemappingMode.ACES);
-            var ca = Get<ColorAdjustments>(p); ca.contrast.Override(10f); ca.saturation.Override(10f);   // exposure stays matched to the web game
-            var bl = Get<Bloom>(p); bl.intensity.Override(.45f); bl.threshold.Override(1f); bl.scatter.Override(.65f); bl.highQualityFiltering.Override(true);
+            // colour review (Pete, 14 Nov: "colouring a bit over the top, hard to see the enemy"): ACES already deepens colour, so no extra
+            // saturation; a little less contrast; bloom only on real highlights, capped so one bright pixel can't flood the screen
+            var ca = Get<ColorAdjustments>(p); ca.contrast.Override(8f); ca.saturation.Override(0f);   // exposure stays matched to the web game
+            var bl = Get<Bloom>(p); bl.intensity.Override(.3f); bl.threshold.Override(1.1f); bl.scatter.Override(.6f); bl.clamp.Override(6f); bl.highQualityFiltering.Override(true);
             var vg = Get<Vignette>(p); vg.intensity.Override(.18f); vg.smoothness.Override(.45f);
-            var wb = Get<WhiteBalance>(p); wb.temperature.Override(4f);
+            var wb = Get<WhiteBalance>(p); wb.temperature.Override(2f);
             foreach (var c in p.components) EditorUtility.SetDirty(c);
             EditorUtility.SetDirty(p);
         }

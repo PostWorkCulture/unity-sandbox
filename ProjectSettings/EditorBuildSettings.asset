@@ -26,5 +26,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/StreetLife/Maps/house/Light/HouseLight.unity
     guid: 1fd21d435b137714bb4daaced64790b0
+  - enabled: 1
+    path: Assets/StreetLife/Maps/yard/Light/YardLight.unity
+    guid: 79cb59375535195489fb5919982b3028
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
