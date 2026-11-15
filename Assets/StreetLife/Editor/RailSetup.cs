@@ -75,6 +75,19 @@ namespace StreetLife.EditorTools
             new Def { name = "post", tex = "wood", dir = RailDir, metres = 1.2f, tinted = true, upright = true },
         };
 
+        const string HouseDir = "Assets/StreetLife/Maps/house/Surfaces";
+        static readonly Def[] House =
+        {
+            new Def { name = "plaster", metres = 3f, tinted = true, bump = .6f },
+            new Def { name = "carpet", metres = 1.6f, tinted = true },
+            new Def { name = "tiles", metres = 1.8f, tinted = true },
+            new Def { name = "planks", dir = BeachDir, metres = 1.68f, tinted = true },
+            new Def { name = "post", tex = "wood", dir = RailDir, metres = 1.2f, tinted = true, upright = true },
+            new Def { name = "paint", tex = "metal", dir = RailDir, metres = 1.5f, tinted = true, keepGloss = true },
+            new Def { name = "grass", dir = RailDir, metres = 6f, tinted = true },
+            new Def { name = "concrete", dir = RailDir, metres = 2.4f, tinted = true },
+        };
+
         [MenuItem("Street Life/Maps/Rebuild Railed surfaces")]
         static void Menu() { Debug.Log("Map surfaces: " + Build("")); }
 
@@ -99,6 +112,7 @@ namespace StreetLife.EditorTools
             }
             string c = "; Sky High " + Book(lit, RailDir, "Assets/StreetLife/Resources/SkyLook.asset", Sky, out _);
             c += "; Lagoon " + Book(lit, BeachDir, "Assets/StreetLife/Resources/LagoonLook.asset", Lagoon, out _);
+            c += "; The House " + Book(lit, HouseDir, "Assets/StreetLife/Resources/HouseLook.asset", House, out _);
             AssetDatabase.SaveAssets();
             return "Railed " + a + "; Beach Please " + b + (beach && beach.ground ? " and the sand" : "") + c;
         }

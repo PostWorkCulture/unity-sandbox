@@ -768,13 +768,14 @@ namespace StreetLife
         /// The bar's loose things for another map's look (MapLooks): bottles, glasses, lanterns, tables and stools to put down
         /// with Put, Drink, TableSet and Bucket, and its fittings builder (Part, Surf, Gloss, Glow, Glass, then Flush). The
         /// materials are the Tiki Bar's own templates. Null where there is nothing to hold breakables (no Destruction).
-        internal static TikiBar Kit(Transform parent, string name)
+        internal static TikiBar Kit(Transform parent, string name, bool forBake = false)
         {
             var set = Resources.Load<RailLookSet>("BeachLook");
-            if (!set || !set.glass || !set.gloss || !set.glow || !Destruction.I) return null;
+            if (!set || !set.glass || !set.gloss || !set.glow || (!forBake && !Destruction.I)) return null;
             var bar = new GameObject(name).AddComponent<TikiBar>();
-            bar.transform.SetParent(parent, false); bar.set = set;
-            bar.Begin(); bar.Protos();
+            bar.transform.SetParent(parent, false); bar.set = set; bar.baking = forBake;
+            bar.Begin();
+            if (!forBake) bar.Protos();
             return bar;
         }
         internal int Count => loose.Count;

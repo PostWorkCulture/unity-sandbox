@@ -224,11 +224,13 @@ namespace StreetLife
                 if (!any) foreach (var r in rends) if (r && r.gameObject.activeInHierarchy) { if (!any) { bb = r.bounds; any = true; } else bb.Encapsulate(r.bounds); }
                 foreach (var r in rends) if (r && r.sharedMaterial && r.sharedMaterial.renderQueue >= 2500) r.enabled = false;
                 Texture2D tex = null;
-                if (any) { string big = ""; float bs = 0; foreach (var r in rends) if (r && r.enabled && r.bounds.size.magnitude > bs) { bs = r.bounds.size.magnitude; big = r.name + " " + r.bounds.size; } Debug.Log("[icon] " + id + " bounds " + bb.size + " biggest " + big + " n " + rends.Count); }
                 if (any)
                 {
-                    var c = bb.center; float half = Mathf.Max(bb.extents.y * 1.15f, bb.extents.x / cam.aspect * 1.15f, bb.extents.z / cam.aspect * 1.15f, .02f);
-                    cam.orthographicSize = half; cam.transform.position = c - Vector3.forward * 5; cam.transform.rotation = Quaternion.identity;
+                    var c = bb.center; float half = Mathf.Max(bb.extents.y * .9f, bb.extents.x / cam.aspect * .9f, bb.extents.z / cam.aspect * .9f, .02f);
+                    // perspective framing (the render request ignored an orthographic size): far enough back that the thing fills the picture
+                    cam.orthographic = false; cam.fieldOfView = 30; float dd = half / Mathf.Tan(15 * Mathf.Deg2Rad) + bb.extents.z;
+                    cam.nearClipPlane = Mathf.Max(.005f, dd * .05f); cam.farClipPlane = dd * 3 + 1;
+                    cam.transform.position = c - Vector3.forward * dd; cam.transform.rotation = Quaternion.identity;
                     key.transform.position = c + new Vector3(-1, 1.2f, -1.5f) * Mathf.Max(.3f, half * 3); fill.transform.position = c + new Vector3(1.4f, -.2f, -1.4f) * Mathf.Max(.3f, half * 3);
                     key.range = fill.range = Mathf.Max(1, half * 10);
                     key.enabled = fill.enabled = true;

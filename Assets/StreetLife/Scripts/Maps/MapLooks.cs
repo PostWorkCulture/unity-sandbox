@@ -16,6 +16,7 @@ namespace StreetLife
         public Dictionary<string, string> rules;                  // exported colour (+ had a texture, - had none) -> surface
         public string fromAbove = "grass";                        // the surface that is always mapped top-down
         public HashSet<string> hide;                              // exported colours whose meshes go (plain blocks the dressing replaces)
+        public Bounds[] gone;                                     // or boxes: every triangle and outline wholly inside one goes
         public System.Action<EnvJson> env;                        // changes to the sky and lights (null: the map's own)
         public System.Action<MapWorld, RailLookSet> dress;        // the map's own dressing, after the surfaces
         public System.Action<Transform, RailLookSet> dressBake;   // what of that the bake should see
@@ -35,7 +36,7 @@ namespace StreetLife
             {
                 if (all != null) return all;
                 all = new Dictionary<string, MapLook>();
-                foreach (var l in new[] { SkyLook.Def, LagoonLook.Def }) all[l.id] = l;
+                foreach (var l in new[] { SkyLook.Def, LagoonLook.Def, HouseLook.Def }) all[l.id] = l;
                 return all;
             }
         }
@@ -104,17 +105,70 @@ namespace StreetLife
                     if (card || disc) { t.gameObject.SetActive(false); hidden++; continue; }
                 }
                 if (l.hide != null && src.HasProperty("_BaseColor") && l.hide.Contains(ColorUtility.ToHtmlStringRGB(src.GetColor("_BaseColor")).ToLowerInvariant())) { t.gameObject.SetActive(false); hidden++; continue; }
-                string rule = RuleFor(l, src); if (rule == null) continue;
-                var s = set.Get(rule); if (s == null || !s.material) continue;
+                bool touches = l.gone != null && Touches(rec, l.gone);
+                string rule = RuleFor(l, src);
+                var s = rule != null ? set.Get(rule) : null;
+                if (s == null || !s.material)
+                {   // keeps its own material; still loses whatever the dressing replaces
+                    if (touches)
+                    {
+                        var own = MeshIO.Build(bin, rec, nm); int cut = Cut(own, l.gone);
+                        if (cut == 2) { var was = mf.sharedMesh; mf.sharedMesh = own; if (was) Object.Destroy(was); own.UploadMeshData(true); }
+                        else { Object.Destroy(own); if (cut == 0) { t.gameObject.SetActive(false); hidden++; } }
+                    }
+                    continue;
+                }
                 if (!made.TryGetValue(src, out var m)) { m = RailLook.Make(s, src); made[src] = m; }
                 var mesh = MeshIO.Build(bin, rec, nm);
+                if (touches && Cut(mesh, l.gone) == 0) { Object.Destroy(mesh); t.gameObject.SetActive(false); hidden++; continue; }
                 RailLook.WorldUV(mesh, Mathf.Max(.1f, s.metres), rule == l.fromAbove, s.upright);
                 var old = mf.sharedMesh; mf.sharedMesh = mesh; if (old) Object.Destroy(old);
                 mesh.UploadMeshData(true);
                 mr.sharedMaterial = m;
                 n++;
             }
+            if (l.gone != null) Lines(gen, l.gone);
             Debug.Log("Map look (" + l.id + "): " + n + " meshes on " + made.Count + " new surfaces, " + hidden + " hidden");
+        }
+
+        public static Bounds Box(float x0, float y0, float z0, float x1, float y1, float z1) { var b = new Bounds(); b.SetMinMax(new Vector3(x0, y0, z0), new Vector3(x1, y1, z1)); return b; }
+        static bool In(Bounds b, Vector3 p, float g) => p.x >= b.min.x - g && p.x <= b.max.x + g && p.y >= b.min.y - g && p.y <= b.max.y + g && p.z >= b.min.z - g && p.z <= b.max.z + g;
+        static bool InAny(Bounds[] gone, Vector3 p, float g) { foreach (var b in gone) if (In(b, p, g)) return true; return false; }
+
+        static bool Touches(WMesh rec, Bounds[] gone)
+        {
+            if (rec.bmin == null || rec.bsize == null) return false;
+            var mb = Box(rec.bmin[0], rec.bmin[1], rec.bmin[2], rec.bmin[0] + rec.bsize[0], rec.bmin[1] + rec.bsize[1], rec.bmin[2] + rec.bsize[2]);
+            foreach (var b in gone) if (b.Intersects(mb)) return true;
+            return false;
+        }
+
+        /// drops the triangles wholly inside a box. 0: nothing of the mesh is left, 1: untouched, 2: some of it went
+        internal static int Cut(Mesh mesh, Bounds[] gone)
+        {
+            var v = mesh.vertices; var t = mesh.triangles; var keep = new List<int>(t.Length);
+            for (int i = 0; i + 2 < t.Length; i += 3)
+                if (!(InAny(gone, v[t[i]], .03f) && InAny(gone, v[t[i + 1]], .03f) && InAny(gone, v[t[i + 2]], .03f))) { keep.Add(t[i]); keep.Add(t[i + 1]); keep.Add(t[i + 2]); }
+            if (keep.Count == t.Length) return 1;
+            if (keep.Count == 0) return 0;
+            mesh.SetTriangles(keep, 0, true);
+            return 2;
+        }
+
+        // the outlines of what went
+        static void Lines(Transform gen, Bounds[] gone)
+        {
+            var lines = gen.Find("Outlines"); if (!lines) return;
+            foreach (var mf in lines.GetComponentsInChildren<MeshFilter>())
+            {
+                var m = mf.sharedMesh; if (!m || !m.isReadable || m.GetTopology(0) != MeshTopology.Lines) continue;
+                var v = m.vertices; var keep = new List<Vector3>(v.Length);
+                for (int i = 0; i + 1 < v.Length; i += 2) if (!(InAny(gone, v[i], .05f) && InAny(gone, v[i + 1], .05f))) { keep.Add(v[i]); keep.Add(v[i + 1]); }
+                if (keep.Count == v.Length) continue;
+                if (keep.Count == 0) { mf.gameObject.SetActive(false); continue; }
+                var ix = new int[keep.Count]; for (int i = 0; i < ix.Length; i++) ix[i] = i;
+                m.Clear(); m.SetVertices(keep); m.SetIndices(ix, MeshTopology.Lines, 0);
+            }
         }
 
         static bool NearShop(WMesh rec)
@@ -129,6 +183,21 @@ namespace StreetLife
         {
             var set = Resources.Load<RailLookSet>(l.set);
             RailLook.BuildForBake(root, e, set, src => RuleFor(l, src), l.fromAbove, "tree");
+            if (l.gone != null || l.hide != null)
+            {
+                var kids = new List<Transform>(); foreach (Transform t in root) kids.Add(t);
+                foreach (var t in kids)
+                {
+                    var mf = t.GetComponent<MeshFilter>(); var mr = t.GetComponent<MeshRenderer>(); var mesh = mf ? mf.sharedMesh : null; if (!mesh) continue;
+                    var src = mr ? mr.sharedMaterial : null;
+                    bool hid = false;
+                    if (l.hide != null && src && src.HasProperty("_BaseColor"))
+                    {   // a surface's colour is its original's tint, so this only catches untouched materials: enough for the plain blocks
+                        hid = l.hide.Contains(ColorUtility.ToHtmlStringRGB(src.GetColor("_BaseColor")).ToLowerInvariant());
+                    }
+                    if (hid || (l.gone != null && Cut(mesh, l.gone) == 0)) { Object.DestroyImmediate(mesh); Object.DestroyImmediate(t.gameObject); }
+                }
+            }
             l.dressBake?.Invoke(root, set);
         }
     }

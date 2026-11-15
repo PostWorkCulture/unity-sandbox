@@ -138,6 +138,7 @@ namespace StreetLife
             cam = cg.AddComponent<Camera>(); cam.cullingMask = 1 << Layer; cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(.05f, .05f, .056f, 1); cam.fieldOfView = 26; cam.nearClipPlane = .02f; cam.farClipPlane = 40; cam.depth = -50;
             cam.allowHDR = true; cam.enabled = false;
+            cam.useOcclusionCulling = false;   // GPU occlusion culling would work from a stale depth (camera off, or another weapon) and drop parts
             var d = cam.GetUniversalAdditionalCameraData();
             d.renderPostProcessing = true; d.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing; d.antialiasingQuality = AntialiasingQuality.High;
             d.renderShadows = false; d.requiresDepthTexture = false;
@@ -464,7 +465,7 @@ namespace StreetLife
                 else { s.shown = null; s.SetWeapon(id); if (s.shown != id) continue; }
                 s.pivot.localRotation = Quaternion.Euler(10, id == "mine" ? -25 : -20, 0);
                 s.glintT = 1.2f; s.Frame(true);
-                s.cam.Render(); s.cam.Render();   // twice: GPU occlusion culling works from the last render, which was the previous weapon
+                s.cam.Render();
                 var prev = RenderTexture.active; RenderTexture.active = rtS;
                 tex.ReadPixels(new Rect(0, 0, 800, 500), 0, 0); tex.Apply(); RenderTexture.active = prev;
                 n++; string file = n.ToString("00") + "-" + id + ".png";
