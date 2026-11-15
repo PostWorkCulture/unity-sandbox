@@ -644,8 +644,8 @@ namespace StreetLife
             var t = L("Settings", 28, Text, true); t.style.marginBottom = 16; c.Add(t);
             var f2 = new float[] { .25f, .5f, .75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f, 3.5f, 4f };
             c.Add(Stepper("Look sensitivity", f2, () => Settings.Sens, v => { Settings.Sens = v; Settings.Apply(); }, v => v.ToString("0.##")));
-            c.Add(Stepper("Aim sensitivity", new[] { .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f }, () => Settings.AimSens, v => { Settings.AimSens = v; Settings.Apply(); }, v => v.ToString("0.0")));
-            c.Add(Stepper("Sniper scope sensitivity", new[] { .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f, 1.25f, 1.5f }, () => Settings.SnipeSens, v => { Settings.SnipeSens = v; Settings.Apply(); }, v => v.ToString("0.0#")));
+            c.Add(Stepper("Aim sensitivity", new[] { .05f, .1f, .15f, .2f, .25f, .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f }, () => Settings.AimSens, v => { Settings.AimSens = v; Settings.Apply(); }, v => v.ToString("0.0#")));   // down to 0.05 (Pete, 15 Nov)
+            c.Add(Stepper("Sniper scope sensitivity", new[] { .05f, .1f, .15f, .2f, .25f, .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f, 1.25f, 1.5f }, () => Settings.SnipeSens, v => { Settings.SnipeSens = v; Settings.Apply(); }, v => v.ToString("0.0#")));
             c.Add(Stepper("Camera distance", new[] { .8f, .9f, 1f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.8f, 2f }, () => Settings.CamDist, v => { Settings.CamDist = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));   // third person: 100% = the web game's
             var vol = new float[] { 0, .1f, .2f, .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f };
             c.Add(Stepper("Music", vol, () => Settings.Music, v => { Settings.Music = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));

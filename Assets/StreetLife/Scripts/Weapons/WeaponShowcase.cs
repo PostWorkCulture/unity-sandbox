@@ -24,6 +24,7 @@ namespace StreetLife
 
         Camera cam; RenderTexture rt; VolumeProfile look; Transform pivot, model; ReflectionProbe probe; Cubemap studioMap;
         Light key, fill, rimA, rimB, glint, front, top;
+        Transform backdrop;   // a soft grey glow behind the weapon, so dark guns stand out from the black
         Image view; Label title, sub, note; readonly Dictionary<string, VisualElement> bars = new Dictionary<string, VisualElement>();
         string shown; bool active;
         float yaw = -25, pitch = 8, zoom = 1, spinV, idleT = 99, radius = .6f, halfW = .5f, halfH = .2f, glintT;
@@ -147,18 +148,28 @@ namespace StreetLife
             vol.isGlobal = true; vol.priority = 50; look = ScriptableObject.CreateInstance<VolumeProfile>(); vol.sharedProfile = look;
             var tm = look.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
             var bl = look.Add<Bloom>(true); bl.intensity.Override(.55f); bl.threshold.Override(1f); bl.scatter.Override(.6f);
-            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.35f);   // brighter overall: dark guns read (Pete, 15 Nov)
+            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.55f);   // brighter overall: dark guns read (Pete, 15 Nov)
 
             // lights: warm key from above front-left, cool fill low right, two hard rims behind, a glint that sweeps over the top
             key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 40, 14);
             fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 20, 10);
             // more light so dark guns are easy to see: a soft front light by the camera and a softbox overhead
-            front = MakeLight("front", LightType.Point, new Color(1f, .98f, .95f), 16, 10);
+            front = MakeLight("front", LightType.Point, new Color(1f, .98f, .95f), 24, 10);
             top = MakeLight("top", LightType.Point, Color.white, 18, 10);
             rimA = MakeLight("rim A", LightType.Spot, Color.white, 55, 14);
             rimB = MakeLight("rim B", LightType.Spot, new Color(.9f, .94f, 1f), 40, 14);
             glint = MakeLight("glint", LightType.Point, Color.white, 14, 4);
             key.spotAngle = 55; key.innerSpotAngle = 25; rimA.spotAngle = rimB.spotAngle = 45; rimA.innerSpotAngle = rimB.innerSpotAngle = 20;
+
+            // backdrop: a quad behind the weapon with a radial glow (grey in the middle, black at the edges), unlit
+            var bq = GameObject.CreatePrimitive(PrimitiveType.Quad); var bcol = bq.GetComponent<Collider>(); if (bcol) Destroy(bcol);
+            bq.name = "backdrop"; bq.layer = Layer; bq.transform.SetParent(transform, false); backdrop = bq.transform;
+            var glow = new Texture2D(128, 128, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "backdrop glow" };
+            for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++)
+                { float dx = (x - 63.5f) / 64f, dy = (y - 63.5f) / 64f * 1.15f, r = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy)); float v = Mathf.Lerp(.26f, .05f, Mathf.SmoothStep(0, 1, r)); glow.SetPixel(x, y, new Color(v, v, v * 1.04f, 1)); }
+            glow.Apply();
+            var bm = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { name = "backdrop" }; bm.SetTexture("_BaseMap", glow); bm.SetColor("_BaseColor", Color.white);
+            var br = bq.GetComponent<MeshRenderer>(); br.sharedMaterial = bm; br.shadowCastingMode = ShadowCastingMode.Off; br.receiveShadows = false;
 
             // studio reflections: an HDR cube of a dark room with softbox strips, so metal has bright edges to mirror
             studioMap = MakeStudioMap(128);
@@ -399,6 +410,11 @@ namespace StreetLife
             front.transform.position = c + new Vector3(.25f, .45f, -1.7f) * s;
             top.transform.position = c + new Vector3(0, 1.7f, -.2f) * s;
             front.range = top.range = 5 * s;
+            if (backdrop)
+            {   // far enough behind that the weapon never touches it, big enough to fill the view
+                float back = radius * 3f + .6f, size = 2.4f * (dist + back) * t * Mathf.Max(1f, cam.aspect);
+                backdrop.position = c + Vector3.forward * back; backdrop.rotation = Quaternion.identity; backdrop.localScale = new Vector3(size, size, 1);
+            }
             foreach (var l in new[] { key, rimA, rimB }) l.range = 5 * s;
             fill.range = 5 * s;
         }
