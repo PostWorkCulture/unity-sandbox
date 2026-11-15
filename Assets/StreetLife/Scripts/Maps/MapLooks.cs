@@ -15,6 +15,7 @@ namespace StreetLife
         public string id, set, stem;                              // map id, Resources name of its RailLookSet, name of its light scene
         public Dictionary<string, string> rules;                  // exported colour (+ had a texture, - had none) -> surface
         public string fromAbove = "grass";                        // the surface that is always mapped top-down
+        public HashSet<string> hide;                              // exported colours whose meshes go (plain blocks the dressing replaces)
         public System.Action<EnvJson> env;                        // changes to the sky and lights (null: the map's own)
         public System.Action<MapWorld, RailLookSet> dress;        // the map's own dressing, after the surfaces
         public System.Action<Transform, RailLookSet> dressBake;   // what of that the bake should see
@@ -34,7 +35,7 @@ namespace StreetLife
             {
                 if (all != null) return all;
                 all = new Dictionary<string, MapLook>();
-                foreach (var l in new[] { SkyLook.Def }) all[l.id] = l;
+                foreach (var l in new[] { SkyLook.Def, LagoonLook.Def }) all[l.id] = l;
                 return all;
             }
         }
@@ -102,6 +103,7 @@ namespace StreetLife
                     bool disc = rec.bsize[1] < .06f && big > 3f && big < 8f && NearShop(rec);
                     if (card || disc) { t.gameObject.SetActive(false); hidden++; continue; }
                 }
+                if (l.hide != null && src.HasProperty("_BaseColor") && l.hide.Contains(ColorUtility.ToHtmlStringRGB(src.GetColor("_BaseColor")).ToLowerInvariant())) { t.gameObject.SetActive(false); hidden++; continue; }
                 string rule = RuleFor(l, src); if (rule == null) continue;
                 var s = set.Get(rule); if (s == null || !s.material) continue;
                 if (!made.TryGetValue(src, out var m)) { m = RailLook.Make(s, src); made[src] = m; }
@@ -112,7 +114,7 @@ namespace StreetLife
                 mr.sharedMaterial = m;
                 n++;
             }
-            Debug.Log("Map look (" + l.id + "): " + n + " meshes on " + made.Count + " new surfaces, " + hidden + " glow cards hidden");
+            Debug.Log("Map look (" + l.id + "): " + n + " meshes on " + made.Count + " new surfaces, " + hidden + " hidden");
         }
 
         static bool NearShop(WMesh rec)
@@ -128,6 +130,19 @@ namespace StreetLife
             var set = Resources.Load<RailLookSet>(l.set);
             RailLook.BuildForBake(root, e, set, src => RuleFor(l, src), l.fromAbove, "tree");
             l.dressBake?.Invoke(root, set);
+        }
+    }
+
+    /// firelight: each lamp wavers on its own
+    public class MapFlicker : MonoBehaviour
+    {
+        readonly List<(Light light, float power, float seed)> lamps = new List<(Light, float, float)>();
+        public void Add(Light l) { if (l) lamps.Add((l, l.intensity, lamps.Count * 7.31f)); }
+        void Update()
+        {
+            float t = Time.time;
+            foreach (var (light, power, seed) in lamps)
+                if (light) light.intensity = power * (.78f + .3f * Mathf.PerlinNoise(t * 5.5f, seed) + .1f * Mathf.PerlinNoise(t * 17f, seed + 3f));
         }
     }
 

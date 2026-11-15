@@ -464,7 +464,7 @@ namespace StreetLife
                 else { s.shown = null; s.SetWeapon(id); if (s.shown != id) continue; }
                 s.pivot.localRotation = Quaternion.Euler(10, id == "mine" ? -25 : -20, 0);
                 s.glintT = 1.2f; s.Frame(true);
-                s.cam.Render();
+                s.cam.Render(); s.cam.Render();   // twice: GPU occlusion culling works from the last render, which was the previous weapon
                 var prev = RenderTexture.active; RenderTexture.active = rtS;
                 tex.ReadPixels(new Rect(0, 0, 800, 500), 0, 0); tex.Apply(); RenderTexture.active = prev;
                 n++; string file = n.ToString("00") + "-" + id + ".png";

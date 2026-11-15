@@ -67,6 +67,14 @@ namespace StreetLife.EditorTools
             new Def { name = "roofing", dir = RailDir, metres = 2f, tinted = true },
         };
 
+        static readonly Def[] Lagoon =
+        {
+            new Def { name = "planks", dir = BeachDir, metres = 1.68f, tinted = true },
+            new Def { name = "thatch", dir = BeachDir, metres = 2f, tinted = true },
+            new Def { name = "bamboo", dir = BeachDir, metres = 1.2f, reference = "#c8a060" },
+            new Def { name = "post", tex = "wood", dir = RailDir, metres = 1.2f, tinted = true, upright = true },
+        };
+
         [MenuItem("Street Life/Maps/Rebuild Railed surfaces")]
         static void Menu() { Debug.Log("Map surfaces: " + Build("")); }
 
@@ -90,6 +98,7 @@ namespace StreetLife.EditorTools
                 if (beach) { beach.drumLabel = lt; EditorUtility.SetDirty(beach); }
             }
             string c = "; Sky High " + Book(lit, RailDir, "Assets/StreetLife/Resources/SkyLook.asset", Sky, out _);
+            c += "; Lagoon " + Book(lit, BeachDir, "Assets/StreetLife/Resources/LagoonLook.asset", Lagoon, out _);
             AssetDatabase.SaveAssets();
             return "Railed " + a + "; Beach Please " + b + (beach && beach.ground ? " and the sand" : "") + c;
         }
