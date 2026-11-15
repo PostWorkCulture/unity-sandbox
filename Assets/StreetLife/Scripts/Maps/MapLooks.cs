@@ -171,6 +171,33 @@ namespace StreetLife
             }
         }
 
+        /// The map's chip tables (plain blocks that lose height as they are shot up): each becomes a table with a top and four
+        /// legs in the same space. It keeps its renderer, so chipping, breaking and coming back work as before.
+        public static int Tables(MapWorld w, Material wood)
+        {
+            var gen = w && w.builder ? w.builder.transform.Find("__Generated") : null; var dyn = gen ? gen.Find("Dynamic") : null;
+            if (!dyn || !wood) return 0;
+            int n = 0;
+            foreach (Transform t in dyn)
+            {
+                if (!t.name.StartsWith("chip")) continue;
+                foreach (var mf in t.GetComponentsInChildren<MeshFilter>())
+                {
+                    var old = mf.sharedMesh; var mr = mf.GetComponent<MeshRenderer>(); if (!old || !mr) continue;
+                    var b = old.bounds; if (b.size.y < .3f || b.size.x < .5f || b.size.z < .5f) continue;
+                    var mb = new MapProps.Mb(); float top = Mathf.Min(.09f, b.size.y * .2f), leg = .09f;
+                    mb.Box(new Vector3(b.center.x, b.max.y - top / 2, b.center.z), new Vector3(b.size.x, top, b.size.z), .015f, Quaternion.identity);
+                    mb.Box(new Vector3(b.center.x, b.max.y - top - .05f, b.center.z), new Vector3(b.size.x - .16f, .1f, b.size.z - .16f));
+                    foreach (float sx in new[] { -1f, 1f })
+                        foreach (float sz in new[] { -1f, 1f })
+                            mb.Box(new Vector3(b.center.x + sx * (b.size.x / 2 - leg), (b.min.y + b.max.y - top) / 2, b.center.z + sz * (b.size.z / 2 - leg)), new Vector3(leg, b.size.y - top, leg));
+                    var mesh = mb.Build("table"); RailLook.WorldUV(mesh, 1.2f, false, false); mesh.RecalculateBounds(); mesh.UploadMeshData(true);
+                    mf.sharedMesh = mesh; Object.Destroy(old); mr.sharedMaterial = wood; n++;
+                }
+            }
+            return n;
+        }
+
         static bool NearShop(WMesh rec)
         {
             float cx = rec.bmin[0] + rec.bsize[0] / 2, cz = rec.bmin[2] + rec.bsize[2] / 2;

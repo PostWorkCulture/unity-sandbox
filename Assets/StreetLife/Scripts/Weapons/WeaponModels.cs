@@ -20,8 +20,24 @@ namespace StreetLife
             return cache[i] = m;
         }
 
+        /// material id for gloss-black trim (Tools/gunparts.py): the plain black (id 1) with a lacquered finish
+        public const int TrimBlack = 1001;
+        static Material trimBlack;
+
         public static Material Mat(int id)
         {
+            if (id == TrimBlack)
+            {
+                if (!trimBlack && Mats != null && Mats.Length > 1 && Mats[1])
+                {
+                    trimBlack = new Material(Mats[1]) { name = "gun trim black" };
+                    if (trimBlack.HasProperty("_BaseColor")) trimBlack.SetColor("_BaseColor", new Color(.012f, .012f, .014f, 1));
+                    if (trimBlack.HasProperty("_Smoothness")) trimBlack.SetFloat("_Smoothness", .62f);
+                    if (trimBlack.HasProperty("_Metallic")) trimBlack.SetFloat("_Metallic", .15f);
+                }
+                if (trimBlack) return trimBlack;
+                id = 1;
+            }
             if (Mats != null && id >= 0 && id < Mats.Length && Mats[id]) return Mats[id];
             if (!fallback) fallback = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "gun fallback" };
             return fallback;

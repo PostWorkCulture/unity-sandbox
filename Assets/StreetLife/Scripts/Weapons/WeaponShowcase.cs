@@ -319,13 +319,14 @@ namespace StreetLife
                 p.SetFloat("_Smoothness", mt > .3f ? Mathf.Lerp(sm, .93f, .6f) : Mathf.Clamp(sm, .3f, .45f));
             }
             // near-black paint and plastic lifted a little in the showroom only, so their shape shows (the game's materials are untouched)
-            if (p.HasProperty("_BaseColor"))
+            bool trim = m.name.Contains("trim");   // black trim (WeaponModels.TrimBlack) is meant to read black against a light stock
+            if (p.HasProperty("_BaseColor") && !trim)
             {
                 var bc = p.GetColor("_BaseColor"); float lum = bc.r * .3f + bc.g * .59f + bc.b * .11f;
                 if (lum < .2f) { float k = (.2f - lum) / .2f; p.SetColor("_BaseColor", Color.Lerp(bc, new Color(.24f, .24f, .25f, bc.a), k * .85f)); }
             }
             // a faint even glow on every surface, so black parts (textured ones too) show their shape even when the map is a night one
-            if (p.HasProperty("_EmissionColor")) { p.EnableKeyword("_EMISSION"); p.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; p.SetColor("_EmissionColor", p.GetColor("_EmissionColor") + new Color(.075f, .075f, .08f)); }
+            if (p.HasProperty("_EmissionColor") && !trim) { p.EnableKeyword("_EMISSION"); p.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; p.SetColor("_EmissionColor", p.GetColor("_EmissionColor") + new Color(.075f, .075f, .08f)); }
             if (p.HasProperty("_SpecularHighlights")) p.SetFloat("_SpecularHighlights", 1);
             if (p.HasProperty("_EnvironmentReflections")) p.SetFloat("_EnvironmentReflections", 1);
             p.DisableKeyword("_SPECULARHIGHLIGHTS_OFF"); p.DisableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
@@ -440,32 +441,48 @@ namespace StreetLife
                 GunsDb.Load(a.gunsJson.text, a.gunsBin.bytes); WeaponModels.Mats = a.materials;
             }
             var s = Get();
+            if (s.sheetRunning) return "already running";
+            string dir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Logs", "weapons");
+            s.StartCoroutine(s.SheetRun(dir));
+            return "started: pictures to " + dir + ", index.txt last (about 2 s)";
+        }
+
+        bool sheetRunning;
+        // one weapon a frame: the GPU Resident Drawer takes new transforms and enabled states at the frame boundary, so
+        // a model built, moved and drawn in the same frame can be drawn with stale data (the backdrop showed up in front)
+        System.Collections.IEnumerator SheetRun(string dir)
+        {
+            sheetRunning = true;
             var ids = new List<string>(GunsDb.Primaries);
             foreach (var id in GunsDb.Secondaries) if (!ids.Contains(id)) ids.Add(id);
             if (!ids.Contains("sword")) ids.Add("sword");
-            foreach (var id in new[] { "grenade" }) if (!ids.Contains(id)) ids.Add(id);
+            if (!ids.Contains("grenade")) ids.Add("grenade");
             foreach (var id in GunsDb.Lethals) if (!ids.Contains(id)) ids.Add(id);
-            string dir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath), "Logs", "weapons");
+            ids.Add("sentry");   // the shop's turret, built straight from its nodes
             System.IO.Directory.CreateDirectory(dir);
             foreach (var f in System.IO.Directory.GetFiles(dir, "*.png")) System.IO.File.Delete(f);
+            var idx = System.IO.Path.Combine(dir, "index.txt"); if (System.IO.File.Exists(idx)) System.IO.File.Delete(idx);
             var rtS = new RenderTexture(800, 500, 24, RenderTextureFormat.ARGB32) { antiAliasing = 1 }; rtS.Create();
-            var oldRt = s.cam.targetTexture; float oldAspect = s.cam.aspect; bool wasOn = s.cam.enabled;
-            s.cam.targetTexture = rtS; s.cam.aspect = 1.6f;
+            var oldRt = cam.targetTexture; float oldAspect = cam.aspect; bool wasOn = cam.enabled, wasActive = active;
+            active = false; cam.enabled = false; cam.targetTexture = rtS; cam.aspect = 1.6f;
             var tex = new Texture2D(800, 500, TextureFormat.RGB24, false);
+            // a plain mid-grey background for the sheet, so black parts stand out right to the edges of the picture
+            bool hadBackdrop = backdrop && backdrop.gameObject.activeSelf; var oldBg = cam.backgroundColor;
+            if (backdrop) backdrop.gameObject.SetActive(false);
+            cam.backgroundColor = new Color(.30f, .31f, .33f, 1);
             var lines = new List<string>(); int n = 0;
-            // the Sentry: the shop's turret, built straight from its nodes
-            ids.Add("sentry");
             foreach (var id in ids)
             {
                 if (id == "sentry")
                 {
                     if (GunsDb.Data.turret == null || GunsDb.Data.turret.nodes == null) continue;
-                    s.shown = null; s.ShowNodes("sentry", GunsDb.Data.turret.nodes);
+                    shown = null; ShowNodes("sentry", GunsDb.Data.turret.nodes);
                 }
-                else { s.shown = null; s.SetWeapon(id); if (s.shown != id) continue; }
-                s.pivot.localRotation = Quaternion.Euler(10, id == "mine" ? -25 : -20, 0);
-                s.glintT = 1.2f; s.Frame(true);
-                s.cam.Render();
+                else { shown = null; SetWeapon(id); if (shown != id) continue; }
+                pivot.localRotation = Quaternion.Euler(10, id == "mine" ? -25 : -20, 0);
+                glintT = 1.2f; Frame(true);
+                yield return null; yield return null;
+                Frame(true); cam.Render();
                 var prev = RenderTexture.active; RenderTexture.active = rtS;
                 tex.ReadPixels(new Rect(0, 0, 800, 500), 0, 0); tex.Apply(); RenderTexture.active = prev;
                 n++; string file = n.ToString("00") + "-" + id + ".png";
@@ -476,11 +493,14 @@ namespace StreetLife
                 string slot = GunsDb.Primaries.Contains(id) ? "Primary" : GunsDb.Secondaries.Contains(id) ? "Secondary" : id == "sentry" ? "Shop" : "Lethal";
                 lines.Add(file + "\t" + id + "\t" + name + "\t" + cat + "\t" + slot);
             }
-            System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "index.txt"), lines);
-            Destroy(tex); s.cam.targetTexture = oldRt; s.cam.aspect = oldAspect; s.cam.enabled = wasOn; rtS.Release(); Destroy(rtS);
-            for (int i = s.pivot.childCount - 1; i >= 0; i--) DestroyImmediate(s.pivot.GetChild(i).gameObject);
-            s.model = null; s.shown = null;
-            return n + " weapons to " + dir;
+            Destroy(tex); cam.targetTexture = oldRt; cam.aspect = oldAspect; rtS.Release(); Destroy(rtS);
+            for (int i = pivot.childCount - 1; i >= 0; i--) Destroy(pivot.GetChild(i).gameObject);
+            model = null; shown = null;
+            if (backdrop) backdrop.gameObject.SetActive(hadBackdrop); cam.backgroundColor = oldBg;
+            active = wasActive; cam.enabled = wasOn;
+            System.IO.File.WriteAllLines(idx, lines);
+            sheetRunning = false;
+            Debug.Log("[weapons] sheet: " + n + " weapons to " + dir);
         }
 
         /// remote test: put a gun in the player's hands as their primary (call WeaponShowcase.Hold gar)

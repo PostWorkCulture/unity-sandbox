@@ -31,6 +31,8 @@ namespace StreetLife
             ("washer", -3.8f, -2.2f, 1.4f, 21.9f, 23.3f, 0, -1),
             ("washer", -2.2f, -.6f, 1.4f, 21.9f, 23.3f, 0, -1),
             ("wardrobe", 12.8f, 14.4f, 2.8f, 12.4f, 15.6f, -1, 0),
+            ("bath", -14.5f, -9.5f, 1f, 20.6f, 23f, 0, -1),
+            ("vanity", -8.7f, -7.3f, 1f, 14.3f, 15.7f, 0, -1),
         };
 
         static Bounds[] Gone()
@@ -77,6 +79,7 @@ namespace StreetLife
             kit = Furniture(w.transform, false);
             if (!kit) return;
             Protos(kit); Loose(kit);
+            MapLooks.Tables(w, kit.Surf("post", "#a8743c"));
             kit.Lod(.06f);
             Debug.Log("The House: " + kit.Count + " loose things");
         }
@@ -94,7 +97,7 @@ namespace StreetLife
                 f.W = it.fx != 0 ? it.z1 - it.z0 : it.x1 - it.x0; f.D = it.fx != 0 ? it.x1 - it.x0 : it.z1 - it.z0;
                 switch (it.kind)
                 {
-                    case "wardrobe": Cupboard(k, f, white, white, Mathf.Max(2, Mathf.RoundToInt(f.W / .85f)), null, true); break;
+                    case "wardrobe": Cupboard(k, f, white, white, Mathf.Max(2, Mathf.RoundToInt(f.W / .85f)), null, true, it.z1 < -12); break;   // the children's one stands clear of the wall
                     case "chest": Cupboard(k, f, k.Gloss("#f0c64a", .5f), k.Gloss("#f6d466", .5f), 3, null, false); break;
                     case "media": Cupboard(k, f, walnut, walnut, 4, null, false); TV(k, f); break;
                     case "counter": Cupboard(k, f, sage, sage, 5, marble, false); Sink(k, f); break;
@@ -104,10 +107,53 @@ namespace StreetLife
                     case "fridge": Fridge(k, f); break;
                     case "washer": Washer(k, f, white, dark); break;
                     case "shelving": Shelving(k, f); break;
+                    case "bath": Bath(k, f, white); break;
+                    case "vanity": Cupboard(k, f, white, white, 2, marble, false); B(k.Part(k.Gloss("#dfe6ea", .95f)), f, 0, f.H + .004f, 0, .8f, .012f, .7f, .004f); TikiBar.Tube(k.Part(k.steel), f.At(0, f.H, -.5f), f.At(0, f.H + .26f, -.5f), .02f, 8); break;
                 }
             }
+            Decor(k, baking);
             k.Flush();
             return k;
+        }
+
+        // rugs, standing lamps, a desk lamp and the lights under the loft
+        static void Decor(TikiBar k, bool baking)
+        {
+            void Rug(float x0, float z0, float x1, float z1, string hex, string edge)
+            {
+                var c = new Vector3((x0 + x1) / 2, .012f, (z0 + z1) / 2);
+                k.Part(k.Surf("carpet", edge)).Box(c, new Vector3(x1 - x0, .024f, z1 - z0), .01f, Quaternion.identity);
+                k.Part(k.Surf("carpet", hex)).Box(c + Vector3.up * .004f, new Vector3(x1 - x0 - .5f, .028f, z1 - z0 - .5f), .01f, Quaternion.identity);
+            }
+            Rug(-10.6f, -7f, -2.4f, -2.5f, "#5a6f8a", "#e6e0d2");
+            Rug(3.6f, 6.9f, 10f, 11.1f, "#8a3b2e", "#d8c9a8");
+            Rug(3.6f, 15.2f, 11.4f, 19.6f, "#b9a48c", "#efe8dc");
+            Rug(6.6f, -19.3f, 13.4f, -15.2f, "#e8b84a", "#3f7fb8");
+
+            var shade = k.Glow("#f5e6c8", "#ffd9a0", 1.5f); var warm = new Color(1f, .85f, .65f);
+            void Standing(float x, float z)
+            {
+                var m = k.Part(k.brass);
+                m.Lathe(x, z, new[] { new Vector2(0, 0), new Vector2(.2f, 0), new Vector2(.2f, .03f), new Vector2(.02f, .05f), new Vector2(.02f, 1.86f), new Vector2(0, 1.86f) }, 14);
+                k.Part(shade).Lathe(x, z, new[] { new Vector2(.27f, 1.7f), new Vector2(.19f, 2.14f), new Vector2(.17f, 2.14f), new Vector2(.25f, 1.7f) }, 16);
+                if (!baking) k.AddLamp(new Vector3(x, 2f, z), warm, 2.2f, 6f, 0);
+            }
+            Standing(-14f, 5f); Standing(4f, -9f); Standing(4.2f, 22.9f); Standing(10.8f, 22.9f); Standing(7.1f, -22.9f);
+
+            // under the loft (its underside is at 3.1): four lights let into the ceiling, two real lamps between them
+            foreach (float x in new[] { 7.6f, 12.2f })
+                foreach (float z in new[] { -2.8f, 2.6f })
+                {
+                    k.Part(k.brass).Lathe(x, z, new[] { new Vector2(.2f, 3.04f), new Vector2(.26f, 3.05f), new Vector2(.26f, 3.1f) }, 16);
+                    k.Part(shade).Lathe(x, z, new[] { new Vector2(0, 3.045f), new Vector2(.2f, 3.045f) }, 16);
+                }
+            if (!baking) { k.AddLamp(new Vector3(7.8f, 2.7f, 0), warm, 2.6f, 7f, 0); k.AddLamp(new Vector3(12.2f, 2.7f, 0), warm, 2.6f, 7f, 0); }
+
+            // a lamp on the study desk (top 1.05)
+            var at = new Vector3(9.85f, 1.05f, -1.75f); var dark = k.Part(k.Gloss("#1b1c20", .6f));
+            dark.Lathe(at.x, at.z, new[] { new Vector2(0, 1.05f), new Vector2(.1f, 1.05f), new Vector2(.1f, 1.07f), new Vector2(0, 1.075f) }, 12);
+            TikiBar.Tube(dark, at + Vector3.up * .02f, at + new Vector3(0, .42f, 0), .012f, 6); TikiBar.Tube(dark, at + new Vector3(0, .42f, 0), at + new Vector3(.2f, .5f, .16f), .012f, 6);
+            k.Part(shade).Lathe(at.x + .22f, at.z + .18f, new[] { new Vector2(.11f, 1.45f), new Vector2(.05f, 1.56f), new Vector2(0, 1.56f) }, 12);
         }
 
         // doors across the front, a plinth, an optional stone top (it keeps the block's height) and, on a wardrobe, a cornice
@@ -187,6 +233,18 @@ namespace StreetLife
             B(k.Part(k.Glow("#ffe2b0", "#ffbe6e", 2.6f)), f, 0, f.H - .09f, f.D / 2 - .06f, f.W - .16f, .014f, .02f);
         }
 
+        // a bath: a rim all round, a wide shelf at the tap end, water in it
+        static void Bath(TikiBar k, Fr f, Material white)
+        {
+            var m = k.Part(white); float t = .12f, shelf = .55f;
+            B(m, f, 0, .12f, 0, f.W, .24f, f.D, .02f);
+            B(m, f, 0, f.H / 2, f.D / 2 - t / 2, f.W, f.H, t, .03f); B(m, f, 0, f.H / 2, -f.D / 2 + t / 2, f.W, f.H, t, .03f);
+            B(m, f, f.W / 2 - t / 2, f.H / 2, 0, t, f.H, f.D, .03f); B(m, f, -f.W / 2 + shelf / 2, f.H / 2, 0, shelf, f.H, f.D, .03f);
+            B(k.Part(k.Glass("#7fd0e6", .55f)), f, shelf / 2 - t / 2, f.H - .2f, 0, f.W - shelf - t, .02f, f.D - 2 * t);
+            TikiBar.Tube(k.Part(k.steel), f.At(-f.W / 2 + .3f, f.H, 0), f.At(-f.W / 2 + .3f, f.H + .22f, 0), .022f, 8);
+            TikiBar.Tube(k.Part(k.steel), f.At(-f.W / 2 + .3f, f.H + .21f, 0), f.At(-f.W / 2 + .62f, f.H + .17f, 0), .018f, 8);
+        }
+
         static void Fridge(TikiBar k, Fr f)
         {
             var st = k.Part(k.Gloss("#c4c8ce", .82f, .9f));
@@ -254,6 +312,24 @@ namespace StreetLife
             TikiBar.PS = 1;
         }
 
+        // a framed picture that hangs flat on a wall (it faces its own +z) and smashes: bands of colour on a white mount
+        static void Picture(TikiBar k, string name, float W, float H, Material frame, params string[] art)
+        {
+            var fr = new Mb(); var mount = new Mb(); float t = .05f;
+            fr.Box(new Vector3(0, H / 2 - t / 2, 0), new Vector3(W, t, .05f)); fr.Box(new Vector3(0, -H / 2 + t / 2, 0), new Vector3(W, t, .05f));
+            fr.Box(new Vector3(-W / 2 + t / 2, 0, 0), new Vector3(t, H - 2 * t, .05f)); fr.Box(new Vector3(W / 2 - t / 2, 0, 0), new Vector3(t, H - 2 * t, .05f));
+            mount.Box(new Vector3(0, 0, -.005f), new Vector3(W - 2 * t, H - 2 * t, .02f));
+            var bits = new List<(Mb, Material)> { (fr, frame), (mount, k.Gloss("#f3f0e8", .3f)) };
+            float iw = W - 2 * t - .18f, ih = H - 2 * t - .18f, y = -ih / 2; float[] share = { .34f, .12f, .54f };
+            for (int i = 0; i < art.Length && i < 3; i++)
+            {
+                var b = new Mb(); float h = ih * share[i]; b.Box(new Vector3(0, y + h / 2, .006f), new Vector3(iw, h, .012f)); y += h;
+                if (i == 2) TikiBar.Ball(b, new Vector3(iw * .22f, y - h * .45f, .004f), Mathf.Min(iw, ih) * .13f, 14, 6);
+                bits.Add((b, k.Gloss(art[i], .35f)));
+            }
+            k.New(name, .6f, H, art[0], true, 1, 1.2f, bits.ToArray());
+        }
+
         static void Bottles(TikiBar k, Vector3 from, Vector3 step, int n, float yaw)
         {
             for (int i = 0; i < n; i++)
@@ -306,8 +382,18 @@ namespace StreetLife
             k.Put(k.P("vase0"), new Vector3(2f, 1f, 14.8f)); k.Put(k.G("wine", "#f3d98a"), new Vector3(2.35f, 1f, 14.5f));
             k.Put(k.P("vase2"), new Vector3(12.2f, 1.1f, -13.2f));
             // bathroom: bottles on the end of the bath (top 1), on the washer and dryer (top 1.4)
-            Bottles(k, new Vector3(-14.1f, 1f, 20.9f), new Vector3(.24f, 0, 0), 4, 180);
+            Bottles(k, new Vector3(-9.72f, 1f, 21.2f), new Vector3(0, 0, .26f), 5, -90);
             Bottles(k, new Vector3(-3.4f, 1.4f, 22.9f), new Vector3(.3f, 0, 0), 3, 180); k.Put(k.P("plates"), new Vector3(-1.4f, 1.4f, 22.6f));
+            // pictures on the walls
+            Picture(k, "picA", 1.4f, .9f, k.Surf("post", "#6b4428"), "#2f5d7c", "#e9c46a", "#f4a261");
+            Picture(k, "picB", .85f, 1.15f, k.Gloss("#1b1c20", .6f), "#264653", "#2a9d8f", "#e9ecef");
+            Picture(k, "picC", 1.1f, 1.1f, k.brass, "#7a3b2e", "#d9b382", "#f1e3c8");
+            foreach (var (pic, x, y, z, yaw) in new[] {
+                ("picA", -3.6f, 1.7f, -9.77f, 0f), ("picB", 2.6f, 1.6f, -9.77f, 0f), ("picC", -3.2f, 1.7f, 5.77f, 180f),
+                ("picB", 2.5f, 1.6f, 11.77f, 180f), ("picA", 11f, 1.7f, 11.77f, 180f), ("picC", -7.9f, 1.7f, 11.77f, 180f),
+                ("picA", 10.6f, 1.7f, 12.23f, 0f), ("picC", 7.5f, 2f, 23.77f, 180f), ("picB", 10f, 1.9f, -23.77f, 0f),
+                ("picB", 5.23f, 1.45f, 2.6f, 90f), ("picA", -6.23f, 1.7f, 21.6f, 270f) })
+                k.Put(k.P(pic), new Vector3(x, y, z), yaw);
             // garage: tins on the crate side of the shelving are part of the shelving; a few loose mugs on the bonnet side
             k.Put(k.P("mug2"), new Vector3(-12.9f, 2.2f, -22.9f)); k.Put(k.P("mug1"), new Vector3(-13.3f, 2.2f, -21.2f));
         }
