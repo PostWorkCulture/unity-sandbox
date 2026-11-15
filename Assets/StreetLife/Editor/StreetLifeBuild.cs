@@ -336,7 +336,7 @@ namespace StreetLife.EditorTools
         static string[] Scenes(BuildTarget target)
         {
             var list = new System.Collections.Generic.List<string> { Scene };
-            if (target != BuildTarget.WebGL) foreach (var s in new[] { RailLook.LightScene, BeachLook.LightScene }) if (File.Exists(s)) list.Add(s);
+            if (target != BuildTarget.WebGL) foreach (var s in MapLooks.LightScenes()) if (File.Exists(s)) list.Add(s);
             return list.ToArray();
         }
 

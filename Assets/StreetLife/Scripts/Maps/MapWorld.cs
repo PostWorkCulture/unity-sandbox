@@ -48,12 +48,14 @@ namespace StreetLife
             bin = entry.extrasBin ? entry.extrasBin.bytes : null;
             if (entry.id == "rail") RailLook.Env(env);   // Railed at golden hour (RailLook.cs)
             if (entry.id == "wreck") BeachLook.Env(env);   // Beach Please on a clear afternoon (BeachLook.cs)
+            MapLooks.Env(entry.id, env);   // the small maps' looks (MapLooks.cs)
             ApplyEnv();
             Mood();
             SoftBeams();
             if (entry.id == "rail") RailLook.Apply(this);   // its surfaces and reflections
             if (extras != null && bin != null) { BuildGround(); BuildCrowd(); }
             if (entry.id == "wreck") { BuildBeachSea(); BeachLook.Apply(this); }   // then its surfaces, sand and reflections
+            MapLooks.Apply(this);   // the small maps: surfaces, dressing, baked light
             if (entry.IsStreet && builder) gameObject.AddComponent<StreetTraffic>().Init(this, builder);
             if (extras != null && extras.trains != null && extras.trains.Length > 0 || extras != null && extras.glow != null && extras.glow.Length > 0)
                 gameObject.AddComponent<RailYard>().Init(this);

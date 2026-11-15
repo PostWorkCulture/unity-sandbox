@@ -272,9 +272,11 @@ namespace StreetLife
             {
                 var c = GunsDb.Cons(w.lethal);
                 var lines = new List<string>();
-                if (!Rules.Rumble) lines.Add("E  " + (c != null ? c.@short : "-") + "  x" + w.consN + (w.consT > 0 && w.consN > 0 ? "  ..." : ""));   // no lethals in Rumble
-                if (!Rules.Rumble && (w.nades > 0 || w.goldNade > 0)) lines.Add("T  Grenade x" + w.nades + (w.goldNade > 0 ? "  + Gold" : ""));
-                if (w.turretKit > 0) lines.Add("V  Sentry");
+                // E marks what the throwables wheel has selected (ThrowWheel, menu chat); T and V still work
+                string selT = ThrowWheel.I ? ThrowWheel.I.sel : "lethal";
+                if (!Rules.Rumble) lines.Add((selT == "lethal" ? "E  " : "    ") + (c != null ? c.@short : "-") + "  x" + w.consN + (w.consT > 0 && w.consN > 0 ? "  ..." : ""));   // no lethals in Rumble
+                if (!Rules.Rumble && (w.nades > 0 || w.goldNade > 0)) lines.Add((selT == "nade" ? "E  " : "T  ") + "Grenade x" + w.nades + (w.goldNade > 0 ? "  + Gold" : ""));
+                if (w.turretKit > 0) lines.Add((selT == "sentry" ? "E  " : "V  ") + "Sentry");
                 if (f.speedT > 0) lines.Add("Speed  " + Mathf.CeilToInt(f.speedT) + "s");
                 float x = 18, y = HudLayout.ItemsTopFor(lines.Count);   // above the vitals; under them on phones
                 HudLayout.ItemsTop = y; HudLayout.ItemsBottom = y + lines.Count * 20 + 10;

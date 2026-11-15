@@ -58,6 +58,15 @@ namespace StreetLife.EditorTools
             return (ok ? "now " : "could not switch, still ") + EditorUserBuildSettings.activeBuildTarget;
         }
 
+        // the small maps (MapLooks): mostly Railed's and Beach Please's texture sets under the names their rules use
+        static readonly Def[] Sky =
+        {
+            new Def { name = "slabs", dir = RailDir, metres = 5f, reference = "#c4beb2" },
+            new Def { name = "concrete", dir = RailDir, metres = 2.4f, tinted = true },
+            new Def { name = "metal", dir = RailDir, metres = 1.5f, tinted = true, keepGloss = true },
+            new Def { name = "roofing", dir = RailDir, metres = 2f, tinted = true },
+        };
+
         [MenuItem("Street Life/Maps/Rebuild Railed surfaces")]
         static void Menu() { Debug.Log("Map surfaces: " + Build("")); }
 
@@ -80,8 +89,9 @@ namespace StreetLife.EditorTools
                 if (rail) { rail.drumLabel = lt; EditorUtility.SetDirty(rail); }
                 if (beach) { beach.drumLabel = lt; EditorUtility.SetDirty(beach); }
             }
+            string c = "; Sky High " + Book(lit, RailDir, "Assets/StreetLife/Resources/SkyLook.asset", Sky, out _);
             AssetDatabase.SaveAssets();
-            return "Railed " + a + "; Beach Please " + b + (beach && beach.ground ? " and the sand" : "");
+            return "Railed " + a + "; Beach Please " + b + (beach && beach.ground ? " and the sand" : "") + c;
         }
 
         static string Book(Shader lit, string dir, string setPath, Def[] defs, out RailLookSet set)

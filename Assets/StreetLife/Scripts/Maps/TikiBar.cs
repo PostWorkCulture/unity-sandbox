@@ -92,8 +92,8 @@ namespace StreetLife
         readonly List<(Destruction.Ent item, Destruction.Ent[] on)> stacks = new List<(Destruction.Ent, Destruction.Ent[])>();
         readonly List<Transform> fans = new List<Transform>();
         readonly List<Destruction.Ent> screens = new List<Destruction.Ent>();
-        readonly System.Random rng = new System.Random(7);
-        float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+        internal readonly System.Random rng = new System.Random(7);
+        internal float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
 
         // ------------------------------------------------------------------ taking the old things out
         void Clear(Transform gen)
@@ -169,7 +169,7 @@ namespace StreetLife
         readonly Dictionary<Material, RailLookSet.Surface> mapped = new Dictionary<Material, RailLookSet.Surface>();
         readonly Dictionary<Material, Mb> parts = new Dictionary<Material, Mb>();
 
-        Material Gloss(string hex, float smooth, float metal = 0)
+        internal Material Gloss(string hex, float smooth, float metal = 0)
         {
             string key = "g" + hex + smooth + "/" + metal;
             if (!mats.TryGetValue(key, out var m))
@@ -180,7 +180,7 @@ namespace StreetLife
             }
             return m;
         }
-        Material Glow(string hex, string lightHex, float power, Texture map = null, float smooth = .6f)
+        internal Material Glow(string hex, string lightHex, float power, Texture map = null, float smooth = .6f)
         {
             string key = "e" + hex + lightHex + power + (map ? map.name : "") + smooth;
             if (!mats.TryGetValue(key, out var m))
@@ -193,7 +193,7 @@ namespace StreetLife
             }
             return m;
         }
-        Material Glass(string hex, float alpha)
+        internal Material Glass(string hex, float alpha)
         {
             string key = "t" + hex + alpha;
             if (!mats.TryGetValue(key, out var m))
@@ -204,7 +204,7 @@ namespace StreetLife
             }
             return m;
         }
-        Material Surf(string surface, string hex)
+        internal Material Surf(string surface, string hex)
         {
             var s = set.Get(surface);
             if (s == null || !s.material) return Gloss(hex, .5f);
@@ -217,11 +217,11 @@ namespace StreetLife
             }
             return m;
         }
-        Material brass, steel, clear, sheet;
+        internal Material brass, steel, clear, sheet;
 
-        Mb Part(Material m) { if (!parts.TryGetValue(m, out var mb)) { mb = new Mb(); parts[m] = mb; } return mb; }
+        internal Mb Part(Material m) { if (!parts.TryGetValue(m, out var mb)) { mb = new Mb(); parts[m] = mb; } return mb; }
 
-        MeshRenderer Piece(Transform root, string name, Mesh mesh, Material mat, bool shadows = true)
+        internal MeshRenderer Piece(Transform root, string name, Mesh mesh, Material mat, bool shadows = true)
         {
             var go = new GameObject(name); go.transform.SetParent(root, false);
             mesh.RecalculateBounds(); if (!baking) mesh.UploadMeshData(true);   // the baker reads the mesh itself
@@ -232,7 +232,7 @@ namespace StreetLife
         }
 
         // a round bar from a to b
-        static void Tube(Mb m, Vector3 a, Vector3 b, float r, int sides = 8)
+        internal static void Tube(Mb m, Vector3 a, Vector3 b, float r, int sides = 8)
         {
             Vector3 ax = (b - a).normalized;
             Vector3 u = Vector3.Cross(ax, Mathf.Abs(ax.y) < .9f ? Vector3.up : Vector3.right).normalized, w = Vector3.Cross(ax, u);
@@ -246,7 +246,7 @@ namespace StreetLife
         }
 
         // a ball, turned on the lathe
-        static void Ball(Mb m, Vector3 c, float r, int sides = 14, int rings = 8)
+        internal static void Ball(Mb m, Vector3 c, float r, int sides = 14, int rings = 8)
         {
             var p = new Vector2[rings + 1];
             for (int i = 0; i <= rings; i++) { float a = i * Mathf.PI / rings; p[i] = new Vector2(Mathf.Max(0, r * Mathf.Sin(a)), c.y - r * Mathf.Cos(a)); }
@@ -257,14 +257,14 @@ namespace StreetLife
         static float RoofY(float z) => 6.05f + (9.8f - Mathf.Min(9.8f, Mathf.Abs(z))) / 9.8f * 2.6f;
 
         // ------------------------------------------------------------------ the fittings (none of this breaks)
-        Transform fittings, looseRoot;
+        internal Transform fittings, looseRoot;
         static readonly (float, float)[] Bays = { (-25.14f, -20.26f), (-13.74f, -8.86f) };     // the lit panels either side of the mirror
         static readonly float[] ShelfY = { 2.72f, 3.41f, 4.10f };
         static readonly float[] Taps = { -21.3f, -12.7f };
         static readonly (float, float)[] RackX = { (-24.2f, -18.8f), (-15.2f, -9.8f) };
         const float RackY = 3.8f;
         static readonly float[] RackZ = { 5.15f, 5.55f };
-        static Vector3 V(float x, float y, float z) => new Vector3(x, y, z);
+        internal static Vector3 V(float x, float y, float z) => new Vector3(x, y, z);
 
         void Begin()
         {
@@ -276,7 +276,7 @@ namespace StreetLife
         }
 
         // the fittings gathered so far become one mesh per material (for the bake: only what blocks or bounces light)
-        void Flush()
+        internal void Flush()
         {
             foreach (var kv in parts)
             {
@@ -414,7 +414,7 @@ namespace StreetLife
             AddLamp(V(-11.3f, 3.2f, 7.2f), new Color(1f, .72f, .42f), 2.2f, 5.5f, 0);
         }
 
-        void AddLamp(Vector3 at, Color c, float power, float range, float spot)
+        internal void AddLamp(Vector3 at, Color c, float power, float range, float spot)
         {
             var go = new GameObject("Bar lamp"); go.transform.SetParent(fittings, false); go.transform.position = at;
             var l = go.AddComponent<Light>(); l.color = c; l.intensity = power; l.range = range; l.shadows = LightShadows.None;
@@ -484,23 +484,23 @@ namespace StreetLife
         }
 
         // ------------------------------------------------------------------ loose things (they all join Destruction)
-        class Proto { public string name, color; public Mesh mesh; public Material[] mats; public float w, h, brk, heavy; public bool glass; }
+        internal class Proto { public string name, color; public Mesh mesh; public Material[] mats; public float w, h, brk, heavy; public bool glass; }
         readonly Dictionary<string, Proto> protos = new Dictionary<string, Proto>();
-        Proto P(string name) => protos[name];
+        internal Proto P(string name) => protos[name];
 
         // a lathe profile from (radius, height) pairs, moved down so the thing's middle is at its own origin
-        static Vector2[] Pr(float h, params float[] a)
+        internal static Vector2[] Pr(float h, params float[] a)
         {
             var p = new Vector2[a.Length / 2];
             for (int i = 0; i < p.Length; i++) p[i] = new Vector2(a[i * 2] * PS, (a[i * 2 + 1] - h / 2) * PS);
             return p;
         }
         // Bottles, glasses and the like are drawn at life size and built a quarter bigger, as the fighters are (2.25 m tall)
-        const float Small = 1.25f;
-        static float PS = 1f;
+        internal const float Small = 1.25f;
+        internal static float PS = 1f;
 
         // one mesh with a sub-mesh per material
-        Proto New(string name, float w, float h, string color, bool glass, float brk, float heavy, params (Mb mb, Material mat)[] bits)
+        internal Proto New(string name, float w, float h, string color, bool glass, float brk, float heavy, params (Mb mb, Material mat)[] bits)
         {
             var ci = new CombineInstance[bits.Length]; var ms = new Material[bits.Length];
             for (int i = 0; i < bits.Length; i++) { ci[i] = new CombineInstance { mesh = bits[i].mb.Build(name), transform = Matrix4x4.identity }; ms[i] = bits[i].mat; }
@@ -513,7 +513,7 @@ namespace StreetLife
         }
 
         // stands on `foot` (hang: hangs from it, upside down)
-        Destruction.Ent Put(Proto p, Vector3 foot, float yaw = 0, bool hang = false, float tilt = 0)
+        internal Destruction.Ent Put(Proto p, Vector3 foot, float yaw = 0, bool hang = false, float tilt = 0)
         {
             var go = new GameObject(p.name); go.transform.SetParent(looseRoot, false);
             go.transform.position = hang ? foot - Vector3.up * (p.h / 2) : foot + Vector3.up * (p.h / 2);
@@ -543,7 +543,7 @@ namespace StreetLife
                                    new[] { 0f, .063f, .03f, .076f, .043f, .11f, .0315f, .168f, .037f, .2f, 0f, .2f }) },
         };
 
-        Proto G(string kind, string drinkHex)
+        internal Proto G(string kind, string drinkHex)
         {
             string key = kind + (drinkHex ?? "");
             if (protos.TryGetValue(key, out var p)) return p;
@@ -566,9 +566,9 @@ namespace StreetLife
         };
         // each bottle's label: from, to, the body's radius there; then where its cap starts (no label: radius 0)
         static readonly float[][] BottleBits = { new[] { .07f, .17f, .047f, .29f }, new[] { .06f, .17f, .052f, .265f }, new[] { .035f, .11f, .07f, .215f }, new[] { .09f, .21f, .038f, .35f }, new[] { 0f, 0f, 0f, 0f } };
-        static readonly (string hex, float a)[] Tints = { ("#1f5a2c", .82f), ("#8a4612", .8f), ("#eaf6f6", .25f), ("#1f5aa0", .72f), ("#26262c", .85f), ("#c8566a", .65f), ("#178a86", .7f), ("#d9a83a", .6f), ("#8a4612", .8f), ("#1f5a2c", .82f) };
+        internal static readonly (string hex, float a)[] Tints = { ("#1f5a2c", .82f), ("#8a4612", .8f), ("#eaf6f6", .25f), ("#1f5aa0", .72f), ("#26262c", .85f), ("#c8566a", .65f), ("#178a86", .7f), ("#d9a83a", .6f), ("#8a4612", .8f), ("#1f5a2c", .82f) };
 
-        Proto Bottle(int shape, int label, string glassHex, float alpha)
+        internal Proto Bottle(int shape, int label, string glassHex, float alpha)
         {
             string key = "bottle" + shape + "/" + label + glassHex;
             if (protos.TryGetValue(key, out var p)) return p;
@@ -655,11 +655,24 @@ namespace StreetLife
             for (float x = -19.8f; x < -14.1f; x += .47f) Put(G(rng.Next(2) == 0 ? "martini" : "coupe", null), V(x, 2.8f, 8.16f));
         }
 
-        void Bucket(Vector3 at)
+        internal Destruction.Ent Bucket(Vector3 at, Destruction.Ent on = null)
         {
             var b = Put(P("bucket"), at, R(0, 360));
             var bottle = Put(Bottle(0, 10, "#2f6b3a", .8f), at + Vector3.up * .025f, R(0, 360), false, 15);
             stacks.Add((bottle, new[] { b }));
+            if (on != null) stacks.Add((b, new[] { on }));
+            return b;
+        }
+
+        /// a high glass table laid for champagne: a bucket with a bottle in it, three coupes, stools
+        internal void ChampagneTable(Vector3 spot, int stools = 2)
+        {
+            var table = Put(P("table"), spot, R(0, 360));
+            Vector3 top = spot + Vector3.up * 1.356f; float a0 = R(0, 6.28f);
+            Bucket(top + V(Mathf.Cos(a0) * .12f, 0, Mathf.Sin(a0) * .12f), table);
+            for (int i = 1; i <= 3; i++) { float a = a0 + 1.2f + i * 1.25f; stacks.Add((Put(G("coupe", "#f3d98a"), top + V(Mathf.Cos(a) * .31f, 0, Mathf.Sin(a) * .31f)), new[] { table })); }
+            float sa = R(0, 6.28f);
+            for (int i = 0; i < stools; i++) Put(P("stool"), spot + V(Mathf.Cos(sa + i * 2.6f) * .85f, 0, Mathf.Sin(sa + i * 2.6f) * .85f), R(0, 360));
         }
 
         void CounterTop()
@@ -712,31 +725,59 @@ namespace StreetLife
                     for (float x = x0 + .15f; x < x1 - .1f; x += .2f) Put(g, V(x, RackY + .012f, z), 0, true);
         }
 
+        static readonly string[] Kinds = { "martini", "coupe", "hurricane", "highball", "highball", "tumbler" };
+        static readonly string[] Drinks = { "#ff7fa8", "#f3d98a", "#ff7a2a", "#2f9fe0", "#9fdc6a", "#c9781e" };
+
+        /// a drink of some kind standing at `at`; with `on`, it comes down when that is knocked away
+        internal Destruction.Ent Drink(Vector3 at, Destruction.Ent on = null)
+        {
+            int d = rng.Next(Kinds.Length);
+            var e = Put(G(Kinds[d], Drinks[d]), at);
+            if (on != null) stacks.Add((e, new[] { on }));
+            return e;
+        }
+
+        /// a high glass table with a lantern, two or three drinks on it and stools round it
+        internal void TableSet(Vector3 spot, int stools = 2)
+        {
+            var table = Put(P("table"), spot, R(0, 360));
+            Vector3 top = spot + Vector3.up * 1.356f;
+            stacks.Add((Put(P("lantern"), top), new[] { table }));
+            int n = 2 + rng.Next(2); float a0 = R(0, 6.28f);
+            for (int i = 0; i < n; i++) { float a = a0 + i * 6.28f / n; Drink(top + V(Mathf.Cos(a) * .3f, 0, Mathf.Sin(a) * .3f), table); }
+            float sa = R(0, 6.28f);
+            for (int i = 0; i < stools; i++) Put(P("stool"), spot + V(Mathf.Cos(sa + i * 2.6f) * .85f, 0, Mathf.Sin(sa + i * 2.6f) * .85f), R(0, 360));
+        }
+
+        /// nothing this small needs drawing from far away: one switch for all the loose things (call once, after the last Put)
+        internal void Lod(float cut = .16f)
+        {
+            var rends = looseRoot.GetComponentsInChildren<Renderer>();
+            if (rends.Length == 0) return;
+            var lod = looseRoot.gameObject.AddComponent<LODGroup>();
+            lod.SetLODs(new[] { new LOD(cut, rends) }); lod.RecalculateBounds();
+        }
+
         void Tables()
         {
-            var spots = new[] { V(-26.5f, F, -5.5f), V(-21.5f, F, -6.8f), V(-12.5f, F, -6.8f), V(-7.5f, F, -5.5f), V(-27f, F, 1f), V(-7f, F, 1f) };
-            string[] kinds = { "martini", "coupe", "hurricane", "highball", "highball", "tumbler" };
-            string[] drinks = { "#ff7fa8", "#f3d98a", "#ff7a2a", "#2f9fe0", "#9fdc6a", "#c9781e" };
-            foreach (var spot in spots)
-            {
-                var on = new[] { Put(P("table"), spot, R(0, 360)) };
-                Vector3 top = spot + Vector3.up * 1.356f;
-                stacks.Add((Put(P("lantern"), top), on));
-                int n = 2 + rng.Next(2); float a0 = R(0, 6.28f);
-                for (int i = 0; i < n; i++)
-                {
-                    int d = rng.Next(kinds.Length); float a = a0 + i * 6.28f / n;
-                    stacks.Add((Put(G(kinds[d], drinks[d]), top + V(Mathf.Cos(a) * .3f, 0, Mathf.Sin(a) * .3f)), on));
-                }
-                float sa = R(0, 6.28f);
-                for (int i = 0; i < 2; i++) Put(P("stool"), spot + V(Mathf.Cos(sa + i * 2.6f) * .85f, 0, Mathf.Sin(sa + i * 2.6f) * .85f), R(0, 360));
-            }
+            foreach (var spot in new[] { V(-26.5f, F, -5.5f), V(-21.5f, F, -6.8f), V(-12.5f, F, -6.8f), V(-7.5f, F, -5.5f), V(-27f, F, 1f), V(-7f, F, 1f) }) TableSet(spot);
             for (float x = -24.2f; x < -9.5f; x += 1.45f) Put(P("stool"), V(x, F, 4.15f), R(0, 360));
-            // nothing this small needs drawing from across the beach
-            var rends = looseRoot.GetComponentsInChildren<Renderer>();
-            var lod = looseRoot.gameObject.AddComponent<LODGroup>();
-            lod.SetLODs(new[] { new LOD(.16f, rends) }); lod.RecalculateBounds();
+            Lod();
         }
+
+        /// The bar's loose things for another map's look (MapLooks): bottles, glasses, lanterns, tables and stools to put down
+        /// with Put, Drink, TableSet and Bucket, and its fittings builder (Part, Surf, Gloss, Glow, Glass, then Flush). The
+        /// materials are the Tiki Bar's own templates. Null where there is nothing to hold breakables (no Destruction).
+        internal static TikiBar Kit(Transform parent, string name)
+        {
+            var set = Resources.Load<RailLookSet>("BeachLook");
+            if (!set || !set.glass || !set.gloss || !set.glow || !Destruction.I) return null;
+            var bar = new GameObject(name).AddComponent<TikiBar>();
+            bar.transform.SetParent(parent, false); bar.set = set;
+            bar.Begin(); bar.Protos();
+            return bar;
+        }
+        internal int Count => loose.Count;
 
         // ------------------------------------------------------------------ while playing
         float pollT;

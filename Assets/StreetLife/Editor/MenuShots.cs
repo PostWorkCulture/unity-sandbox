@@ -32,6 +32,23 @@ namespace StreetLife.EditorTools
             var m = MM; if (m && MainMenu.Paused) Call(m, "Resume");
             return "closed";
         }
+        /// call MenuShots.Wheel open [slot] | pick | close   (gives the player 3 grenades and a Sentry first)
+        public static string Wheel(string a)
+        {
+            var tw = ThrowWheel.I; if (!tw) return "no wheel";
+            var w = tw.GetComponent<Weapons>(); var parts = a.Trim().Split(' ');
+            if (parts[0] == "open")
+            {
+                w.nades = 3; w.turretKit = 1;
+                Call(tw, "OpenWheel"); typeof(ThrowWheel).GetField("holding", F).SetValue(tw, true); typeof(ThrowWheel).GetField("holdT", F).SetValue(tw, 1f);
+                int slot = parts.Length > 1 && int.TryParse(parts[1], out var n) ? n : 1; typeof(ThrowWheel).GetField("hover", F).SetValue(tw, slot);
+                typeof(ThrowWheel).GetField("pick", F).SetValue(tw, new Vector2(Mathf.Sin(slot * 120 * Mathf.Deg2Rad), Mathf.Cos(slot * 120 * Mathf.Deg2Rad)));
+                return "wheel open, hover " + slot;
+            }
+            if (parts[0] == "pick") { typeof(ThrowWheel).GetField("holding", F).SetValue(tw, false); Call(tw, "Close", true); return "picked " + tw.sel + " ready " + tw.ready; }
+            Call(tw, "Close", false); return "closed";
+        }
+
         public static string End(string a) { var rm = RoundManager.Instance; if (!rm) return "no rm"; rm.matchOver = true; Call(rm, "EnterMatchEnd"); return "match end"; }
     }
 }

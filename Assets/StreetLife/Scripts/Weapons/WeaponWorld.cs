@@ -114,11 +114,12 @@ namespace StreetLife
                 tbReload = TouchControls.AddButton("reload", 162, 136, 50, "Reload", d => { if (d) w.StartReload(); });
                 tbSwap = TouchControls.AddButton("swap", 146, 212, 46, "Swap", d => { if (d) w.Equip(w.slot == 0 ? 1 : 0); });
                 // lethal: hold to see the arc, let go to throw (a mine goes down at once), as the web game's Item button
+                // menu chat: hold for the throwables wheel, tap to throw what's selected (ThrowWheel.cs)
                 tbLethal = TouchControls.AddButton("lethal", 222, 236, 48, "Item", d =>
                 {
                     if (w.Busy || WeaponHud.MenuOpen) { w.aimThrow = false; return; }
-                    if (d) { if (Projectiles.Aimed.Contains(w.lethal) && w.ConsReady()) w.aimThrow = true; else w.UseCons(); }
-                    else if (w.aimThrow) { w.aimThrow = false; w.UseCons(); }
+                    var tw = ThrowWheel.I; if (tw) tw.TouchItem(d, tbLethal != null ? tbLethal.finger : -1);
+                    else if (d) w.UseCons();
                 });
                 tbNade = TouchControls.AddButton("nade", 306, 150, 46, "Nade", d =>
                 {
@@ -130,7 +131,7 @@ namespace StreetLife
             }
             // as in the web game, Nade and Sentry only show when you have one; the Item button names your lethal
             var c = GunsDb.Cons(w.lethal);
-            if (tbLethal != null) tbLethal.label = c != null ? c.@short : "Item";
+            if (tbLethal != null) tbLethal.label = ThrowWheel.Label ?? (c != null ? c.@short : "Item");
             if (tbNade != null) tbNade.size = w.nades > 0 || w.goldNade > 0 ? 46 : 0;
             if (tbSentry != null) tbSentry.size = w.turretKit > 0 ? 46 : 0;
         }

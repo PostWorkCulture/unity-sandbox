@@ -10,7 +10,8 @@ namespace StreetLife
     public class WeaponInput : MonoBehaviour
     {
         Weapons w;
-        void Awake() { w = GetComponent<Weapons>(); }
+        ThrowWheel wheel;
+        void Awake() { w = GetComponent<Weapons>(); wheel = GetComponent<ThrowWheel>() ?? gameObject.AddComponent<ThrowWheel>(); }   // menu chat: the throwables wheel (hold E)
 
         void Update()
         {
@@ -23,8 +24,8 @@ namespace StreetLife
             if (kb.digit2Key.wasPressedThisFrame) w.Equip(1);
             if (Mathf.Abs(ms.scroll.ReadValue().y) > .01f) w.Equip(w.slot == 0 ? 1 : 0);
             if (kb.rKey.wasPressedThisFrame) w.StartReload();
-            if (kb.eKey.wasPressedThisFrame) { if (Projectiles.Aimed.Contains(w.lethal) && w.ConsReady()) w.aimThrow = true; else w.UseCons(); }
-            if (kb.eKey.wasReleasedThisFrame && w.aimThrow) { w.aimThrow = false; w.UseCons(); }
+            // E: hold for the throwables wheel, tap to throw what's selected (ThrowWheel.cs)
+            wheel.KeyE(kb.eKey.wasPressedThisFrame, kb.eKey.isPressed, kb.eKey.wasReleasedThisFrame);
             if (kb.tKey.wasPressedThisFrame) w.aimNade = true;
             if (kb.tKey.wasReleasedThisFrame && w.aimNade) { w.aimNade = false; w.ThrowNade(); }
             if (kb.vKey.wasPressedThisFrame && w.turretKit > 0 && !f.Frozen) { if (Turrets.Deploy(f)) w.turretKit--; }

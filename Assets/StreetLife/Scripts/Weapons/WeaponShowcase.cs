@@ -148,14 +148,14 @@ namespace StreetLife
             vol.isGlobal = true; vol.priority = 50; look = ScriptableObject.CreateInstance<VolumeProfile>(); vol.sharedProfile = look;
             var tm = look.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
             var bl = look.Add<Bloom>(true); bl.intensity.Override(.55f); bl.threshold.Override(1f); bl.scatter.Override(.6f);
-            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.3f);   // brighter overall: dark guns read (Pete, 15 Nov)
+            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.5f);   // brighter overall: dark guns read (Pete, 15 Nov)
 
             // lights: warm key from above front-left, cool fill low right, two hard rims behind, a glint that sweeps over the top
             key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 40, 14);
             fill = MakeLight("fill", LightType.Point, new Color(.75f, .84f, 1f), 20, 10);
             // more light so dark guns are easy to see: a soft front light by the camera and a softbox overhead
-            front = MakeLight("front", LightType.Point, new Color(1f, .98f, .95f), 16, 10);
-            top = MakeLight("top", LightType.Point, Color.white, 12, 10);
+            front = MakeLight("front", LightType.Point, new Color(1f, .98f, .95f), 22, 10);
+            top = MakeLight("top", LightType.Point, Color.white, 16, 10);
             rimA = MakeLight("rim A", LightType.Spot, Color.white, 55, 14);
             rimB = MakeLight("rim B", LightType.Spot, new Color(.9f, .94f, 1f), 40, 14);
             glint = MakeLight("glint", LightType.Point, Color.white, 14, 4);
@@ -268,7 +268,9 @@ namespace StreetLife
         void ShowNodes(string id, WNode[] nodes)
         {
             shown = id;
-            if (model) { model.gameObject.SetActive(false); Destroy(model.gameObject); }
+            // clear the turntable (anything left on it, not just the last model)
+            for (int i = pivot.childCount - 1; i >= 0; i--) { var c = pivot.GetChild(i).gameObject; c.SetActive(false); Destroy(c); }
+            model = null;
             var rends = new List<Renderer>();
             var holder = new GameObject("model").transform; holder.SetParent(pivot, false);
             if (id == "duals" && WeaponFixes.Pistol != null)
@@ -319,8 +321,10 @@ namespace StreetLife
             if (p.HasProperty("_BaseColor"))
             {
                 var bc = p.GetColor("_BaseColor"); float lum = bc.r * .3f + bc.g * .59f + bc.b * .11f;
-                if (lum < .14f) { float k = (.14f - lum) / .14f; p.SetColor("_BaseColor", Color.Lerp(bc, new Color(.16f, .16f, .17f, bc.a), k * .8f)); }
+                if (lum < .2f) { float k = (.2f - lum) / .2f; p.SetColor("_BaseColor", Color.Lerp(bc, new Color(.24f, .24f, .25f, bc.a), k * .85f)); }
             }
+            // a faint even glow on every surface, so black parts (textured ones too) show their shape even when the map is a night one
+            if (p.HasProperty("_EmissionColor")) { p.EnableKeyword("_EMISSION"); p.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; p.SetColor("_EmissionColor", p.GetColor("_EmissionColor") + new Color(.075f, .075f, .08f)); }
             if (p.HasProperty("_SpecularHighlights")) p.SetFloat("_SpecularHighlights", 1);
             if (p.HasProperty("_EnvironmentReflections")) p.SetFloat("_EnvironmentReflections", 1);
             p.DisableKeyword("_SPECULARHIGHLIGHTS_OFF"); p.DisableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
@@ -473,7 +477,8 @@ namespace StreetLife
             }
             System.IO.File.WriteAllLines(System.IO.Path.Combine(dir, "index.txt"), lines);
             Destroy(tex); s.cam.targetTexture = oldRt; s.cam.aspect = oldAspect; s.cam.enabled = wasOn; rtS.Release(); Destroy(rtS);
-            s.shown = null;
+            for (int i = s.pivot.childCount - 1; i >= 0; i--) DestroyImmediate(s.pivot.GetChild(i).gameObject);
+            s.model = null; s.shown = null;
             return n + " weapons to " + dir;
         }
 

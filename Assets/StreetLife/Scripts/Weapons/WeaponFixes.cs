@@ -1,6 +1,8 @@
 // Fixes to the exported weapon models, applied once when the weapon data loads (GunsDb.Load calls Apply):
 //   - the red-dot sights on the M4, AKM, FAMAS, Vector, P90 and UMP are scaled down about their base (to half; 40% for
-//     the P90 and UMP's taller ring sights), with their glass taken out (no tinted pane when aiming down sights),
+//     the P90 and UMP's taller ring sights);
+//   - no sight glass on any AR, SMG or LMG (no tinted pane when aiming down sights);
+//   - extra parts from Tools/gunparts.py (Resources/StreetLife/GunParts.json): the Kar98's black trim, the Shotty Horror's detail;
 //     and each gun's first-person sight line (VmJson.sightY) follows;
 //   - the Rocket Launcher keeps only its front sight ring, at less than half size (the rear ring is cut away);
 //   - the Dual Pistols get the parts a real pistol has: a trigger guard, front and rear sights, an ejection port,
@@ -16,6 +18,7 @@ namespace StreetLife
     {
         public const float SightScale = .5f, RingSightScale = .4f, RingScale = .42f;
         static readonly string[] RedDots = { "gar", "ar", "burst", "vector", "p90", "ump" };
+        static readonly string[] NoGlass = { "gar", "ar", "burst", "smg", "hornet", "vector", "p90", "ump", "sting", "mg", "m60" };
 
         struct Squash { public Vector3 pivot; public float k; public bool ring; }
         static readonly Dictionary<int, Squash> edits = new Dictionary<int, Squash>();
@@ -46,10 +49,16 @@ namespace StreetLife
                 var pivot = new Vector3(plate.bmin[0] + plate.bsize[0] * .5f, lo, plate.bmin[2] + plate.bsize[2] * .5f);
                 float k = id == "p90" || id == "ump" ? RingSightScale : SightScale;   // their ring sights stand taller
                 foreach (var mi in sight) edits[mi] = new Squash { pivot = pivot, k = k };
-                // no glass: the tinted pane in each sight (flat, wide) comes out, so aiming down sights is a clear view
-                var glass = sight.FindAll(mi => meshes[mi].bsize[2] < .003f && meshes[mi].bsize[0] > .12f);
-                foreach (var n in h.nodes) if (n.meshes != null && n.meshes.Length > 0) n.meshes = System.Array.FindAll(n.meshes, mi => !glass.Contains(mi));
                 var vm = GunsDb.Vm(id); if (vm != null) vm.sightY = lo + (vm.sightY - lo) * k;
+            }
+
+            // ---- no glass in any AR, SMG or LMG sight: the tinted pane (flat, wide, up on the sight) comes out, so aiming
+            // down sights is a clear view
+            foreach (var id in NoGlass)
+            {
+                var h = GunsDb.Held(id); if (h == null) continue;
+                var glass = MeshesOf(h.nodes).FindAll(mi => meshes[mi].bsize[2] < .003f && meshes[mi].bsize[0] > .12f && meshes[mi].bmin[1] > .15f);
+                if (glass.Count > 0) foreach (var n in h.nodes) if (n.meshes != null && n.meshes.Length > 0) n.meshes = System.Array.FindAll(n.meshes, mi => !glass.Contains(mi));
             }
 
             // ---- rocket: front ring only, smaller; its centre dot comes down with it
@@ -87,7 +96,47 @@ namespace StreetLife
                 Pistol = new[] { new WNode { name = "pistol", parent = -1, pos = new float[] { 0, 0, 0 }, rot = new float[] { 0, 0, 0, 1 }, scl = new float[] { 1, 1, 1 }, meshes = new int[0] },
                                  Node("pistol body", 0, single.ToArray()) };
             }
+            // ---- extra parts built by Tools/gunparts.py (Resources/StreetLife/GunParts.json): the Kar98's black trim and
+            // fittings, the Shotty Horror's rib, receiver plates, trigger guard, shell carrier and gold-framed stock
+            var pa = Resources.Load<TextAsset>("StreetLife/GunParts");
+            if (pa)
+            {
+                var pj = JsonUtility.FromJson<PartsJson>(pa.text);
+                var byGun = new Dictionary<string, List<int>>();
+                if (pj != null && pj.parts != null)
+                    foreach (var pt in pj.parts)
+                    {
+                        if (GunsDb.Held(pt.gun) == null || pt.v == null || pt.t == null) continue;
+                        int i = meshes.Count; var src = pt;
+                        meshes.Add(new WMesh { mat = pt.mat, cast = true, verts = 0, tris = 0, q = 0, bmin = new float[3], bsize = new float[3] });
+                        made[i] = () => PartMesh(src);
+                        if (!byGun.TryGetValue(pt.gun, out var l)) byGun[pt.gun] = l = new List<int>();
+                        l.Add(i);
+                    }
+                foreach (var kv in byGun)
+                {
+                    var h = GunsDb.Held(kv.Key); var nodes = new List<WNode>(h.nodes);
+                    nodes.Add(Node("extra parts", 0, kv.Value.ToArray())); h.nodes = nodes.ToArray();
+                }
+            }
             d.meshes = meshes.ToArray();
+        }
+
+        [System.Serializable] class PartJson { public string gun, name; public int mat; public float[] v, n; public int[] t; }
+        [System.Serializable] class PartsJson { public PartJson[] parts; }
+
+        static Mesh PartMesh(PartJson p)
+        {
+            int nv = p.v.Length / 3; var v = new Vector3[nv]; var n = new Vector3[nv];
+            for (int i = 0; i < nv; i++)
+            {
+                v[i] = new Vector3(p.v[i * 3], p.v[i * 3 + 1], p.v[i * 3 + 2]);
+                n[i] = p.n != null && p.n.Length >= nv * 3 ? new Vector3(p.n[i * 3], p.n[i * 3 + 1], p.n[i * 3 + 2]) : Vector3.up;
+            }
+            var m = new Mesh { name = p.name };
+            if (nv > 65000) m.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            m.vertices = v; m.normals = n; m.uv = new Vector2[nv]; m.triangles = p.t; m.RecalculateBounds();
+            return m;
         }
 
         static WNode Node(string name, float x, int[] ms) => new WNode { name = name, parent = 0, pos = new[] { x, 0f, 0f }, rot = new float[] { 0, 0, 0, 1 }, scl = new float[] { 1, 1, 1 }, meshes = ms };
