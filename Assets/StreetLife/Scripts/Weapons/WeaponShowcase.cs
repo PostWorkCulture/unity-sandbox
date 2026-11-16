@@ -346,7 +346,7 @@ namespace StreetLife
             new LookDef { name = "Spotlight", mid = .95f, edge = 0f, pool = .5f, tint = new Color(1.08f, 1f, .9f), exposure = .05f, contrast = 18, bloom = .8f, key = 72, fill = 6, front = 4, top = 18, rimA = 125, rimB = 75, glint = 26, probe = 1.7f, lift = 0f, glow = .015f, paint = .68f },
             new LookDef { name = "Charcoal", mid = .46f, edge = .17f, pool = 1f, tint = Color.white, exposure = .2f, contrast = 10, bloom = .5f, key = 52, fill = 16, front = 12, top = 14, rimA = 82, rimB = 66, glint = 18, probe = 1.5f, lift = .3f, glow = .03f, paint = .56f },
         };
-        public static int LookId = 0;
+        public static int LookId = 3;   // Spotlight (Pete, 16 Nov)
         static LookDef LookNow => Looks[Mathf.Clamp(LookId, 0, Looks.Length - 1)];
         Bloom lookBloom; ColorAdjustments lookCa; Texture2D glowTex;
         void ApplyLook()

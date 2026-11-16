@@ -61,6 +61,8 @@ namespace StreetLife
         void Start()
         {
             root = doc.rootVisualElement;
+            // every button in the menus gives a soft tick (16 Nov; Pete chose it). Caught once here on the way down, so new buttons get it too.
+            root.RegisterCallback<ClickEvent>(e => { for (var v = e.target as VisualElement; v != null; v = v.parent) if (v is Button) { Sfx.Ui("uiclick", .55f); break; } }, TrickleDown.TrickleDown);
             root.style.unityFontDefinition = new StyleFontDefinition(FontDefinition.FromFont(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")));
             root.pickingMode = PickingMode.Ignore;
             // no UI theme: the document root has no size of its own, so pin it to the screen
@@ -733,14 +735,20 @@ namespace StreetLife
             float off = 0, off0 = 0; Vector2 down = default; int pid = -1; bool dragging = false;
             void Set(float v) { off = Mathf.Clamp(v, 0, Mathf.Max(0, strip.resolvedStyle.height - clip.resolvedStyle.height)); strip.style.top = -off; }
             clip.RegisterCallback<WheelEvent>(e => { Set(off + e.delta.y * 36); e.StopPropagation(); });
-            clip.RegisterCallback<PointerDownEvent>(e => { pid = e.pointerId; down = e.position; off0 = off; dragging = false; }, TrickleDown.TrickleDown);
+            clip.RegisterCallback<PointerDownEvent>(e => { pid = e.pointerType == UnityEngine.UIElements.PointerType.touch ? e.pointerId : -1; down = e.position; off0 = off; dragging = false; }, TrickleDown.TrickleDown);   // drag-scrolling is for fingers only; a mouse uses the wheel, so a click is always a click
             clip.RegisterCallback<PointerMoveEvent>(e =>
             {
-                if (e.pointerId != pid) return; float dy = e.position.y - down.y;
+                if (e.pointerId != pid) return;
+                // 16 Nov: only while the button (or finger) is still down. A mouse keeps one pointer id for ever, so without this a
+                // click on a row followed by moving the mouse counted as a drag, the list took the pointer and Done stopped working.
+                if ((e.pressedButtons & 1) == 0) { if (clip.HasPointerCapture(pid)) clip.ReleasePointer(pid); pid = -1; dragging = false; return; }
+                float dy = e.position.y - down.y;
                 if (!dragging && Mathf.Abs(dy) > 10) { dragging = true; clip.CapturePointer(pid); }   // past 10 px it's a scroll, not a tap
                 if (dragging) Set(off0 - dy);
             }, TrickleDown.TrickleDown);
             clip.RegisterCallback<PointerUpEvent>(e => { if (e.pointerId != pid) return; if (dragging && clip.HasPointerCapture(pid)) clip.ReleasePointer(pid); pid = -1; dragging = false; }, TrickleDown.TrickleDown);
+            clip.RegisterCallback<PointerCancelEvent>(e => { if (pid >= 0 && clip.HasPointerCapture(pid)) clip.ReleasePointer(pid); pid = -1; dragging = false; }, TrickleDown.TrickleDown);
+            clip.RegisterCallback<PointerCaptureOutEvent>(e => { pid = -1; dragging = false; });
             clip.RegisterCallback<GeometryChangedEvent>(e => Set(off));
             if (fitCards.Count == 0) settings.RegisterCallback<GeometryChangedEvent>(e => { float h = settings.resolvedStyle.height - 24; if (h > 100) foreach (var fc in fitCards) fc.style.maxHeight = h; });
             fitCards.Add(card);
