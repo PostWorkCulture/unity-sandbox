@@ -723,14 +723,25 @@ namespace StreetLife
         void Scrolling(VisualElement card, bool keepLast)
         {
             var kids = new List<VisualElement>(card.Children()); if (kids.Count < 3) return;
-            var sv = new ScrollView(ScrollViewMode.Vertical); sv.style.flexShrink = 1; sv.style.flexGrow = 1;
-            sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
-            // this panel has no theme style sheet, so the clipping a ScrollView normally gets from it is set here; the bare
-            // scroll bar is hidden (the wheel and a finger drag still scroll)
-            sv.verticalScrollerVisibility = ScrollerVisibility.Hidden; sv.style.overflow = Overflow.Hidden; sv.contentViewport.style.overflow = Overflow.Hidden;
+            // This panel has no theme style sheet, so a ScrollView neither clips nor scrolls here. A plain clipped box with
+            // the rows on a strip inside it does the job: the wheel moves the strip, and so does a finger (or mouse) drag.
+            var clip = new VisualElement(); clip.style.overflow = Overflow.Hidden; clip.style.flexShrink = 1; clip.style.flexGrow = 1; clip.style.minHeight = 0;
+            var strip = new VisualElement(); strip.style.flexShrink = 0;
             int last = keepLast ? kids.Count - 1 : kids.Count;
-            for (int i = 1; i < last; i++) { kids[i].style.flexShrink = 0; sv.Add(kids[i]); }
-            card.Insert(1, sv); kids[0].style.flexShrink = 0; if (keepLast) kids[kids.Count - 1].style.flexShrink = 0;
+            for (int i = 1; i < last; i++) { kids[i].style.flexShrink = 0; strip.Add(kids[i]); }
+            clip.Add(strip); card.Insert(1, clip); kids[0].style.flexShrink = 0; if (keepLast) kids[kids.Count - 1].style.flexShrink = 0;
+            float off = 0, off0 = 0; Vector2 down = default; int pid = -1; bool dragging = false;
+            void Set(float v) { off = Mathf.Clamp(v, 0, Mathf.Max(0, strip.resolvedStyle.height - clip.resolvedStyle.height)); strip.style.top = -off; }
+            clip.RegisterCallback<WheelEvent>(e => { Set(off + e.delta.y * 36); e.StopPropagation(); });
+            clip.RegisterCallback<PointerDownEvent>(e => { pid = e.pointerId; down = e.position; off0 = off; dragging = false; }, TrickleDown.TrickleDown);
+            clip.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (e.pointerId != pid) return; float dy = e.position.y - down.y;
+                if (!dragging && Mathf.Abs(dy) > 10) { dragging = true; clip.CapturePointer(pid); }   // past 10 px it's a scroll, not a tap
+                if (dragging) Set(off0 - dy);
+            }, TrickleDown.TrickleDown);
+            clip.RegisterCallback<PointerUpEvent>(e => { if (e.pointerId != pid) return; if (dragging && clip.HasPointerCapture(pid)) clip.ReleasePointer(pid); pid = -1; dragging = false; }, TrickleDown.TrickleDown);
+            clip.RegisterCallback<GeometryChangedEvent>(e => Set(off));
             if (fitCards.Count == 0) settings.RegisterCallback<GeometryChangedEvent>(e => { float h = settings.resolvedStyle.height - 24; if (h > 100) foreach (var fc in fitCards) fc.style.maxHeight = h; });
             fitCards.Add(card);
         }
