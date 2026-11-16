@@ -15,7 +15,7 @@ namespace StreetLife
         // kiosk spots from the web game's placeShop, per map id (Unity coordinates)
         static readonly Dictionary<string, Vector3[]> Spots = new Dictionary<string, Vector3[]>
         {
-            ["street"] = new[] { new Vector3(-10.5f, 0, 6.5f) },
+            ["street"] = new[] { new Vector3(-10.5f, 0, 10.5f) },   // 16 Nov: the machine moved +4 m with its building (Tools/streetshift.py)
             ["rail"] = new[] { new Vector3(-4.6f, 1.25f, 0) },
             ["wreck"] = new[] { new Vector3(-.5f, .4f, .5f) },
             ["arena"] = new[] { new Vector3(0, 4, 0) },
