@@ -203,7 +203,7 @@ namespace StreetLife
             bool me = isPlayer;
             F.NoteShot();
 
-            if (g.IsMelee) { fireT = g.rate; kick = 1; Sfx.Play("swing", F.pos, 1, 14, id == "fists" ? 1.3f : 1); Melee(g); return; }
+            if (g.IsMelee) { fireT = g.rate; kick = 1; Sfx.Play(id == "fists" ? "swing" : "swordswing", F.pos, 1, 14, id == "fists" ? 1.3f : id == "knife" ? 1.25f : id == "bat" ? .82f : 1); Melee(g); return; }
             if (g.IsFlame) { FireFlame(g, origin, dir); return; }
             if (g.IsProj)
             {
@@ -329,6 +329,19 @@ namespace StreetLife
             var e = F.Eye;
             bool fists = Gun == "fists"; int sn = fists ? 4 : 10; float sa = fists ? .3f : 1.6f, sd = fists ? 1.25f : 1.7f, sy = fists ? .35f : .6f;   // fists: a short puff straight ahead at the fist, not the sword's wide arc
             for (int k = 0; k < sn; k++) { float a = F.yaw + (k / (sn - 1f) - .5f) * sa; GunFx.Emit(new Vector3(F.pos.x + Mathf.Sin(a) * sd, e.y - sy, F.pos.z + Mathf.Cos(a) * sd), GunFx.E(1, .3f, .16f, .25f, 0, "#ffffff", "#ffe9a8")); }
+            // a swing smashes any glass within reach, across the same arc it hits people in (16 Nov)
+            {
+                float gr = g.reach > 0 ? g.reach : 2.7f;
+                for (int k = 0; k < 7; k++)
+                {
+                    float a = F.yaw + (k / 6f - .5f) * Mathf.Min(2f, g.arc * 2);
+                    for (int h = 0; h < 2; h++)
+                    {
+                        var o = new Vector3(F.pos.x, h == 0 ? e.y - .35f : F.pos.y + .6f, F.pos.z); var dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                        if (Combat.RayBoxes(o, dir, gr, out var gh) && Destruction.IsGlass(gh.box)) Destruction.Hit(gh.box, 200, o + dir * gh.t, dir, F);
+                    }
+                }
+            }
             var foes = new List<Fighter>(Combat.FoesOf(F));
             foes.Sort((a, b) => Vector3.SqrMagnitude(a.pos - F.pos).CompareTo(Vector3.SqrMagnitude(b.pos - F.pos)));
             foreach (var foe in foes)

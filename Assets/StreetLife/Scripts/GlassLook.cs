@@ -10,8 +10,8 @@ namespace StreetLife
 {
     public class GlassLook : MonoBehaviour
     {
-        const float CLEAR = .4f;     // how much of the pane's own opacity is kept
-        const float THIN = .3f;      // how much of a breakable pane's thickness is kept
+        const float CLEAR = .22f;    // how much of the pane's own opacity is kept
+        const float THIN = .18f;     // how much of a breakable pane's thickness is kept
         static GlassLook I;
         static readonly Dictionary<Material, Material> clear = new Dictionary<Material, Material>();
         static readonly HashSet<MeshRenderer> done = new HashSet<MeshRenderer>();
@@ -25,6 +25,10 @@ namespace StreetLife
             if (I || !Application.isPlaying || !FindAnyObjectByType<MapBuilder>()) return;
             I = new GameObject("GlassLook").AddComponent<GlassLook>();
         }
+        void OnEnable() { RoundManager.RoundStarted += OnRound; }
+        void OnDisable() { RoundManager.RoundStarted -= OnRound; }
+        void OnRound(int r) { StartCoroutine(Late()); }
+        IEnumerator Late() { yield return null; yield return null; Pass(); }
         void OnDestroy() { if (I == this) I = null; }
 
         IEnumerator Start()
@@ -32,6 +36,7 @@ namespace StreetLife
             done.Clear();
             yield return null; yield return null; Pass();
             yield return new WaitForSecondsRealtime(1.5f); Pass();
+            yield return new WaitForSecondsRealtime(4f); Pass();
         }
 
         /// is this a clear, untextured, light-coloured see-through material (a window, not smoke, water or a glow)?
@@ -48,7 +53,7 @@ namespace StreetLife
         {
             if (clear.TryGetValue(m, out var c) && c) return c;
             c = new Material(m) { name = m.name + " (clear)" };
-            var col = c.GetColor(BaseColor); col.a = Mathf.Max(.08f, col.a * CLEAR); c.SetColor(BaseColor, col);
+            var col = c.GetColor(BaseColor); col.a = Mathf.Max(.05f, col.a * CLEAR); c.SetColor(BaseColor, col);
             if (c.HasProperty(Smooth)) c.SetFloat(Smooth, .96f);
             clear[m] = c; return c;
         }
@@ -71,6 +76,7 @@ namespace StreetLife
                 var shift = Vector3.zero; shift[ax] = mid[ax] * ls[ax] * (1 - THIN);
                 t.localPosition += t.localRotation * shift;
                 ls[ax] *= THIN; t.localScale = ls;
+                Destruction.Rehome(t);   // or the round reset would put the old thickness back
             }
         }
     }

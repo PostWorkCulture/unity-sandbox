@@ -290,7 +290,7 @@ namespace StreetLife
             string text = killer != null && killer != victim ? $"{killer.displayName}  [{weapon}{(head ? "  HEADSHOT" : "")}]  {victim.displayName}" : $"{victim.displayName} went down";
             feed.Add(new FeedItem { text = text, t = Time.time, mine = killer == player || victim == player });
             if (feed.Count > 5) feed.RemoveAt(0);
-            deathMarks.Add((victim.pos, Time.time));
+            if (!victim.corpse) deathMarks.Add((victim.pos, Time.time));   // already marked when they went down
             if (killer == player) Sfx.Play2D(head ? "headshot" : "kill", .8f);
             else Sfx.Play("down", victim.pos, .9f, 18);
             if (state != State.Fight) return;

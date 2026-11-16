@@ -64,6 +64,7 @@ namespace StreetLife
         {
             if (downed || finishing != null || !Finishers.DownedStateOn) return false;
             downed = true; hp = 0; dhp = DOWN_HP; bleed = BLEED_TIME; revive = 0; downedAt = Time.time;
+            { var rmm = RoundManager.Instance; if (rmm) rmm.deathMarks.Add((pos, Time.time)); }   // the minimap's red X, for 3 s, where anyone goes down
             downedBy = by != null && by != this && by.team != team ? by : null;
             ads = false; inFire = false; crouchOn = false; vel = new Vector3(0, vel.y, 0);
             if (onLadder != null) { var L = onLadder; onLadder = null; grounded = false; vel = new Vector3(-L.nx * 2.4f, Mathf.Min(vel.y, 0), -L.nz * 2.4f); }

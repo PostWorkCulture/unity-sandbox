@@ -52,7 +52,7 @@ namespace StreetLife
         {
             foreach (var s in pool) if (!s.isPlaying) return s;
             if (pool.Count >= 32) return pool[0];
-            var a = gameObject.AddComponent<AudioSource>(); a.playOnAwake = false; a.spatialBlend = 0; pool.Add(a); return a;
+            var a = gameObject.AddComponent<AudioSource>(); a.playOnAwake = false; a.spatialBlend = 0; a.mute = menuMute; pool.Add(a); return a;
         }
 
         /// A positional one-shot by the web game's sfx name (e.g. "m4", "step2", "explode").
@@ -98,8 +98,27 @@ namespace StreetLife
             musicFade = 0;
         }
 
+        // the main menu plays music only: every other source (effects, map ambience, car engines, surf) is muted while it is
+        // up, and comes back when the match starts. UI clicks have their own source.
+        bool menuMute; float menuMuteT; AudioSource uiSrc;
+        void MenuMute()
+        {
+            bool m = MainMenu.Open; menuMuteT -= Time.unscaledDeltaTime;
+            if (m == menuMute && !(m && menuMuteT <= 0)) return;
+            menuMute = m; menuMuteT = .5f;
+            foreach (var a in FindObjectsByType<AudioSource>(FindObjectsInactive.Include)) if (a && a != musicA && a != musicB && a != uiSrc) a.mute = m;
+        }
+        /// a menu or HUD click: heard in the menu too
+        public static void Ui(string name, float vol = 1, float pitch = 1)
+        {
+            var c = I.Clip("sfx", name); if (!c) return;
+            if (!I.uiSrc) { I.uiSrc = I.gameObject.AddComponent<AudioSource>(); I.uiSrc.playOnAwake = false; I.uiSrc.spatialBlend = 0; }
+            I.uiSrc.pitch = pitch; I.uiSrc.PlayOneShot(c, Mathf.Clamp01(vol * SfxVolume));
+        }
+
         void Update()
         {
+            MenuMute();
             if (!musicA) return;
             musicFade = Mathf.MoveTowards(musicFade, 1, Time.unscaledDeltaTime / 1.2f);
             float target = MusicVolume * MusicVolume;   // slider curve: quiet at the low end like the web game

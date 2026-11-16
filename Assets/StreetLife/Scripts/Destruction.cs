@@ -53,6 +53,11 @@ namespace StreetLife
         void OnEnable() { RoundManager.RoundStarted += OnRound; }
         void OnDisable() { RoundManager.RoundStarted -= OnRound; if (I == this) I = null; }
         void OnRound(int r) => ResetAll();
+        public static int GlassStanding() { int n = 0; if (I) foreach (var e in I.ents) if (e.alive && e.d.kind == "glass") n++; return n; }
+        /// is this box a pane of glass that is still standing?
+        public static bool IsGlass(int box) => I && I.byBox.TryGetValue(box, out var e) && e.alive && e.d.kind == "glass";
+        /// GlassLook draws panes thinner by scaling them: that becomes the place and size a round reset goes back to
+        public static void Rehome(Transform t) { if (!I) return; foreach (var e in I.ents) if (e.t == t) { e.homePos = t.localPosition; e.homeScale = t.localScale; } }
 
         void Setup(DynJson dj, List<Transform> made)
         {
@@ -61,6 +66,7 @@ namespace StreetLife
             for (int i = 0; i < dj.entities.Length; i++)
             {
                 var d = dj.entities[i]; var t = made[i]; if (!t) continue;
+                if (d.kind == "none") { t.gameObject.SetActive(false); continue; }   // taken out of the map (Tools/streetprune.py)
                 var e = new Ent { d = d, t = t, boxes = d.boxes ?? new int[0], homePos = t.localPosition, homeRot = t.localRotation, homeScale = t.localScale };
                 e.homeBoxes = new Box[e.boxes.Length];
                 for (int k = 0; k < e.boxes.Length; k++) { if (e.boxes[k] < BoxWorld.Boxes.Count) e.homeBoxes[k] = BoxWorld.Boxes[e.boxes[k]]; byBox[e.boxes[k]] = e; NavGrid.Dynamic.Add(e.boxes[k]); }

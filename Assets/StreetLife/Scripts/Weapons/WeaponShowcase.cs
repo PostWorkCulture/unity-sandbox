@@ -177,8 +177,8 @@ namespace StreetLife
             var vol = new GameObject("showroom look").AddComponent<Volume>(); vol.transform.SetParent(transform, false); vol.gameObject.layer = Layer;
             vol.isGlobal = true; vol.priority = 50; look = ScriptableObject.CreateInstance<VolumeProfile>(); vol.sharedProfile = look;
             var tm = look.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
-            var bl = look.Add<Bloom>(true); bl.intensity.Override(.55f); bl.threshold.Override(1f); bl.scatter.Override(.6f);
-            var ca = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.5f);   // brighter overall: dark guns read (Pete, 15 Nov)
+            var bl = lookBloom = look.Add<Bloom>(true); bl.intensity.Override(.55f); bl.threshold.Override(1f); bl.scatter.Override(.6f);
+            var ca = lookCa = look.Add<ColorAdjustments>(true); ca.contrast.Override(8f); ca.postExposure.Override(.5f);   // brighter overall: dark guns read (Pete, 15 Nov)
 
             // lights: warm key from above front-left, cool fill low right, two hard rims behind, a glint that sweeps over the top
             key = MakeLight("key", LightType.Spot, new Color(1f, .95f, .88f), 40, 14);
@@ -197,7 +197,7 @@ namespace StreetLife
             var glow = new Texture2D(128, 128, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "backdrop glow" };
             for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++)
                 { float dx = (x - 63.5f) / 64f, dy = (y - 63.5f) / 64f * 1.15f, r = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy)); float v = Mathf.Lerp(.70f, .38f, Mathf.SmoothStep(0, 1, r)); glow.SetPixel(x, y, new Color(v, v, v * 1.04f, 1)); }
-            glow.Apply();
+            glow.Apply(); glowTex = glow;
             var bm = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { name = "backdrop" }; bm.SetTexture("_BaseMap", glow); bm.SetColor("_BaseColor", Color.white);
             var br = bq.GetComponent<MeshRenderer>(); br.sharedMaterial = bm; br.shadowCastingMode = ShadowCastingMode.Off; br.receiveShadows = false;
 
@@ -205,6 +205,7 @@ namespace StreetLife
             studioMap = MakeStudioMap(128);
             probe = new GameObject("studio reflections").AddComponent<ReflectionProbe>(); probe.transform.SetParent(transform, false);
             probe.mode = ReflectionProbeMode.Custom; probe.customBakedTexture = studioMap; probe.size = Vector3.one * 12; probe.importance = 100; probe.intensity = 1.3f;
+            ApplyLook();
             probe.boxProjection = false;
         }
 
@@ -334,6 +335,36 @@ namespace StreetLife
             UpdateInfo(id);
         }
 
+        // ---- looks for the preview (16 Nov): call WeaponShowcase.Look 0..4. 0 is the light-grey studio it had; 1-4 are darker,
+        // glossier studios for Pete to choose from. A look sets the backdrop, the lights, the exposure and how the paint is treated.
+        public struct LookDef { public string name; public float mid, edge, pool; public Color tint; public float exposure, contrast, bloom, key, fill, front, top, rimA, rimB, glint, probe, lift, glow, paint; }
+        public static readonly LookDef[] Looks =
+        {
+            new LookDef { name = "Light grey (as it was)", mid = .70f, edge = .38f, pool = 1, tint = new Color(1, 1, 1.04f), exposure = .5f, contrast = 8, bloom = .55f, key = 40, fill = 20, front = 22, top = 16, rimA = 55, rimB = 40, glint = 14, probe = 1.3f, lift = .85f, glow = .075f, paint = .45f },
+            new LookDef { name = "Black studio", mid = .17f, edge = .012f, pool = 1.1f, tint = new Color(1, 1, 1.06f), exposure = 0f, contrast = 14, bloom = .7f, key = 60, fill = 13, front = 9, top = 14, rimA = 150, rimB = 120, glint = 30, probe = 2.3f, lift = 0f, glow = .012f, paint = .66f },
+            new LookDef { name = "Gunmetal blue", mid = .55f, edge = .05f, pool = .9f, tint = new Color(.55f, .78f, 1.25f), exposure = .1f, contrast = 12, bloom = .6f, key = 62, fill = 12, front = 8, top = 12, rimA = 100, rimB = 85, glint = 20, probe = 1.8f, lift = .12f, glow = .02f, paint = .6f },
+            new LookDef { name = "Spotlight", mid = .95f, edge = 0f, pool = .5f, tint = new Color(1.08f, 1f, .9f), exposure = .05f, contrast = 18, bloom = .8f, key = 72, fill = 6, front = 4, top = 18, rimA = 125, rimB = 75, glint = 26, probe = 1.7f, lift = 0f, glow = .015f, paint = .68f },
+            new LookDef { name = "Charcoal", mid = .46f, edge = .17f, pool = 1f, tint = Color.white, exposure = .2f, contrast = 10, bloom = .5f, key = 52, fill = 16, front = 12, top = 14, rimA = 82, rimB = 66, glint = 18, probe = 1.5f, lift = .3f, glow = .03f, paint = .56f },
+        };
+        public static int LookId = 0;
+        static LookDef LookNow => Looks[Mathf.Clamp(LookId, 0, Looks.Length - 1)];
+        Bloom lookBloom; ColorAdjustments lookCa; Texture2D glowTex;
+        void ApplyLook()
+        {
+            var L = LookNow; if (!key || !glowTex) return;
+            key.intensity = L.key; fill.intensity = L.fill; front.intensity = L.front; top.intensity = L.top; rimA.intensity = L.rimA; rimB.intensity = L.rimB; glint.intensity = L.glint;
+            if (probe) probe.intensity = L.probe;
+            if (lookBloom) lookBloom.intensity.Override(L.bloom);
+            if (lookCa) { lookCa.contrast.Override(L.contrast); lookCa.postExposure.Override(L.exposure); }
+            for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++)
+                { float dx = (x - 63.5f) / 64f, dy = (y - 63.5f) / 64f * 1.15f, r = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy)); float v = Mathf.Lerp(L.mid, L.edge, Mathf.SmoothStep(0, 1, Mathf.Pow(r, L.pool))); glowTex.SetPixel(x, y, new Color(v * L.tint.r, v * L.tint.g, v * L.tint.b, 1)); }
+            glowTex.Apply();
+            if (cam) cam.backgroundColor = new Color(L.edge * L.tint.r, L.edge * L.tint.g, L.edge * L.tint.b, 1);
+            polished.Clear(); var was = shown; shown = null; if (!string.IsNullOrEmpty(was)) SetWeapon(was);
+        }
+        /// call WeaponShowcase.Look 2
+        public static string Look(string a) { if (int.TryParse((a ?? "").Trim(), out var n)) LookId = Mathf.Clamp(n, 0, Looks.Length - 1); if (I) I.ApplyLook(); return "preview look " + LookId + ": " + LookNow.name; }
+
         // showroom copies of the weapon materials, polished up so the studio lights catch them (the game's own stay as they are)
         readonly Dictionary<Material, Material> polished = new Dictionary<Material, Material>();
         Material Polished(Material m)
@@ -345,17 +376,17 @@ namespace StreetLife
             {
                 float sm = m.GetFloat("_Smoothness"), mt = m.HasProperty("_Metallic") ? m.GetFloat("_Metallic") : 0;
                 // metal gets a mirror polish; paint and plastic only a soft sheen, so dark parts stay dark under the studio lights
-                p.SetFloat("_Smoothness", mt > .3f ? Mathf.Lerp(sm, .93f, .6f) : Mathf.Clamp(sm, .3f, .45f));
+                p.SetFloat("_Smoothness", mt > .3f ? Mathf.Lerp(sm, .93f, .6f) : Mathf.Clamp(sm, Mathf.Min(.3f, LookNow.paint), LookNow.paint));
             }
             // near-black paint and plastic lifted a little in the showroom only, so their shape shows (the game's materials are untouched)
             bool trim = m.name.Contains("trim");   // black trim (WeaponModels.TrimBlack) is meant to read black against a light stock
             if (p.HasProperty("_BaseColor") && !trim)
             {
                 var bc = p.GetColor("_BaseColor"); float lum = bc.r * .3f + bc.g * .59f + bc.b * .11f;
-                if (lum < .2f) { float k = (.2f - lum) / .2f; p.SetColor("_BaseColor", Color.Lerp(bc, new Color(.24f, .24f, .25f, bc.a), k * .85f)); }
+                if (lum < .2f) { float k = (.2f - lum) / .2f; p.SetColor("_BaseColor", Color.Lerp(bc, new Color(.24f, .24f, .25f, bc.a), k * LookNow.lift)); }
             }
             // a faint even glow on every surface, so black parts (textured ones too) show their shape even when the map is a night one
-            if (p.HasProperty("_EmissionColor") && !trim) { p.EnableKeyword("_EMISSION"); p.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; p.SetColor("_EmissionColor", p.GetColor("_EmissionColor") + new Color(.075f, .075f, .08f)); }
+            if (p.HasProperty("_EmissionColor") && !trim) { p.EnableKeyword("_EMISSION"); p.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; p.SetColor("_EmissionColor", p.GetColor("_EmissionColor") + new Color(LookNow.glow, LookNow.glow, LookNow.glow * 1.07f)); }
             if (p.HasProperty("_SpecularHighlights")) p.SetFloat("_SpecularHighlights", 1);
             if (p.HasProperty("_EnvironmentReflections")) p.SetFloat("_EnvironmentReflections", 1);
             p.DisableKeyword("_SPECULARHIGHLIGHTS_OFF"); p.DisableKeyword("_ENVIRONMENTREFLECTIONS_OFF");

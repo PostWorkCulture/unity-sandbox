@@ -224,7 +224,7 @@ namespace StreetLife
                     if (!f || f == fighter) continue;
                     if (f.team == fighter.team) { if (f.alive) { var ap = ToMap(f.VisualPos); Fill(new Rect(ap.x - 3.5f * s, ap.y - 3.5f * s, 7 * s, 7 * s), new Color(.35f, .8f, 1f, .95f)); } continue; }   // team-mates always show
                     float age = Time.time - f.lastShotTime;
-                    if (age < 2f) { var p = ToMap(f.lastShotPos); Fill(new Rect(p.x - 3 * s, p.y - 3 * s, 6 * s, 6 * s), new Color(1, .2f, .15f, 1 - age / 2)); }
+                    if (age < 2f) { var p = ToMap(f.lastShotPos); Fill(new Rect(p.x - 4 * s, p.y - 4 * s, 8 * s, 8 * s), new Color(1, .15f, .1f, Mathf.Clamp01((2f - age) / .4f))); }   // solid for 2 s, a short fade at the end
                 }
                 foreach (var (p, t) in rm.deathMarks)
                 {

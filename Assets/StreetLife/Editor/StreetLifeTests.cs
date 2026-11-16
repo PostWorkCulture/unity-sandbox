@@ -167,6 +167,20 @@ namespace StreetLife.EditorTools
             return "output RMS " + Mathf.Sqrt(r / d.Length).ToString("F4");
         }
 
+        /// call StreetLifeTests.Goto x y z yawDegrees : puts the player there
+        public static string Goto(string a)
+        {
+            var p = P; if (!p) return "no player"; var v = a.Trim().Split(' ');
+            float F(int i) => i < v.Length ? float.Parse(v[i], System.Globalization.CultureInfo.InvariantCulture) : 0;
+            p.Place(new Vector3(F(0), F(1), F(2)), F(3) * Mathf.Deg2Rad); p.Frozen = false; return "player at " + p.pos;
+        }
+        /// call StreetLifeTests.Trigger on|off : holds the player's trigger (the controller is switched off meanwhile)
+        public static string Trigger(string a)
+        {
+            var p = P; if (!p) return "no player"; bool on = a.Trim() == "on";
+            var pc = p.GetComponent<PlayerController>(); if (pc) pc.enabled = !on; p.inFire = on; p.Frozen = false;
+            return "trigger " + (on ? "held" : "released") + ", glass standing " + Destruction.GlassStanding();
+        }
         public static string Unfreeze(string a) { if (B) B.Frozen = false; return "bot free"; }
 
         /// call StreetLifeTests.MenuPage settings : opens a MainMenu page by its field name

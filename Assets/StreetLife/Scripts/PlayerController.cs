@@ -40,6 +40,11 @@ namespace StreetLife
 
             if (kb.escapeKey.wasPressedThisFrame) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
             if (ms.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !(RoundManager.Instance && RoundManager.Instance.state == RoundManager.State.MatchEnd)) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; lockClick = true; }
+            // desktop builds take the mouse by themselves whenever a match is in play (16 Nov). The editor and the browser still
+            // wait for a click: the editor because play mode runs in the background, the browser because it insists on one.
+            if (Cursor.lockState != CursorLockMode.Locked && !Application.isEditor && Application.platform != RuntimePlatform.WebGLPlayer && Application.isFocused
+                && RoundManager.Instance && RoundManager.Instance.state != RoundManager.State.MatchEnd && !MainMenu.Open && !MainMenu.Paused && !WeaponHud.MenuOpen)
+            { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; lockClick = ms.leftButton.isPressed; }
             bool locked = Cursor.lockState == CursorLockMode.Locked;
 
             if (locked)

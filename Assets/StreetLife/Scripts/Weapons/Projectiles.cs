@@ -103,6 +103,9 @@ namespace StreetLife
                     else if (hb) { kind = 2; ht = bh.t; }
                     else if (p.pos.y + st.y < 0) { kind = 3; ht = Ls * p.pos.y / Mathf.Max(1e-6f, -st.y); }
                 }
+                // anything thrown goes straight through a pane of glass and smashes it (16 Nov)
+                if (thrown && kind == 2 && Destruction.IsGlass(bh.box) && p.vel.magnitude > 3f)
+                { Destruction.Hit(bh.box, 200, p.pos + d * ht, d, p.f); kind = 0; p.vel *= .85f; }
                 // thrown things bounce (and hit people like a wall), the fuse starts on the first landing
                 if (thrown && p.life > 0 && kind != 0 && (kind != 1 || p.id == "bomblet"))
                 {

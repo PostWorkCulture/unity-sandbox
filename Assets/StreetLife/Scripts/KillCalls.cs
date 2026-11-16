@@ -158,7 +158,7 @@ namespace StreetLife
         public static float TargetBias(Fighter f, Fighter o, RoundManager rm)
         {
             float b = 0;
-            if (f.grudge == o) b -= 60;
+            if (f.grudge == o) b -= 14;   // was 60: a bot out for revenge still takes on whoever is clearly nearer
             // leadBias: up to 9 m of "closeness" for being ahead of the other foes
             int n = 0; float sum = 0;
             foreach (var x in rm.fighters) if (x && x != f && x.team != f.team) { n++; sum += ScoreOf(x, rm); }
