@@ -14,7 +14,7 @@ namespace StreetLife
             t.textureType = TextureImporterType.Default;
             t.npotScale = TextureImporterNPOTScale.None;
             t.mipmapEnabled = false;
-            t.textureCompression = TextureImporterCompression.Uncompressed;
+            t.textureCompression = TextureImporterCompression.CompressedHQ;   // 16 Nov: was uncompressed, 4 MB a picture in every build
             t.maxTextureSize = 2048;
             t.filterMode = UnityEngine.FilterMode.Bilinear;
             t.wrapMode = UnityEngine.TextureWrapMode.Clamp;

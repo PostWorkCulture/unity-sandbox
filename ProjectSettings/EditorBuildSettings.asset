@@ -9,9 +9,6 @@ EditorBuildSettings:
     path: Assets/StreetLife/Scenes/StreetLife.unity
     guid: af1ec6f4056b38640aac6906c83a8f11
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 1
     path: Assets/StreetLife/Maps/rail/Light/RailLight.unity
     guid: 504c1a4aad0e99042ac204605fa54a4d
   - enabled: 1

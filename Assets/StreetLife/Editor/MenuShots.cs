@@ -49,6 +49,59 @@ namespace StreetLife.EditorTools
             Call(tw, "Close", false); return "closed";
         }
 
+        // ---- map pictures that follow the maps: call MenuShots.Thumbs [all]
+        // Retakes every map picture whose map files have changed since it was taken (MainMenu.ThumbStale), one map at a
+        // time: play, wait for the menu to take the picture, stop. Every build runs it first when anything is out of date.
+        const string ThumbKey = "StreetLife.thumbQueue", ThumbBack = "StreetLife.thumbBack";
+        static int thumbPhase; static double thumbDeadline;
+        public static string StaleThumbs()
+        {
+            var set = MapSet.Load(); if (!set || set.maps == null) return "";
+            var q = new System.Collections.Generic.List<string>(); foreach (var m in set.maps) if (MainMenu.ThumbStale(m.id)) q.Add(m.id);
+            return string.Join(",", q);
+        }
+        public static string Thumbs(string a)
+        {
+            if (UnityEditor.SessionState.GetString(ThumbKey, "") != "") return "already retaking: " + UnityEditor.SessionState.GetString(ThumbKey, "");
+            bool all = (a ?? "").Trim() == "all"; var set = MapSet.Load(); if (!set || set.maps == null) return "no maps";
+            if (all) foreach (var m in set.maps) { try { System.IO.File.Delete(MainMenu.ThumbSigPath(m.id)); } catch { } }
+            string q = StaleThumbs(); if (q == "") return "every map picture is up to date";
+            UnityEditor.SessionState.SetString(ThumbKey, q); UnityEditor.SessionState.SetString(ThumbBack, PlayerPrefs.GetString("StreetLife.map", "street"));
+            thumbPhase = 0; UnityEditor.EditorApplication.update -= ThumbTick; UnityEditor.EditorApplication.update += ThumbTick;
+            return "retaking " + q;
+        }
+        [UnityEditor.InitializeOnLoadMethod]
+        static void ThumbResume() { if (UnityEditor.SessionState.GetString(ThumbKey, "") != "") { thumbPhase = UnityEditor.EditorApplication.isPlaying ? 1 : 0; thumbDeadline = UnityEditor.EditorApplication.timeSinceStartup + 40; UnityEditor.EditorApplication.update -= ThumbTick; UnityEditor.EditorApplication.update += ThumbTick; } }
+        static void ThumbTick()
+        {
+            string q = UnityEditor.SessionState.GetString(ThumbKey, "");
+            if (q == "") { UnityEditor.EditorApplication.update -= ThumbTick; return; }
+            string id = q.Split(',')[0];
+            void Next() { int i = q.IndexOf(','); UnityEditor.SessionState.SetString(ThumbKey, i < 0 ? "" : q.Substring(i + 1)); thumbPhase = 0; }
+            if (thumbPhase == 0)
+            {
+                if (UnityEditor.EditorApplication.isPlaying) { UnityEditor.EditorApplication.isPlaying = false; return; }
+                if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorApplication.isCompiling) return;
+                PlayerPrefs.SetString("StreetLife.map", id); PlayerPrefs.Save();
+                UnityEditor.EditorApplication.isPlaying = true; thumbPhase = 1; thumbDeadline = UnityEditor.EditorApplication.timeSinceStartup + 40;
+            }
+            else
+            {
+                bool late = UnityEditor.EditorApplication.timeSinceStartup > thumbDeadline;
+                if (!UnityEditor.EditorApplication.isPlaying) { if (late) Next(); return; }
+                if (!MainMenu.ThumbStale(id) || late)
+                {
+                    if (late) Debug.LogWarning("[thumbs] no picture taken for " + id);
+                    Next(); UnityEditor.EditorApplication.isPlaying = false;
+                    if (UnityEditor.SessionState.GetString(ThumbKey, "") == "")
+                    {
+                        PlayerPrefs.SetString("StreetLife.map", UnityEditor.SessionState.GetString(ThumbBack, "street")); PlayerPrefs.Save();
+                        UnityEditor.EditorApplication.delayCall += () => { UnityEditor.AssetDatabase.Refresh(); Debug.Log("[thumbs] done"); };
+                    }
+                }
+            }
+        }
+
         public static string End(string a) { var rm = RoundManager.Instance; if (!rm) return "no rm"; rm.matchOver = true; Call(rm, "EnterMatchEnd"); return "match end"; }
     }
 }

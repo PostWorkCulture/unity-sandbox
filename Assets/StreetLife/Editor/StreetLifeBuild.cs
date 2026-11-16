@@ -342,6 +342,9 @@ namespace StreetLife.EditorTools
 
         static BuildReport Build(BuildTarget target, BuildTargetGroup group, string path, BuildOptions extra = BuildOptions.None)
         {
+            // map pictures follow the maps: a build never ships an out-of-date one
+            var staleThumbs = MenuShots.StaleThumbs();
+            if (staleThumbs != "") { Debug.LogWarning("[build] map pictures out of date (" + staleThumbs + "): retaking them first. Send the build again once the log says [thumbs] done."); MenuShots.Thumbs(""); return null; }
             if (EditorUserBuildSettings.activeBuildTarget != target && !EditorUserBuildSettings.SwitchActiveBuildTarget(group, target))
             { Dlg("Street Life", "Couldn't switch the project to " + target + ".", "OK"); return null; }
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = Scenes(target), locationPathName = path, target = target, targetGroup = group, options = extra });

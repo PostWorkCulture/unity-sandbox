@@ -12,6 +12,19 @@ namespace StreetLife
         static Sfx inst;
         readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
         readonly List<AudioSource> pool = new List<AudioSource>();
+        // every effect is loaded while the menu is up, one a frame, instead of on its first play in the middle of a fight
+        System.Collections.IEnumerator Start()
+        {
+            yield return null; yield return null;
+            var all = Resources.LoadAll<AudioClip>("StreetLife/sfx");
+            foreach (var c in all)
+            {
+                if (!c) continue;
+                clips["sfx/" + c.name] = c;
+                if (c.loadState == AudioDataLoadState.Unloaded) c.LoadAudioData();
+                yield return null;
+            }
+        }
         AudioSource musicA, musicB; string musicName; float musicFade = 1;
 
         static Sfx I

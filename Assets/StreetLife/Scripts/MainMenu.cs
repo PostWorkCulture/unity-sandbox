@@ -200,7 +200,7 @@ namespace StreetLife
                 sb.style.marginLeft = sb.style.marginRight = sb.style.marginTop = sb.style.marginBottom = 0;
                 return sb;
             }
-            box.Add(Step("\u2212", -1)); box.Add(val); box.Add(Step("+", 1));
+            box.Add(Step("-", -1)); box.Add(val); box.Add(Step("+", 1));
             row.Add(box); Refresh(); return row;
         }
 
@@ -226,7 +226,6 @@ namespace StreetLife
             var top = new VisualElement(); top.style.flexDirection = FlexDirection.Row; top.style.justifyContent = Justify.SpaceBetween; top.style.alignItems = Align.Center; top.style.marginBottom = 12;
             var title = new VisualElement(); title.style.flexDirection = FlexDirection.Row; title.style.alignItems = Align.FlexEnd;
             var imok = L("imok", 38, Text); imok.style.marginRight = 10; title.Add(imok); title.Add(L("1v1", 38, Accent));
-            var unity = L("  Unity edition", 14, Dim); unity.style.marginBottom = 8; title.Add(unity);
             top.Add(title);
             top.Add(Btn("Settings", () => Show(settings, menu)));
             if (CanQuit) { var qb = Btn("Quit", QuitGame); qb.style.marginLeft = 10; top.Add(qb); }   // after Settings (ProfileMenu finds Settings by its text)
@@ -260,6 +259,7 @@ namespace StreetLife
             mapTitle = L("", 64, Text); mapTitle.style.marginTop = 6;
             var bar = new VisualElement(); bar.style.height = 4; bar.style.width = 300; Radius(bar, 2); bar.style.backgroundImage = new StyleBackground(Gradient()); bar.style.marginTop = 2; bar.style.marginBottom = 10;
             mapDesc = L("", 15, Text, true); mapDesc.style.letterSpacing = 2;
+            mapDesc.style.alignSelf = Align.FlexStart; mapDesc.style.backgroundColor = new Color(0, 0, 0, .55f); Radius(mapDesc, 6); Pad(mapDesc, 5, 10); mapDesc.style.marginTop = 8; mapDesc.style.whiteSpace = WhiteSpace.Normal;
             foreach (var e in new VisualElement[] { mapTag, mapTitle, bar, mapDesc }) mapCard.Add(e);
             right.Add(mapCard);
             var chips = new VisualElement(); chips.style.flexDirection = FlexDirection.Row; chips.style.flexWrap = Wrap.Wrap; chips.style.marginTop = 10;
@@ -409,13 +409,39 @@ namespace StreetLife
             return t;
         }
 
-        const int ThumbW = 1600, ThumbH = 900;   // Editor/MenuThumbImport.cs keeps them unscaled, uncompressed and without mipmaps
+        const int ThumbW = 1280, ThumbH = 720;   // Editor/MenuThumbImport.cs keeps them unscaled and without mipmaps
+
+        // ---- map pictures follow the maps (16 Nov). In the editor each picture is saved with a signature of the files its
+        // map is made from (Editor/MapThumbs/<id>.sig). Whenever a map is shown in the menu and its signature has changed,
+        // the picture is taken again. `call MenuShots.Thumbs` (and every build) retakes all that are out of date.
+        public static string ThumbSigPath(string id) => System.IO.Path.Combine(Application.dataPath, "StreetLife/Editor/MapThumbs/" + id + ".sig");
+        public static string ThumbSig(string id)
+        {
+            var root = Application.dataPath + "/StreetLife/"; var files = new List<string>();
+            void Dir(string d, string pat) { try { if (System.IO.Directory.Exists(root + d)) files.AddRange(System.IO.Directory.GetFiles(root + d, pat, System.IO.SearchOption.AllDirectories)); } catch { } }
+            if (id == "street") { Dir("Data", "map.*"); Dir("Data", "dyn.*"); Dir("Data", "materials.json"); }
+            Dir("Maps/" + id, "*"); Dir("Maps/Shared", "*"); Dir("Scripts/Maps", "*.cs"); Dir("Resources", "*Look.asset");
+            foreach (var one in new[] { "Scripts/MapBuilder.cs", "Scripts/GlassLook.cs", "Scripts/WorldLook.cs", "Scripts/Destruction.cs", "Scripts/TownLife.cs" }) if (System.IO.File.Exists(root + one)) files.Add(root + one);
+            files.Sort(string.CompareOrdinal); ulong h = 1469598103934665603UL;
+            foreach (var p in files)
+            {
+                if (p.EndsWith(".meta")) continue;
+                var fi = new System.IO.FileInfo(p); string line = p.Substring(root.Length).Replace('\\', '/') + "|" + fi.Length + "|" + fi.LastWriteTimeUtc.Ticks;
+                foreach (char ch in line) { h ^= ch; h *= 1099511628211UL; }
+            }
+            return h.ToString("x16");
+        }
+        public static bool ThumbStale(string id)
+        {
+            try { var p = ThumbSigPath(id); return !System.IO.File.Exists(p) || System.IO.File.ReadAllText(p).Trim() != ThumbSig(id); } catch { return true; }
+        }
         float thumbT = 3.5f;
         void MaybeTakeThumb()
         {
             if (!Open || step != 0 || thumbT <= 0 || (thumbT -= Time.unscaledDeltaTime) > 0) return;
             var id = MapSet.Current;
-            var have = Resources.Load<Texture2D>("StreetLife/MapThumbs/" + id); if (have && have.width >= ThumbW) return;   // older, smaller pictures are retaken
+            var have = Resources.Load<Texture2D>("StreetLife/MapThumbs/" + id);
+            if (have && (Application.isEditor ? !ThumbStale(id) : true)) return;   // editor: retaken whenever the map's files have changed
             if (!Application.isEditor) { try { if (System.IO.File.Exists(DeviceThumb(id))) return; } catch { return; } }
             var cam = Camera.main; if (!cam) return;
             var rt = RenderTexture.GetTemporary(ThumbW, ThumbH, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 4);
@@ -430,6 +456,7 @@ namespace StreetLife
                 {
                     var dir = System.IO.Path.Combine(Application.dataPath, "StreetLife/Resources/StreetLife/MapThumbs");
                     System.IO.Directory.CreateDirectory(dir); System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, id + ".png"), png);
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(ThumbSigPath(id))); System.IO.File.WriteAllText(ThumbSigPath(id), ThumbSig(id));
                 }
                 else System.IO.File.WriteAllBytes(DeviceThumb(id), png);
             }
@@ -660,6 +687,7 @@ namespace StreetLife
             c.Add(Caps("Frame rate readout"));
             c.Add(Segmented(new[] { "Off", "On" }, new[] { "off", "on" }, () => PerfProbe.Show ? "on" : "off", v => PerfProbe.Show = v == "on"));
             var done = Btn("Done", () => Show(backTo), true); done.style.marginTop = 18; c.Add(done);
+            Scrolling(c, true);
             if (Application.isMobilePlatform || Application.isEditor)
             {
                 // phone controls, in a second card beside the first (a phone screen is too short for one long list)
@@ -680,12 +708,28 @@ namespace StreetLife
                 c2.Add(Segmented(new[] { "Auto", "60", "90", "120" }, new[] { "0", "60", "90", "120" }, () => Settings.Fps <= 0 ? "0" : Settings.Fps.ToString(), v => { Settings.Fps = int.Parse(v); Settings.Apply(); }));
                 var fh = L("Auto runs at the screen's own rate and steps down to 90 or 60 if the phone can't hold it. 60 keeps the phone cooler over long sessions.", 12, Dim); fh.style.whiteSpace = WhiteSpace.Normal; fh.style.marginTop = 6; c2.Add(fh);
                 var ed = Btn("Edit button layout", () => { var back = settings; Show(null); TouchLayout.BeginEdit(() => Show(back)); }); ed.style.marginTop = 14; c2.Add(ed);
+                Scrolling(c2, false);
                 row.Add(c); row.Add(c2);
                 if (Settings.IsDesktop) row.Add(BuildDisplayCard());
                 settings.Add(row);
             }
             else if (Settings.IsDesktop) { var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.alignItems = Align.FlexStart; row.Add(c); row.Add(BuildDisplayCard()); settings.Add(row); }
             else settings.Add(c);
+        }
+
+        /// A settings card that never outgrows the screen: its title (and, with keepLast, its last button) stay put and
+        /// everything between scrolls. Rows keep their own height instead of being squashed into each other.
+        readonly List<VisualElement> fitCards = new List<VisualElement>();
+        void Scrolling(VisualElement card, bool keepLast)
+        {
+            var kids = new List<VisualElement>(card.Children()); if (kids.Count < 3) return;
+            var sv = new ScrollView(ScrollViewMode.Vertical); sv.style.flexShrink = 1; sv.style.flexGrow = 1;
+            sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            int last = keepLast ? kids.Count - 1 : kids.Count;
+            for (int i = 1; i < last; i++) { kids[i].style.flexShrink = 0; sv.Add(kids[i]); }
+            card.Insert(1, sv); kids[0].style.flexShrink = 0; if (keepLast) kids[kids.Count - 1].style.flexShrink = 0;
+            if (fitCards.Count == 0) settings.RegisterCallback<GeometryChangedEvent>(e => { float h = settings.resolvedStyle.height - 24; if (h > 100) foreach (var fc in fitCards) fc.style.maxHeight = h; });
+            fitCards.Add(card);
         }
 
         // desktop only: how the game takes the screen (match chat)
@@ -704,6 +748,7 @@ namespace StreetLife
             c3.Add(Caps("Frame rate cap (V-sync off)"));
             c3.Add(Segmented(new[] { "None", "60", "120", "144", "240" }, new[] { "0", "60", "120", "144", "240" }, () => Settings.FpsCap.ToString(), v => { Settings.FpsCap = int.Parse(v); Settings.Apply(); }));
             var vh = L("Auto: no v-sync; the frame rate is capped at the monitor's rate (up to 144) and steps down to 120, 90 or 60 if the PC can't hold it, before the graphics are lowered. On locks to the monitor and stops tearing (on some laptops it stutters badly). Off: as fast as the PC can go, up to the cap.", 12, Dim); vh.style.whiteSpace = WhiteSpace.Normal; vh.style.marginTop = 6; c3.Add(vh);
+            Scrolling(c3, false);
             return c3;
         }
 
@@ -828,6 +873,41 @@ namespace StreetLife
             Loading.ReloadScene();   // behind the loading screen, not a frozen picture
         }
 
+        // ---- the view of your fighter on the Character and Loadout steps. The fighter stands at a spawn, which can be up
+        // against a window, a wall or a prop; they turn to face whichever way gives the camera a clear line, and the camera
+        // comes closer when no direction is clear all the way out.
+        const float VIEW_DIST = 4.2f;
+        float viewDist = VIEW_DIST; bool viewSet; Vector3 viewAt;
+        void PickView()
+        {
+            var c = player.pos + Vector3.up * 1.25f; float best = -1, bestYaw = player.yaw;
+            for (int i = 0; i < 16; i++)
+            {
+                float yaw = player.yaw + i * Mathf.PI / 8, clear = ViewClear(c, yaw);
+                if (clear > best + .01f) { best = clear; bestYaw = yaw; }
+                if (clear >= VIEW_DIST) break;
+            }
+            player.yaw = bestYaw; viewDist = Mathf.Clamp(best - .3f, 1.7f, VIEW_DIST); viewSet = true; viewAt = player.pos;
+        }
+        /// how far out (up to VIEW_DIST) the camera's places are clear of every solid box, looking back at the fighter
+        static float ViewClear(Vector3 c, float yaw)
+        {
+            var fwd = new Vector3(Mathf.Sin(yaw), 0, Mathf.Cos(yaw)); var side = new Vector3(fwd.z, 0, -fwd.x);
+            float min = VIEW_DIST + .5f;
+            for (int i = 0; i < 5; i++)
+            {   // the Loadout place, the Character place either side of it, and a wider pair so the camera isn't hard against a wall
+                float lat = i == 0 ? -1.3f : i == 1 ? -1.85f : i == 2 ? -.75f : i == 3 ? -2.5f : 0f;
+                var off = fwd * (VIEW_DIST + .5f) + Vector3.up * .35f + side * lat; float d = off.magnitude;
+                float h = BoxWorld.Ray(c, off / d, d);
+                if (h >= 0) min = Mathf.Min(min, h * (VIEW_DIST + .5f) / d);
+                // and from the shins, so a table or a counter in front of them doesn't hide their legs
+                var low = c + Vector3.down * .85f; var off2 = c + off - low; float d2 = off2.magnitude;
+                h = BoxWorld.Ray(low, off2 / d2, d2);
+                if (h >= 0) min = Mathf.Min(min, h * (VIEW_DIST + .5f) / d2);
+            }
+            return min - .5f;
+        }
+
         Label autoNow; float autoNowT;
         void Update()
         {
@@ -855,17 +935,19 @@ namespace StreetLife
             orbit += Time.unscaledDeltaTime * .05f;
             if (step >= 1 && player)
             {
+                if (!viewSet || (player.pos - viewAt).sqrMagnitude > .25f) PickView();
                 float yaw = player.yaw;
                 var fwd = new Vector3(Mathf.Sin(yaw), 0, Mathf.Cos(yaw));
                 var c = player.pos + Vector3.up * 1.25f;
-                var want = c + fwd * 4.2f + Vector3.up * .35f + new Vector3(fwd.z, 0, -fwd.x) * -1.3f;   // a little to the side so the panel doesn't cover them
+                float k = viewDist / VIEW_DIST;   // pulled in when nothing further out is clear
+                var want = c + fwd * viewDist + Vector3.up * .35f * k + new Vector3(fwd.z, 0, -fwd.x) * -1.3f * k;   // a little to the side so the panel doesn't cover them
                 // character step: slide the view left so your fighter and the weapons rack sit in the right-hand part of the
                 // screen, clear of the character panel (MenuWeaponRack works out the same right-hand side)
                 var look = c;
-                if (step == 1)
-                {
+                if (step >= 1)
+                {   // Loadout: a little further, into the gap between the loadout panel and the weapon card
                     var toCam = want - c; toCam.y = 0; toCam.Normalize();
-                    var shift = -Vector3.Cross(Vector3.up, -toCam).normalized * .55f;
+                    var shift = -Vector3.Cross(Vector3.up, -toCam).normalized * (step == 1 ? .55f : .7f) * k;
                     want += shift; look += shift;
                 }
                 cam.transform.position = Vector3.Lerp(cam.transform.position, want, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 4));

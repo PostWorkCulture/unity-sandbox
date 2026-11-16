@@ -11,7 +11,8 @@ namespace StreetLife
         GUIStyle label, small, center, bigC;
         float s, shownT = -1;
 
-        static readonly Color Cyan = new Color32(63, 214, 245, 255), Gold = new Color(1f, .85f, .3f), Dim = new Color(1, 1, 1, .75f);
+        // black and white like the menus, with their one accent for LEVEL UP
+        static readonly Color Cyan = Color.white, Gold = Color.white, Accent = new Color32(255, 59, 48, 255), Dim = new Color(1, 1, 1, .75f);
 
         Rect R(float x, float y, float w, float h) => new Rect(x * s, y * s, w * s, h * s);
         void Fill(Rect r, Color c) => HudRound.Fill(r, c, white);   // rounded corners (HudRound.cs)
@@ -59,7 +60,7 @@ namespace StreetLife
             Fill(R(x, y + 30, w * into / (float)Progress.XpPerLevel, 12), levelled ? Gold : Cyan);
             int next = ProgressRewards.NextRewardLevel(lv);
             Shadowed(R(x, y + 46, w, 22), $"{into} / {Progress.XpPerLevel} XP to level {lv + 1}" + (next > 0 ? $"   ·   next reward at level {next}" : ""), small, Dim);
-            if (levelled && k >= 1) Shadowed(R(x, y + 46, w, 22), "LEVEL UP!", new GUIStyle(small) { alignment = TextAnchor.MiddleLeft, fontStyle = FontStyle.Bold }, Gold);
+            if (levelled && k >= 1) Shadowed(R(x, y + 46, w, 22), "LEVEL UP!", new GUIStyle(small) { alignment = TextAnchor.MiddleLeft, fontStyle = FontStyle.Bold }, Accent);
             if (m.unlocked.Count > 0 && k >= 1)
             {
                 var names = new System.Text.StringBuilder();

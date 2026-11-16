@@ -64,7 +64,7 @@ namespace StreetLife
             if (!GfxWarmup.Done || Time.frameCount < 30) return;   // 15 Nov: not in the menu's first frames, where the first picture added ~0.4 s to the opening pause
             if (!Setup()) return;
             var id = queue[0]; queue.RemoveAt(0);
-            if (pics.ContainsKey(id)) return;
+            if (pics.TryGetValue(id, out var have) && have) return;   // (a dead texture left from an earlier play session in the editor is made again)
             try { var t = Shoot(id); if (t) { pics[id] = t; Ready?.Invoke(id, t); } }
             catch (Exception e) { Debug.LogWarning("Street Life: couldn't make the picture for " + id + ": " + e.Message); }
         }

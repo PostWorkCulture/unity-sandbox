@@ -306,7 +306,7 @@ namespace StreetLife
                         float ry = HudLayout.RoundBarY;   // centred under the score (and the finisher banner), not across the minimap
                         float rw = HudLayout.StackW(520), rx = HudLayout.StackX - rw / 2;
                         Fill(R(rx, ry, rw, 44), new Color(0, 0, 0, .55f));
-                        Shadowed(R(rx, ry, rw, 44), msg, big, rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : rm.lastWinner < 0 ? Color.white : new Color(1f, .5f, .45f));
+                        Shadowed(R(rx, ry, rw, 44), msg, big, rm.matchOver || rm.lastWinner < 0 ? Color.white : rm.lastWinner == fighter.team ? new Color(.5f, 1f, .55f) : new Color(1f, .5f, .45f));
                     }
                     break;
                 case RoundManager.State.MatchEnd:
@@ -314,7 +314,7 @@ namespace StreetLife
                         bool won = rm.PlayerWonMatch;
                         Fill(R(0, 0, W, H), new Color(0, 0, 0, Crowning.Active ? .3f : .55f));   // lighter over the throne room
                         bool cr = Crowning.Active; float c0 = cr ? (HudLayout.Touch ? 380 : 210) : H / 2;   // over the throne room: up top, the thrones below
-                        Shadowed(R(0, c0 - 190, W, 100), won ? "You caught the W!" : "Took the L this time :(", huge, won ? new Color(1f, .85f, .3f) : new Color(1f, .55f, .5f));
+                        Shadowed(R(0, c0 - 190, W, 100), won ? "You caught the W!" : "Took the L this time :(", huge, won ? Color.white : new Color(1, 1, 1, .7f));
                         int oth = 0; foreach (var o in rm.fighters) if (o.team != fighter.team) oth = Mathf.Max(oth, rm.score[o.team]);
                         Shadowed(R(0, c0 - 80, W, 50), rm.Deathmatch ? $"{fighter.kills} kills   ·   {(rm.LastWinnerFighter ? rm.LastWinnerFighter.displayName : "")} wins" : $"{rm.score[fighter.team]}  -  {oth}", big, Color.white);
                         var f = fighter;
