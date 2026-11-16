@@ -19,6 +19,7 @@ namespace StreetLife
         public string sel = "lethal";       // "lethal", "nade" or "sentry"
         public bool open, ready;
         Weapons w; PlayerController pc; bool pcWas;
+        GUIStyle bigSt;
         bool holding, touchHold; float holdT; int touchFinger = -1; Vector2 touchStart, pick; int hover = -1;
         bool swallowFire, fireWas;
         const float HoldToOpen = .22f;
@@ -158,6 +159,12 @@ namespace StreetLife
             }
             GUI.depth = -15;
             float R = 118 * s, cw = 112 * s, ch = 104 * s;
+            if (hover >= 0 && hover < items.Count)
+            {
+                if (bigSt == null || bigSt.fontSize != Mathf.RoundToInt(20 * s)) bigSt = new GUIStyle(nameSt) { fontSize = Mathf.RoundToInt(20 * s), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+                var hi = items[hover]; var oc = GUI.color; GUI.color = hi.avail ? Color.white : new Color(1, 1, 1, .5f);
+                GUI.Label(new Rect(cx - 90 * s, cy - 16 * s, 180 * s, 32 * s), hi.avail ? hi.name : hi.name + " (none)", bigSt); GUI.color = oc;
+            }
             // a soft dark disc behind
             GUI.DrawTexture(new Rect(cx - R - cw * .62f, cy - R - ch * .62f, 2 * (R + cw * .62f), 2 * (R + ch * .62f)), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, new Color(0, 0, 0, .45f), 0, R + cw * .62f);
             for (int i = 0; i < items.Count; i++)
@@ -165,7 +172,9 @@ namespace StreetLife
                 var it = items[i]; float a = i * 120f * Mathf.Deg2Rad;
                 var r = new Rect(cx + Mathf.Sin(a) * R - cw / 2, cy - Mathf.Cos(a) * R - ch / 2, cw, ch);
                 bool on = i == hover, cur = it.id == sel;
-                var old = GUI.color; GUI.color = new Color(1, 1, 1, it.avail ? 1 : .35f);
+                // 16 Nov: the slot you point at grows, gets a thick white frame and its name is written large in the middle; the others dim
+                if (on) { float g = 10 * s; r = new Rect(r.x - g, r.y - g, r.width + 2 * g, r.height + 2 * g); GUI.DrawTexture(new Rect(r.x - 4 * s, r.y - 4 * s, r.width + 8 * s, r.height + 8 * s), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, it.avail ? Color.white : new Color(1, 1, 1, .4f), 0, 14 * s); }
+                var old = GUI.color; GUI.color = new Color(1, 1, 1, !it.avail ? .35f : hover >= 0 && !on ? .5f : 1);
                 HudDraw.Card(r, on && it.avail, false, s);
                 var ic = ThrowIcons.Cached(it.iconId);
                 var ir = new Rect(r.x + 8 * s, r.y + 6 * s, r.width - 16 * s, r.height - 46 * s);
@@ -176,7 +185,7 @@ namespace StreetLife
                 if (cur) GUI.DrawTexture(new Rect(r.center.x - 3 * s, r.yMax + 5 * s, 6 * s, 6 * s), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, Color.white, 0, 3 * s);   // the one you have now
                 GUI.color = old;
             }
-            GUI.Label(new Rect(cx - 120 * s, cy - 10 * s, 240 * s, 20 * s), HudLayout.Touch ? "slide to pick, let go" : "move to pick, let go of E", hintSt);
+            if (hover < 0) GUI.Label(new Rect(cx - 120 * s, cy - 10 * s, 240 * s, 20 * s), HudLayout.Touch ? "slide to pick, let go" : "move to pick, let go of E", hintSt);
         }
     }
 

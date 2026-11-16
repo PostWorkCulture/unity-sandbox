@@ -203,7 +203,7 @@ namespace StreetLife
             var away = new Vector3(c.x - at.x, 0, c.z - at.z); if (away.sqrMagnitude < 1e-4f) away = Random.insideUnitSphere; away.y = 0; away.Normalize();
             var size = new Vector3(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
             if (glass)
-                BreakFx.I.Chunks(c, size, away, new[] { new Color(.88f, .96f, 1f), new Color(.75f, .9f, 1f), Color.white }, Mathf.Clamp(Mathf.RoundToInt(size.x * size.y * 12), 24, 60), b.y0, 4f, true);
+                BreakFx.I.Chunks(c, size, away, new[] { new Color(.88f, .96f, 1f), new Color(.75f, .9f, 1f), Color.white }, Mathf.Clamp(Mathf.RoundToInt(size.x * size.y * 6), 10, 26), b.y0, 1.8f, true);
             else
             {
                 var col = BaseColor(e);
@@ -333,7 +333,7 @@ namespace StreetLife
                     float tw = Mathf.Max(.4f, hb.x1 - hb.x0);
                     e.stump.transform.localScale = new Vector3(tw * .9f, .225f, tw * .9f);
                     e.stump.transform.position = new Vector3(p.x, .225f, p.z);
-                    mpb.Clear(); mpb.SetColor("_BaseColor", C("#6b4426")); e.stump.GetComponent<Renderer>().SetPropertyBlock(mpb);
+                    e.stump.GetComponent<Renderer>().sharedMaterial = BreakFx.Plain; mpb.Clear(); mpb.SetColor("_BaseColor", C("#6b4426")); e.stump.GetComponent<Renderer>().SetPropertyBlock(mpb);
                 }
                 e.stump.SetActive(true);
                 BreakFx.I.Chunks(p + Vector3.up * 1.5f, Vector3.one * .6f, d, new[] { C("#7a4c2a"), C("#c99a5b"), C("#e9d3a8") }, 10, 0, 1.2f);

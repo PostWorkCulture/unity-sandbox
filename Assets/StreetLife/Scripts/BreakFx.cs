@@ -16,6 +16,24 @@ namespace StreetLife
         MaterialPropertyBlock mpb;
         Material puffMat, glowMat;
 
+        /// A plain lit material for things made from Unity's primitives at run time. In the editor a primitive comes with the
+        /// project's default material; in a build it comes with the built-in one, which this render pipeline draws bright pink.
+        /// That was the "purple confetti": every chunk of debris, the birds and butterflies, and tree stumps (16 Nov).
+        static Material plain;
+        public static Material Plain
+        {
+            get
+            {
+                if (!plain)
+                {
+                    var sh = Shader.Find("Universal Render Pipeline/Lit"); if (!sh) sh = Shader.Find("Universal Render Pipeline/Unlit");
+                    plain = new Material(sh) { name = "plain (run-time primitives)" };
+                    if (plain.HasProperty("_Smoothness")) plain.SetFloat("_Smoothness", .25f);
+                }
+                return plain;
+            }
+        }
+
         Material Transparent(Color c)
         {
             var m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
@@ -38,6 +56,7 @@ namespace StreetLife
             go.transform.SetParent(transform, false);
             var r = go.GetComponent<Renderer>();
             if (puff) { r.sharedMaterial = puffMat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; }
+            else r.sharedMaterial = Plain;
             return new Bit { t = go.transform, r = r, puff = puff };
         }
 

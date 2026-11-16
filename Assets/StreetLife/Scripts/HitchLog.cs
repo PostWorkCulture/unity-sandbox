@@ -62,6 +62,8 @@ namespace StreetLife
             winStart = t0 = Time.realtimeSinceStartup; gcAtWin = GC.CollectionCount(0);
             foreach (var m in Markers) { var r = ProfilerRecorder.StartNew(new ProfilerCategory("Scripts"), m, 1); if (!r.Valid) { r.Dispose(); r = ProfilerRecorder.StartNew(ProfilerCategory.Internal, m, 1); } mrec.Add(r); }
             Debug.Log($"[perf] on: {Screen.width}x{Screen.height} {Screen.fullScreenMode}, vSync {QualitySettings.vSyncCount}, target {Application.targetFrameRate}, quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}, {SystemInfo.graphicsDeviceName} {SystemInfo.graphicsDeviceType}, recorders gc {gcAlloc.Valid} main {mainT.Valid} render {renderT.Valid}");
+            // what a run-time primitive is drawn with in this player (16 Nov: the built-in default material draws pink here)
+            { var tp = GameObject.CreatePrimitive(PrimitiveType.Cube); var tm = tp.GetComponent<Renderer>().sharedMaterial; Debug.Log("[perf] primitive default material: " + (tm ? tm.name + " / " + (tm.shader ? tm.shader.name + (tm.shader.isSupported ? " (supported)" : " (NOT supported)") : "no shader") : "none") + "; debris uses " + BreakFx.Plain.shader.name); Destroy(tp); }
         }
         void OnDisable() { gcAlloc.Dispose(); gcCount.Dispose(); mainT.Dispose(); renderT.Dispose(); foreach (var r in mrec) r.Dispose(); mrec.Clear(); Unhook(); }
 
