@@ -17,7 +17,7 @@ namespace StreetLife
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb == null) return;
-            if (kb.f3Key.wasPressedThisFrame) Toggle(!Open);
+            if (Dev.On && kb.f3Key.wasPressedThisFrame) Toggle(!Open);
             else if (Open && kb.escapeKey.wasPressedThisFrame) Toggle(false);
         }
 
@@ -57,7 +57,7 @@ namespace StreetLife
             float s = Screen.height / 1080f * 1.4f;
             if (!Open)
             {
-                if (set) { Styles(s); GUI.Label(new Rect(Screen.width - 230 * s, Screen.height - 50 * s, 220 * s, 20 * s), "F3: characters", new GUIStyle(small) { alignment = TextAnchor.UpperRight }); }
+                if (set && Dev.On) { Styles(s); GUI.Label(new Rect(Screen.width - 230 * s, Screen.height - 50 * s, 220 * s, 20 * s), "F3: characters", new GUIStyle(small) { alignment = TextAnchor.UpperRight }); }
                 return;
             }
             Styles(s);

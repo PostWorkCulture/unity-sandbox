@@ -50,13 +50,18 @@ namespace StreetLife
                 if (f.blastT > 0) f.blastT -= dt;
             }
             var kb = Keyboard.current;
-            if (kb != null && kb.tabKey.wasPressedThisFrame) SetMenu(!MenuOpen);
+            if (kb != null && kb.tabKey.wasPressedThisFrame) ToggleMenu();
             if (kb != null && MenuOpen && kb.escapeKey.wasPressedThisFrame) SetMenu(false);
             ClickedUi = false;
         }
 
-        /// open or close the weapon picker and shop (the touch Shop button)
-        public void ToggleMenu() => SetMenu(!MenuOpen);
+        /// players: the shop, only at the kiosk while it's open (Kiosk.Open). Developers (Dev.On) and free roam: the
+        /// full weapon picker and shop, anywhere.
+        static bool ShopOnly => !Dev.On && RoundManager.Instance;
+        bool CanOpenMenu { get { var f = weapons ? weapons.F : null; return !ShopOnly || (f && Kiosk.Open(f)); } }
+
+        /// open or close the shop (Tab, or the touch Shop button)
+        public void ToggleMenu() { if (MenuOpen) SetMenu(false); else if (CanOpenMenu) SetMenu(true); }
 
         void SetMenu(bool on)
         {
@@ -283,7 +288,7 @@ namespace StreetLife
                 if (lines.Count > 0) Rect(x, y, 230, lines.Count * 20 + 10, Panel);
                 for (int i = 0; i < lines.Count; i++) Shadowed(new Rect(x + 10, y + 5 + i * 20, 220, 20), lines[i], mid, Color.white);
             }
-            if (!HudLayout.Touch) GUI.Label(new Rect(W - 268, H - 150, 250, 20), "Tab  weapons and shop", smallR);   // phones have the Shop button
+            if (Dev.On && !HudLayout.Touch) GUI.Label(new Rect(W - 268, H - 150, 250, 20), "Tab  weapons and shop (dev)", smallR);   // players: Hud says "Shop: press Tab" at the kiosk
 
             if (MenuOpen) Menu(W, H);
             GUI.matrix = m0;
@@ -294,11 +299,12 @@ namespace StreetLife
         void Menu(float W, float H)
         {
             var w = weapons;
+            if (ShopOnly) { ShopMenu(W, H); return; }
             float mw = Mathf.Min(1180, W - 40), mh = Mathf.Min(720, H - 40), x0 = (W - mw) / 2, y0 = (H - mh) / 2;
             Rect(0, 0, W, H, new Color(0, 0, 0, .55f)); Rect(x0, y0, mw, mh, new Color(.09f, .095f, .11f, .97f));
             if (Event.current.type == EventType.MouseDown) ClickedUi = true;
             Shadowed(new Rect(x0 + 18, y0 + 12, 500, 30), "Weapons", title, Color.white);
-            GUI.Label(new Rect(x0 + 18, y0 + 40, mw - 36, 20), "Pick your primary, secondary and lethal (the bot keeps the match kit). Stats are the web game's, after its damage and reload multipliers. Tab or Esc to close.", small);
+            GUI.Label(new Rect(x0 + 18, y0 + 40, mw - 36, 20), "Developer screen: swap your primary, secondary and lethal, and buy from the shop for free. Tab or Esc to close.", small);
             float colW = (mw - 36 - 24) / 4, y = y0 + 70;
             float bh = 52;
             scroll = GUI.BeginScrollView(new Rect(x0, y, mw, mh - (y - y0) - 12), scroll, new Rect(0, 0, mw - 20, 12 * (bh + 6) + 40));
@@ -316,7 +322,7 @@ namespace StreetLife
             }
             // shop
             float sx = 18 + 3 * (colW + 8), sy = 0;
-            GUI.Label(new Rect(sx, sy, colW, 20), "SHOP  (free while testing)", head); sy += 22;
+            GUI.Label(new Rect(sx, sy, colW, 20), "SHOP", head); sy += 22;
             foreach (var it in GunsDb.Data.shop)
             {
                 string extra = it.id == "nades" ? "  (have " + w.nades + ")" : it.id == "armor" ? "  (have " + Mathf.RoundToInt(w.F.armor) + ")" : "";
@@ -326,6 +332,30 @@ namespace StreetLife
             sy += 10;
             if (GUI.Button(new Rect(sx, sy, colW, 34), "Refill ammo and lethals", btn)) w.ResetKit();
             GUI.EndScrollView();
+        }
+
+        /// what players get at the kiosk: the shop's items only. One buy, then the shop shuts for its cooldown.
+        void ShopMenu(float W, float H)
+        {
+            var w = weapons; var f = w.F;
+            if (!f || !Kiosk.Open(f)) { SetMenu(false); return; }
+            var items = GunsDb.Data.shop; float bh = 52;
+            float mw = Mathf.Min(420, W - 40), mh = Mathf.Min(86 + items.Length * (bh + 6) + 10, H - 40), x0 = (W - mw) / 2, y0 = (H - mh) / 2;
+            Rect(0, 0, W, H, new Color(0, 0, 0, .55f)); Rect(x0, y0, mw, mh, new Color(.09f, .095f, .11f, .97f));
+            if (Event.current.type == EventType.MouseDown) ClickedUi = true;
+            Shadowed(new Rect(x0 + 18, y0 + 12, mw - 36, 30), "Shop", title, Color.white);
+            GUI.Label(new Rect(x0 + 18, y0 + 44, mw - 36, 20), "Pick one item. The shop then shuts for 30 s.", small);
+            float y = y0 + 74;
+            foreach (var it in items)
+            {
+                bool can = Kiosk.Can(f, it.id);
+                string extra = it.id == "nades" ? "  (have " + w.nades + ")" : it.id == "armor" ? "  (have " + Mathf.RoundToInt(f.armor) + ")" : "";
+                var was = GUI.enabled; GUI.enabled = can;
+                bool hit = GUI.Button(new Rect(x0 + 18, y, mw - 36, bh), it.name + extra + "\n" + (can ? it.desc : "You can't take this right now"), btn);
+                GUI.enabled = was;
+                if (hit && can) { w.Buy(it.id); if (f.shopCD > 0) { SetMenu(false); return; } }
+                y += bh + 6;
+            }
         }
 
         void Column(float x, float cw, string title, List<string> ids, string sel, System.Action<string> pick)

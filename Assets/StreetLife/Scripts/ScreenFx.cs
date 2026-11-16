@@ -143,7 +143,7 @@ namespace StreetLife
             var me = Combat.Me; if (!me || MainMenu.Open || Cine.HideHud) return;
             float dt = Time.unscaledDeltaTime * 4;   // .25 s fades
             bool alive = me.alive;
-            string st = !alive ? "" : blastT > 0 ? "blast" : me.stunT > 0 || me.dazeT > 0 ? "stun" : me.slowT > 0 ? "freeze" : "";
+            string st = !alive ? "" : blastT > 0 ? "blast" : me.stunT > 0 || me.dazeT > 0 ? "stun" : "";
             kBlast = Mathf.MoveTowards(kBlast, st == "blast" ? 1 : 0, dt);
             kStun = Mathf.MoveTowards(kStun, st == "stun" ? 1 : 0, dt);
             kFreeze = Mathf.MoveTowards(kFreeze, st == "freeze" ? 1 : 0, dt);
@@ -297,7 +297,6 @@ namespace StreetLife
             switch ((a ?? "").Trim())
             {
                 case "blast": I.blastT = 4f; break;
-                case "freeze": me.slowT = 5; break;
                 case "daze": me.dazeT = 3; break;
                 default: me.stunT = 3; foreach (var f in Combat.Fighters) if (f && f != me) f.stunT = 3; break;
             }

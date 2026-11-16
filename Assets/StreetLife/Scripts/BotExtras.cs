@@ -70,50 +70,6 @@ namespace StreetLife
             bool rush = mode == "rush" || mode == "push", hunt = mode == "search" || mode == "chase" || mode == "hunt";
             bool ambush = mode == "ambush" || mode == "lurk", flank = mode == "flank";
 
-            // ---- abilities (Normal rules only)
-            if (f.AbilityReady)
-            {
-                bool hurt = f.simTime - f.lastHurt < .4f;
-                float pr = a.IdealRange;
-                switch (f.CharId)
-                {
-                    case "blaze": if (see && dist < 28) { var d = tgtBody - eye; d.y += dist * .02f; f.UseAbility(d.normalized); } break;
-                    case "tank": if (hurt && f.hp < f.hpMax * .7f || rush && see && dist < 25) f.UseAbility(); break;
-                    case "ghost": if (hurt && f.hp < 60 || !see && (ambush || flank) && dist < 24 || rush && see && dist > 10 && dist < 30) f.UseAbility(); break;
-                    case "blink":
-                        if (see && (((Close(gun) || rush) && dist > 7 && dist < 22) || (hurt && f.hp < 50) || (style == "sniper" && dist < 10) || (style == "kiter" && dist < pr * .5f)))
-                        {
-                            float y = f.yaw; bool side = !Close(gun) && !rush;
-                            if (side) f.yaw += Mathf.PI / 2 * (Random.value < .5f ? 1 : -1);
-                            f.UseAbility(); if (side) f.yaw = y;
-                        }
-                        break;
-                    case "jet": if (!see && T.pos.y > f.pos.y + 2 && (a.LostT > 2 || hunt)) f.UseAbility(); break;
-                    case "brute":
-                        if ((see && dist < 6.5f && Mathf.Abs(T.pos.y - f.pos.y) < 2) || a.StuckT > .4f)
-                        { if (see) f.yaw = Mathf.Atan2(T.pos.x - f.pos.x, T.pos.z - f.pos.z); f.UseAbility(); }
-                        break;
-                    case "frost": if (see && dist < 8) f.UseAbility(); break;
-                    case "isaac":
-                        { var g = GunsDb.Gun(gun); if (see && w && g != null && !g.InfiniteMag && g.mag > 0 && w.Ammo(gun) < g.mag * .3f) f.UseAbility(); }
-                        break;
-                    case "thor": if (see && dist < 40) f.UseAbility((tgtBody - eye).normalized); break;
-                    case "antihero":
-                        if (!see && (a.LostT > 2 || hunt) && T.pos.y > f.pos.y + 2) f.UseAbility((new Vector3(T.pos.x, T.pos.y + 3, T.pos.z) - eye).normalized);
-                        break;
-                    case "wednesday": if (see && (((Close(gun) || rush) && dist > 8) || (hurt && f.hp < 50))) f.UseAbility(); break;
-                    case "angel":
-                    case "astronaut":
-                        if ((!see && (a.LostT > 2 || hunt) && T.pos.y > f.pos.y + 2) || (hurt && f.hp < 40 && see && dist < 10)) f.UseAbility();
-                        break;
-                    case "crusty": if (see && dist < 6) f.UseAbility(); break;
-                    case "dracula": if (see && dist < 12 && (hurt || f.hp < f.hpMax * .85f)) f.UseAbility(); break;
-                    case "lilpink": if (see && dist < 30) { var d = tgtBody - eye; d.y += dist * .02f; f.UseAbility(d.normalized); } break;
-                    case "patch": if (f.hp < 55 && (hurt || !see)) f.UseAbility(); break;
-                    case "thorn": if (see && hurt && f.hp < 85) f.UseAbility(); break;
-                }
-            }
-
             // ---- walls: a reaction to being shot, or the style's habit of walling up when it first spots you
             if (Walls.On && f.walls > 0 && !Close(gun))
             {

@@ -14,6 +14,8 @@ namespace StreetLife
         public static bool On;
         static HitchLog I;
         static bool run; static float runSecs = 70;
+        /// an unattended -perfrun: nothing is saved to the player's profile and the game never pauses itself
+        public static bool Unattended => run;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot() => Ensure();

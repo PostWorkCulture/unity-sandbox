@@ -25,7 +25,7 @@ namespace StreetLife
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.f1Key.wasPressedThisFrame) { helpPinned = !(helpPinned || showHelp); helpOff = !helpPinned; }
             showHelp = helpPinned || (!helpOff && Time.timeSinceLevelLoad < 15f);   // shown for the first 15 s, then F1
-            if (kb != null && kb.f2Key.wasPressedThisFrame) showBot = !showBot;
+            if (Dev.On && kb != null && kb.f2Key.wasPressedThisFrame) showBot = !showBot;
         }
 
         Rect R(float x, float y, float w, float h) => new Rect(x * s, y * s, w * s, h * s);
@@ -86,8 +86,8 @@ namespace StreetLife
                 float hw = HudLayout.HelpWidth;   // clear of the vitals and the ammo panel (HudLayout)
                 Fill(R(W / 2 - hw / 2, H - 58, hw, 54), new Color(0, 0, 0, .35f));
                 GUI.Label(R(W / 2 - hw / 2, H - 56, hw, 54),
-                    "WASD move · Space jump (again for a double jump) · Left click fire · Right click aim · C crouch · G ability · walk into a ladder to climb · Esc frees the mouse\n" +
-                    "Tab weapons and shop · F3 characters · F2 bot's style · F8 frame rate · F1 shows this again", new GUIStyle(small) { alignment = TextAnchor.UpperCenter, wordWrap = true });
+                    "WASD move · Space jump (again for a double jump) · Left click fire · Right click aim · C crouch · walk into a ladder to climb · Esc frees the mouse\n" +
+                    "Q builds a wall · E throws your lethal (hold to pick) · Tab at the shop kiosk · F8 frame rate · F1 shows this again", new GUIStyle(small) { alignment = TextAnchor.UpperCenter, wordWrap = true });
             }
         }
 
@@ -99,23 +99,7 @@ namespace StreetLife
             Bar(x, y + 22, 230, 12, fighter.armor / 100f, new Color(.25f, .6f, 1f));
             Bar(x, y + 38, 230, 12, fighter.stam / Fighter.STAM_MAX, fighter.stamLock ? new Color(.45f, .3f, .55f) : new Color(.62f, .38f, 1f));
             Shadowed(R(x, y - 22, 300, 20), fighter.characterName + "   " + Mathf.CeilToInt(fighter.hp), label, Color.white);
-            AbilityChip(x + 242, y - 2, H);
             ExtrasInfo(x, y, H);
-        }
-
-        /// the character ability: name, G, and the cooldown filling up; status timers above it
-        void AbilityChip(float x, float y, float H)
-        {
-            if (!Fighter.AbilitiesOn || !fighter.alive) return;
-            float cd = fighter.AbilityCooldown, left = Mathf.Max(0, fighter.abilT); bool ready = left <= 0 && !fighter.downed;
-            Fill(R(x, y, 150, 54), new Color(0, 0, 0, .55f));
-            if (!ready) Fill(R(x + 2, y + 2, 146 * (1 - left / Mathf.Max(.1f, cd)), 50), new Color(1, 1, 1, .12f));
-            else Fill(R(x, y, 3, 54), new Color(1f, .78f, .1f, .95f));
-            Shadowed(R(x + 10, y + 4, 140, 22), fighter.AbilityName, label, ready ? Color.white : new Color(1, 1, 1, .55f));
-            Shadowed(R(x + 10, y + 27, 140, 22), ready ? (TouchControls.I && TouchControls.I.Showing ? "ready" : "G  ready") : Mathf.CeilToInt(left) + "s", small, ready ? new Color(1f, .82f, .3f) : new Color(1, 1, 1, .6f));
-            string st = fighter.shieldT > 0 ? "Shield " + Mathf.CeilToInt(fighter.shieldT) + "s" : fighter.thornT > 0 ? "Thorns " + Mathf.CeilToInt(fighter.thornT) + "s" : fighter.ghostT > 0 ? "Vanished " + Mathf.CeilToInt(fighter.ghostT) + "s" : fighter.zipT > 0 ? "Sprint " + Mathf.CeilToInt(fighter.zipT) + "s" : fighter.boostT > 0 ? "Jetpack" : null;
-            if (st != null) Shadowed(R(x, y - 22, 200, 20), st, small, new Color(.75f, .95f, 1f));
-            // (slowed by frost: ScreenFx frosts the screen edges)
         }
 
         /// walls left, the shop kiosk, HeartBeat and tagging (match chat)

@@ -1,5 +1,5 @@
 // Every character from the imok 1v1 web game (Data/Characters, exported by the StreetLife exporter's exportall.js):
-// the model data, one material table for all of them, and the CHARS table (name, ability, speed, health, colour).
+// the model data, one material table for all of them, and the CHARS table (name, speed, health, colour).
 // Lives in Resources so anything can load it: CharacterSet.Load(). Built by Editor/CharacterSetup.cs.
 using System;
 using System.Collections.Generic;
@@ -15,8 +15,8 @@ namespace StreetLife
         [Serializable]
         public class Info
         {
-            public string id, name, desc, ability, color;
-            public float cooldown, hp, speed;
+            public string id, name, desc, color;
+            public float hp, speed;
             public string[] killFx;
             public bool hasModel;
             public Color Colour => Hex.ToColor(color);

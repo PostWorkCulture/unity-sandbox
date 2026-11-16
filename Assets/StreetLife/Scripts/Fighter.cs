@@ -35,7 +35,7 @@ namespace StreetLife
         [System.NonSerialized] public float inFwd, inSide;
         [System.NonSerialized] public bool inJump, inJumpPress;
 
-        int airJ; bool jumpLock, jetChar; float stamRest;
+        int airJ; bool jumpLock; float stamRest;
         float acc;
         public Vector3 prevPos { get; private set; }
         public float Alpha => acc / SIM;                  // interpolation factor for visuals
@@ -67,7 +67,6 @@ namespace StreetLife
         void Step(float dt)
         {
             simTime += dt;
-            jetChar = CharId == "jet";
             float fi = Frozen ? 0 : inFwd, si = Frozen ? 0 : inSide;
             if (Frozen) { inJump = false; inJumpPress = false; ads = false; }
             float s = Mathf.Sin(yaw), c = Mathf.Cos(yaw);
@@ -88,7 +87,6 @@ namespace StreetLife
             if (EdgeFallStep(dt)) return;   // maps chat: falling off an open edge
             if (stamLock) speed *= .75f;
             speed *= moveMul;
-            speed *= AbilitySpeedMul;   // abilities: frozen x0.45, Wednesday's sprint x1.6
             float v = Mathf.Max(HorizontalSpeed, speed * 1.25f * charSpeed) + Mathf.Abs(vel.y) * .5f;
             int n = Mathf.Min(5, Mathf.Max(1, Mathf.Max(Mathf.CeilToInt(dt * 60 - .05f), Mathf.CeilToInt(v * dt / .45f))));
             if (n == 1) Physics1(dt, wx, wz, jump, speed, jumpPress);
@@ -105,35 +103,18 @@ namespace StreetLife
             Depen();
             speed *= charSpeed * 1.2f;
             if (crouching) { speed *= .5f; jump = false; }
-            float a = stunT > 0 ? 8f : hookT > 0 ? 5f : grounded ? 70f : 28f;   // stunned or on the grapple: little steering
+            float a = stunT > 0 ? 8f : grounded ? 70f : 28f;   // stunned: little steering
             float tx = wx * speed, tz = wz * speed, dvx = tx - vel.x, dvz = tz - vel.z, dl = Mathf.Sqrt(dvx * dvx + dvz * dvz), st = a * dt;
             if (dl <= st) { vel.x = tx; vel.z = tz; } else { vel.x += dvx / dl * st; vel.z += dvz / dl * st; }
-            float jv = JUMP * charJump * (slowT > 0 ? .7f : 1f);
+            float jv = JUMP * charJump;
             if (grounded) airJ = 1;
             if ((jumpPress || jump) && crouchOn) crouchOn = false;
-            // Jet: jump fires the jetpack whenever it's ready (the web game's rule), otherwise a normal jump
-            if (jetChar && AbilityReady && (jumpPress || (jump && grounded && !jumpLock)) && UseAbility()) jumpLock = true;
-            else if (jump && grounded && !jumpLock) { vel.y = jv; grounded = false; airJ = 1; jumpLock = true; onJump?.Invoke(); }
+            if (jump && grounded && !jumpLock) { vel.y = jv; grounded = false; airJ = 1; jumpLock = true; onJump?.Invoke(); }
             else if (jumpPress && !grounded && airJ > 0 && stam >= DJ_COST) { vel.y = Mathf.Max(vel.y, jv * 1.05f); airJ--; stam -= DJ_COST; stamRest = 0; onDoubleJump?.Invoke(); }
             if (!jump) jumpLock = false;
-            if (boostT > 0)
-            {   // the jetpack: thrust builds while jump (or the ability key) is held, up to 1.6 s; bots burn the whole tank
-                boostT -= dt; boostAge += dt;
-                bool held = isBot || jump || abilityHeld;
-                if (downed || (!held && boostAge > .15f)) boostT = 0;
-                else
-                {
-                    float ramp = Mathf.Min(1, boostAge / .6f);
-                    vel.y = Mathf.Min(JET_VMAX, Mathf.Max(vel.y, 0) + (GRAV * 1.05f + JET_ACC * ramp) * dt); grounded = false; jetOn = .1f;
-                    var back = pos - Forward * .4f + Vector3.up * .6f;
-                    var eo = GunFx.E(3, 2, .32f, .4f, 2, "#ffb347", "#ff7a1f", "#ffffff"); eo.up = -10; GunFx.Emit(back, eo);
-                }
-            }
 
             float vy0 = vel.y;
-            if (!grounded) vel.y -= GRAV * dt * (vel.y < 0 ? 1.2f : 1f) * (moonT > 0 ? .32f : 1f);   // moon jump: low gravity
-            if (moonT > 0) { moonT -= dt; if (grounded && vel.y <= 0) moonT = 0; }
-            if (glideT > 0) { glideT -= dt; if (grounded && vel.y <= 0) glideT = 0; else if (vel.y < -2.6f) vel.y = -2.6f; }   // wings: a slow glide down
+            if (!grounded) vel.y -= GRAV * dt * (vel.y < 0 ? 1.2f : 1f);
             if (!MoveAxis(vel.x * dt, 0)) vel.x = 0;
             if (!MoveAxis(0, vel.z * dt)) vel.z = 0;
             // average of start and end velocity: exact for constant gravity, so jump height is the same at any frame rate

@@ -783,6 +783,17 @@ namespace StreetLife
         }
 
         void Resume() { Paused = false; Time.timeScale = 1; Show(null); HideGame(false); }
+        // a match pauses itself when the window loses focus (Alt+Tab, another tab in the browser) or the phone puts the app in
+        // the background. Not in the editor (the remote control runs play mode unfocused) and not in unattended perf runs.
+        void OnApplicationFocus(bool focus) { if (!focus) AutoPause(); }
+        void OnApplicationPause(bool paused) { if (paused) AutoPause(); }
+        void AutoPause()
+        {
+            if (Application.isEditor || HitchLog.Unattended) return;
+            var rm = RoundManager.Instance; if (!rm || rm.matchOver) return;
+            if (WeaponHud.MenuOpen) { var h = FindAnyObjectByType<WeaponHud>(); if (h) h.ToggleMenu(); }
+            Pause();
+        }
         // ---- quitting, and the after-match buttons (MatchEndMenu)
         static bool CanQuit => Application.platform != RuntimePlatform.WebGLPlayer;   // a browser tab can't be closed from the game
         public static void QuitGame()

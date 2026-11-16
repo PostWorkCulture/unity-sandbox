@@ -276,7 +276,6 @@ namespace StreetLife
                     if (!sees) sc += 18;
                     if (o.downed) sc -= 12;
                     if (o == br.target) sc -= 8;
-                    if (o.ghostT > 0) sc += 15;
                     if (o.Tagged) sc -= 10;
                     sc += KillCalls.TargetBias(f, o, this);   // grudges, lean towards the leader
                     if (sc < bs) { bs = sc; best = o; }

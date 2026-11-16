@@ -46,7 +46,7 @@ namespace StreetLife
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb == null) return;
-            if (kb.f4Key.wasPressedThisFrame) Toggle(!Open);
+            if (Dev.On && kb.f4Key.wasPressedThisFrame) Toggle(!Open);
             else if (Open && kb.escapeKey.wasPressedThisFrame) Toggle(false);
             else if (Open && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) Play();
         }
@@ -106,7 +106,7 @@ namespace StreetLife
             Styles(s);
             if (!Open)
             {
-                if (!set) return;
+                if (!set || !Dev.On) return;
                 if (!HudLayout.Touch) GUI.Label(new Rect(Screen.width - 268 * s, Screen.height - 172 * s, 250 * s, 20 * s), "F4: maps", new GUIStyle(small) { alignment = TextAnchor.UpperRight });   // above the ammo panel's Tab hint (HudLayout)
                 if (Application.isMobilePlatform && Press(HudLayout.MapsButton(90 * s, 34 * s), "MAPS", btn)) Toggle(true);
                 return;

@@ -136,7 +136,7 @@ namespace StreetLife
         bool Live(Button b, bool menu)
         {
             if (b.size <= 0) return false;
-            if (b.id == "shop") return WeaponHud.Active && !Down;
+            if (b.id == "shop") return WeaponHud.Active && !Down && (WeaponHud.MenuOpen || Dev.On || !RoundManager.Instance || (Combat.Me && Kiosk.Open(Combat.Me)));
             return !menu && !Down;
         }
 

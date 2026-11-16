@@ -76,8 +76,7 @@ namespace StreetLife
         void Perceive(float dt)
         {
             bool was = sees;
-            bool ghosted = target.ghostT > 0 && Flat(target.pos - f.pos).magnitude > 8;   // Vanish: unseen beyond 8 m
-            sees = target.alive && !ghosted && !(f.blindT > 0) && (NavGrid.Los(Eye, Body(target)) || NavGrid.Los(Eye, target.Head));
+            sees = target.alive && !(f.blindT > 0) && (NavGrid.Los(Eye, Body(target)) || NavGrid.Los(Eye, target.Head));
             if (sees) { seeT += dt; lostT = 0; lastSeen = target.pos; if (!was) OnFirstSight(); }
             else { seeT = 0; lostT += dt; }
             // hearing: shots give away where you are; being hit tells it roughly where from

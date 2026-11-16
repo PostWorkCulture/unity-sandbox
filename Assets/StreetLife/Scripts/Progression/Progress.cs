@@ -123,6 +123,7 @@ namespace StreetLife
 
         public static void Save()
         {
+            if (HitchLog.Unattended) return;   // perf runs play by themselves: they don't count
             if (data == null) return;
             try
             {

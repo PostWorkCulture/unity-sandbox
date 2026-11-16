@@ -12,7 +12,6 @@ namespace StreetLife.EditorTools
 
         public static string Begin(string a)
         {
-            Abilities.Log = true; if (!watching) { watching = true; Fighter.AbilityUsed += (f, id) => Debug.Log($"[test] ability {id} by {(f.isBot ? "bot" : "player")} hp {f.hp:F0}"); }
             if (!RM) return "no round manager";
             var mm = Object.FindAnyObjectByType<MainMenu>();
             var play = mm ? typeof(MainMenu).GetMethod("Play", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public) : null;
@@ -28,18 +27,6 @@ namespace StreetLife.EditorTools
             var at = p.pos + p.Forward * dist; b.Place(new Vector3(at.x, p.pos.y, at.z), p.yaw + Mathf.PI); b.Frozen = true; p.hp = p.hpMax;
             if (Combat.RayBoxes(p.Eye, (b.Eye - p.Eye).normalized, dist, out var hb)) return $"bot at {b.pos}, blocked at {hb.t:F1} m by box {hb.box} {BoxWorld.Boxes[hb.box].x0:F1},{BoxWorld.Boxes[hb.box].y0:F1},{BoxWorld.Boxes[hb.box].z0:F1} - {BoxWorld.Boxes[hb.box].x1:F1},{BoxWorld.Boxes[hb.box].y1:F1},{BoxWorld.Boxes[hb.box].z1:F1}";
             return $"bot at {b.pos}, clear";
-        }
-
-        public static string Ability(string id)
-        {
-            var p = P; if (!p) return "no player";
-            var rig = p.GetComponent<CharacterRig>(); if (rig && !string.IsNullOrEmpty(id)) CharacterSkin.Apply(rig, id);
-            p.abilT = 0; p.Frozen = false;
-            var b = B; Vector3? dir = null;
-            if (b) { var d = b.pos + Vector3.up * 1.2f - p.Eye; dir = d.normalized; p.yaw = Mathf.Atan2(d.x, d.z); }
-            float hp0 = b ? b.hp : 0;
-            bool ok = p.UseAbility(dir);
-            return $"{p.CharId}: used {ok}, ability {p.AbilityName}, cd {p.AbilityCooldown}, bot hp {hp0:F0}->{(b ? b.hp : 0):F0} slow {(b ? b.slowT : 0):F1} vel {p.vel}";
         }
 
         public static string Boom(string a)
@@ -209,7 +196,7 @@ namespace StreetLife.EditorTools
         public static string State(string a)
         {
             var p = P; var b = B; if (!p) return "no player";
-            return $"round {RM.round} state {RM.state} score {RM.score[0]}-{RM.score[1]} player {p.CharId} hp {p.hp:F0} abilT {p.abilT:F1} | bot {(b ? b.CharId : "-")} hp {(b ? b.hp : 0):F0} abilT {(b ? b.abilT : 0):F1} alive {(b && b.alive)} lethal {(b ? b.lethal : "")} walls {(b ? b.walls : 0)} gun {(b && b.GetComponent<Weapons>() ? b.GetComponent<Weapons>().Gun : "")} style {(RM.botBrain ? RM.botBrain.styleId : "")} mode {(RM.botBrain ? RM.botBrain.Mode : "")} | p armour {p.armor:F1} uses left {(b && b.GetComponent<Weapons>() ? b.GetComponent<Weapons>().consN : -1)}";
+            return $"round {RM.round} state {RM.state} score {RM.score[0]}-{RM.score[1]} player {p.CharId} hp {p.hp:F0} | bot {(b ? b.CharId : "-")} hp {(b ? b.hp : 0):F0} alive {(b && b.alive)} lethal {(b ? b.lethal : "")} walls {(b ? b.walls : 0)} gun {(b && b.GetComponent<Weapons>() ? b.GetComponent<Weapons>().Gun : "")} style {(RM.botBrain ? RM.botBrain.styleId : "")} mode {(RM.botBrain ? RM.botBrain.Mode : "")} | p armour {p.armor:F1} uses left {(b && b.GetComponent<Weapons>() ? b.GetComponent<Weapons>().consN : -1)}";
         }
     }
 
@@ -221,7 +208,7 @@ namespace StreetLife.EditorTools
             float[] at = { .08f, .25f, .5f, 1f, 2f, 3.5f };
             if (what == "boom") StreetLifeTests.Boom("");
             else if (what == "flame") { }
-            else { StreetLifeTests.Face("7"); StreetLifeTests.Ability(what); }
+            else StreetLifeTests.Face("7");
             float t0 = Time.time; int k = 0;
             while (k < at.Length)
             {

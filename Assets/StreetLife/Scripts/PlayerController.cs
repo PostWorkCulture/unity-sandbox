@@ -63,9 +63,7 @@ namespace StreetLife
             if (!ms.leftButton.isPressed) lockClick = false;                   // the click that grabbed the mouse doesn't fire
             f.inFire = locked && ms.leftButton.isPressed && !lockClick;
             if (kb.cKey.wasPressedThisFrame) f.crouchOn = !f.crouchOn;
-            f.abilityHeld = kb.gKey.isPressed;
             if (kb.qKey.wasPressedThisFrame) Walls.Build(f);   // the web game's Q: a brick wall
-            if (kb.gKey.wasPressedThisFrame) f.UseAbility();   // the web game's G: character ability
             if ((kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed) && f.crouchOn && kb.wKey.isPressed) f.crouchOn = false;
             if (kb.rKey.wasPressedThisFrame && !RoundManager.Instance) Respawn();   // free-roam testing only
         }

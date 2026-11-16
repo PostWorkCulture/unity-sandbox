@@ -183,7 +183,7 @@ namespace StreetLife
             if (scanT <= 0) { scanT = .5f; Scan(); }
 
             // slow motion (web: S.ts eases to .25 while slowT runs, back to 1 after)
-            if (slowT > 0 || slowing)
+            if ((slowT > 0 || slowing) && !MainMenu.Paused)   // paused: the pause menu holds time at 0, and the slow motion picks up where it was
             {
                 if (slowT > 0) { slowT -= rdt; ts = Mathf.Lerp(ts, .25f, 1 - Mathf.Exp(-18 * rdt)); slowing = true; }
                 else { ts = Mathf.Lerp(ts, 1, 1 - Mathf.Exp(-5 * rdt)); if (ts > .995f) { ts = 1; slowing = false; } }
@@ -248,13 +248,13 @@ namespace StreetLife
             if (kb.fKey.wasPressedThisFrame) { var v = Finishable(me); if (v) Begin(me, v); }
 
             // ---- test keys (F8 is the match chat's performance readout) ----
-            if (kb.f10Key.wasPressedThisFrame)
+            if (Dev.On && kb.f10Key.wasPressedThisFrame)
             {
                 int i = System.Array.IndexOf(Moves, ForceMove);
                 ForceMove = i + 1 >= Moves.Length ? "" : Moves[i + 1];
                 FinisherHud.Note("Next finisher: " + (ForceMove == "" ? "Random" : ForceMove), 2.5f);
             }
-            if (kb.f9Key.wasPressedThisFrame && InFight)
+            if (Dev.On && kb.f9Key.wasPressedThisFrame && InFight)
             {
                 bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
                 Fighter foe = null; foreach (var f in Fighters) if (f && f != me && f.team != me.team && f.alive) { foe = f; break; }

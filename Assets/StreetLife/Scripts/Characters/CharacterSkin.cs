@@ -67,7 +67,10 @@ namespace StreetLife
             if (string.IsNullOrEmpty(want) || !set.Has(want))
             {
                 var mine = PlayerChoice; var pool = new List<string>();
-                foreach (var c in set.All) if (c.id != mine && set.Has(c.id)) pool.Add(c.id);
+                // no two fighters in a match wear the same character (while there are enough to go round)
+                var taken = new HashSet<string>(); foreach (var kv in applied) if (kv.Key && kv.Key != rig) taken.Add(kv.Value);
+                foreach (var c in set.All) if (c.id != mine && set.Has(c.id) && !taken.Contains(c.id)) pool.Add(c.id);
+                if (pool.Count == 0) foreach (var c in set.All) if (c.id != mine && set.Has(c.id)) pool.Add(c.id);
                 if (pool.Count == 0) return;
                 want = pool[UnityEngine.Random.Range(0, pool.Count)];
             }
