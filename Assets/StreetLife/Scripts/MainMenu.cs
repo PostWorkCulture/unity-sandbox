@@ -725,6 +725,9 @@ namespace StreetLife
             var kids = new List<VisualElement>(card.Children()); if (kids.Count < 3) return;
             var sv = new ScrollView(ScrollViewMode.Vertical); sv.style.flexShrink = 1; sv.style.flexGrow = 1;
             sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            // this panel has no theme style sheet, so the clipping a ScrollView normally gets from it is set here; the bare
+            // scroll bar is hidden (the wheel and a finger drag still scroll)
+            sv.verticalScrollerVisibility = ScrollerVisibility.Hidden; sv.style.overflow = Overflow.Hidden; sv.contentViewport.style.overflow = Overflow.Hidden;
             int last = keepLast ? kids.Count - 1 : kids.Count;
             for (int i = 1; i < last; i++) { kids[i].style.flexShrink = 0; sv.Add(kids[i]); }
             card.Insert(1, sv); kids[0].style.flexShrink = 0; if (keepLast) kids[kids.Count - 1].style.flexShrink = 0;
