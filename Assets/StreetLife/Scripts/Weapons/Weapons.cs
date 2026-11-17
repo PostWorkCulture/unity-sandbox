@@ -223,7 +223,7 @@ namespace StreetLife
                     swAim = origin + dir * t;
                     swLock = hf && fh.t <= t + .01f ? fh.who : (fromBurst && swLock && swLock.alive ? swLock : null);
                 }
-                if (GSnd.TryGetValue(id, out var gs)) Sfx.Gun(gs.n, F.pos, 1, 16, gs.r); else if (id == "rocket") Sfx.Gun("rocket", F.pos, 1, 16); else Sfx.Play("throw", F.pos, 1, 16);
+                if (GunSound(id, out var gs)) Sfx.Gun(gs.n, F.pos, 1, 16, gs.r); else if (id == "rocket") Sfx.Gun("rocket", F.pos, 1, 16); else Sfx.Play("throw", F.pos, 1, 16);
                 if (id == "rocket" || id == "swarm")
                 {
                     if (me && vmRaise > .5f) GunFx.Emit(mz + d2 * 1.2f, GunFx.E(5, 1.5f, .08f, .18f, 0, "#ffd23f", "#ffb347"));
@@ -239,7 +239,7 @@ namespace StreetLife
             // ---- hitscan
             if (!fromBurst) { fireT = g.rate; if (g.burst > 0) { burstN = g.burst - 1; burstT = g.burstGap; } }
             Use(id); flashT = .05f; kick = 1;
-            if (GSnd.TryGetValue(id, out var snd)) Sfx.Gun(snd.n, F.pos, 1, g.Sniper ? 30 : g.Shotgun ? 24 : 16, snd.r);
+            if (GunSound(id, out var snd)) Sfx.Gun(snd.n, F.pos, 1, g.Sniper ? 30 : g.Shotgun ? 24 : 16, snd.r);
             if (id == "duals") dualL = !dualL;
             Vector3 tr0 = pose ? pose.MuzzleWorld(dualL) : Hand;
             if (me && vmRaise > .5f) tr0 = origin + dir * .9f + new Vector3(0, -.09f, 0);
@@ -318,6 +318,15 @@ namespace StreetLife
             {"burst",("famas",1.18f)}, {"smg",("smgnova",1)}, {"hornet",("smgnova",.9f)}, {"vector",("smgnova",1.12f)}, {"p90",("smgnova",1.04f)}, {"shotgun",("shotboom",1)},
             {"autoshot",("shotboom",.94f)}, {"mg",("lmg",1)}, {"m60",("lmg",.86f)}, {"duals",("pistol",1.08f)}, {"crossbow",("crossbow",1)}
         };
+        // On trial (17 Nov): four fuller files that were in the project but unused, in place of the thin clicks above.
+        // `call StreetLifeTests.GunSounds old` goes back to the table above for a comparison; delete this to make that permanent.
+        public static bool TrialSounds = true;
+        static readonly Dictionary<string, (string n, float r)> GSndTrial = new Dictionary<string, (string, float)>
+        {
+            {"sniper",("sniper",1)}, {"shotgun",("shotgun",1)}, {"autoshot",("shotgun",.94f)}, {"duals",("revolver",1.08f)},
+            {"smg",("smg",1)}, {"ump",("smg",.9f)}, {"sting",("smg",1.22f)}, {"hornet",("smg",.9f)}, {"vector",("smg",1.12f)}, {"p90",("smg",1.04f)}
+        };
+        static bool GunSound(string id, out (string n, float r) s) => (TrialSounds && GSndTrial.TryGetValue(id, out s)) || GSnd.TryGetValue(id, out s);
 
         void Use(string id) { if (ammo.TryGetValue(id, out var a) && a != int.MaxValue) ammo[id] = a - 1; }
 

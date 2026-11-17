@@ -18,6 +18,7 @@ namespace StreetLife
             {"crate", .6f}, {"frost", .75f}, {"horn", .5f},
             {"shotboom", .5f}, {"rocket", .55f}, {"crossbow", .45f}, {"akm", .85f}, {"pistol", .8f},
             {"step2", .88f}, {"step5", .85f},
+            {"sniper", .8f}, {"smg", .6f},   // the trial gun files (Weapons.GSndTrial); the Sentry's own volume was raised to match
         };
         static float Level(string name, bool gun) => (Trim.TryGetValue(name, out var t) ? t : 1) * (gun ? GunVolume : SfxVolume);
         static Sfx inst;
