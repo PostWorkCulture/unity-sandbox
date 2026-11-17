@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Street Life: web vs Unity</title>
+<style>
+  :root { --bg: #111216; --panel: #1b1d23; --line: #2c2f38; --text: #ececf1; --dim: #9a9db0; --web: #4fb3ff; --uni: #f4c22b; --good: #5fd18b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  h1 { font-size: 16px; margin: 0 8px 0 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { background: none; color: var(--dim); border: 0; padding: 7px 12px; font: inherit; cursor: pointer; }
+  .seg button[aria-pressed=true] { background: var(--panel); color: var(--text); }
+  .btn { background: var(--uni); color: #16171c; border: 0; border-radius: 8px; padding: 7px 14px; font: 600 14px/1 inherit; cursor: pointer; }
+  .btn.ghost { background: none; color: var(--text); border: 1px solid var(--line); font-weight: 400; }
+  .note { color: var(--dim); font-size: 12.5px; }
+  main { padding: 12px 16px 40px; }
+  .panes { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+  .panes.one { grid-template-columns: 1fr; }
+  .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+  .pane[hidden] { display: none; }
+  .pane h2 { margin: 0; padding: 8px 12px; font-size: 14px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); }
+  .pane h2 .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .pane h2 a { margin-left: auto; color: var(--dim); font-weight: 400; font-size: 12.5px; }
+  .frame { position: relative; aspect-ratio: 16 / 9; background: #000; }
+  .frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .frame .idle { position: absolute; inset: 0; display: grid; place-content: center; color: var(--dim); text-align: center; padding: 20px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 1px; background: var(--line); }
+  .stat { background: var(--panel); padding: 8px 12px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--dim); font-size: 12px; }
+  h3 { font-size: 15px; margin: 26px 0 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  td, th { padding: 9px 12px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: var(--dim); font-weight: 500; font-size: 12.5px; border-top: 0; }
+  td.k { font-weight: 600; white-space: nowrap; }
+  td .seg button { padding: 5px 9px; font-size: 13px; }
+  td .seg button[aria-pressed=true][data-v=web] { background: color-mix(in srgb, var(--web) 30%, var(--panel)); }
+  td .seg button[aria-pressed=true][data-v=unity] { background: color-mix(in srgb, var(--uni) 35%, var(--panel)); }
+  textarea { width: 100%; min-height: 38px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; resize: vertical; }
+  .auto { color: var(--dim); font-size: 12.5px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  @media (max-width: 820px) { .panes { grid-template-columns: 1fr; } td.k { white-space: normal; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Street Life: web vs Unity</h1>
+  <div class="seg" id="mode" role="group" aria-label="Layout">
+    <button data-m="both" aria-pressed="true">Side by side</button>
+    <button data-m="web" aria-pressed="false">Web only</button>
+    <button data-m="unity" aria-pressed="false">Unity only</button>
+  </div>
+  <button class="btn" id="go">Start</button>
+  <button class="btn ghost" id="stop">Stop</button>
+  <span class="note">Measure frame rate one at a time: two 3D games side by side share the same GPU.</span>
+</header>
+<main>
+  <div class="panes" id="panes">
+    <section class="pane" id="p-web">
+      <h2><i class="dot" style="background:var(--web)"></i>Web (three.js) <a href="../1v1/" target="_blank" rel="noopener">open full page ↗</a></h2>
+      <div class="frame"><div class="idle">Press Start</div></div>
+      <div class="stats"></div>
+    </section>
+    <section class="pane" id="p-unity">
+      <h2><i class="dot" style="background:var(--uni)"></i>Unity (WebGL) <a href="unity/" target="_blank" rel="noopener">open full page ↗</a></h2>
+      <div class="frame"><div class="idle">Press Start</div></div>
+      <div class="stats"></div>
+    </section>
+  </div>
+
+  <h3>Checklist</h3>
+  <table id="check">
+    <thead><tr><th style="width:150px">What</th><th style="width:290px">Which is better</th><th>Notes</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="note" id="device"></p>
+  <p><button class="btn ghost" id="copy">Copy results</button> <span class="note" id="copied"></span></p>
+  <p class="note">The Android app for the S24 is a separate download: install it and compare it against the web version in Chrome on the same phone. Tap the game with three fingers (or press F8) to show its frame rate and load time.</p>
+</main>
+<script>
+(() => {
+  const SRC = { web: '../1v1/', unity: 'unity/' };
+  const KEY = 'sl-compare-v1';
+  const $ = (s, r = document) => r.querySelector(s);
+  const store = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+  const fmtMB = b => b ? (b / 1048576).toFixed(1) + ' MB' : '–';
+  const fmtS = ms => ms > 0 ? (ms / 1000).toFixed(1) + ' s' : '–';
+
+  // ---- one measured pane per version
+  const panes = {};
+  for (const id of ['web', 'unity']) {
+    const el = $('#p-' + id);
+    const stats = $('.stats', el);
+    stats.innerHTML = ['load', 'size', 'fps', 'low', 'res'].map(k => `<div class="stat"><b data-s="${k}">–</b><span>${{ load: 'until playable', size: 'downloaded', fps: 'fps (10 s avg)', low: 'fps 1% low', res: 'canvas pixels' }[k]}</span></div>`).join('');
+    panes[id] = { id, el, frame: $('.frame', el), set: (k, v) => { $(`[data-s=${k}]`, stats).textContent = v; }, t0: 0, ready: 0, times: [], best: {} };
+  }
+
+  function start(id) {
+    const P = panes[id]; stop(id);
+    P.times = []; P.ready = 0; P.t0 = performance.now();
+    const f = document.createElement('iframe');
+    f.allow = 'fullscreen; autoplay; gamepad; accelerometer; gyroscope';
+    f.src = SRC[id] + (SRC[id].includes('?') ? '&' : '?') + 't=' + Date.now();
+    P.frame.innerHTML = ''; P.frame.appendChild(f); P.iframe = f;
+    // count frames from inside the page: a requestAnimationFrame loop there runs only as often as the game lets it
+    const hook = () => {
+      let w; try { w = f.contentWindow; if (!w || !w.document) return; } catch (e) { return; }
+      if (w.__slHooked) return; w.__slHooked = true;
+      const tick = t => { P.times.push(performance.now()); w.requestAnimationFrame(tick); };
+      w.requestAnimationFrame(tick);
+    };
+    f.addEventListener('load', hook);
+    P.timer = setInterval(() => sample(P), 500);
+  }
+  function stop(id) {
+    const P = panes[id]; clearInterval(P.timer);
+    if (P.iframe) { P.iframe.remove(); P.iframe = null; }
+    P.frame.innerHTML = '<div class="idle">Stopped</div>';
+  }
+
+  function sample(P) {
+    let w; try { w = P.iframe && P.iframe.contentWindow; } catch (e) { w = null; }
+    if (!w) return;
+    // playable: Unity says when its first match frame ran; the web game when its game object and page are both up
+    if (!P.ready) {
+      try {
+        if (P.id === 'unity' && w.slReadyAt) P.ready = performance.now();
+        if (P.id === 'web' && w.__duel && w.document.readyState === 'complete') P.ready = performance.now();
+      } catch (e) {}
+      P.set('load', P.ready ? fmtS(P.ready - P.t0) : ((performance.now() - P.t0) / 1000).toFixed(0) + ' s…');
+    }
+    // bytes over the network (cached files count 0; gzip files count compressed)
+    try {
+      let tx = 0, dec = 0;
+      for (const e of w.performance.getEntriesByType('navigation').concat(w.performance.getEntriesByType('resource'))) { tx += e.transferSize || 0; dec += e.decodedBodySize || 0; }
+      P.set('size', tx ? fmtMB(tx) : dec ? fmtMB(dec) + ' (cached)' : '–');
+      P.bytes = tx || dec;
+    } catch (e) {}
+    // frame rate over the last 10 s
+    const now = performance.now(); while (P.times.length && now - P.times[0] > 10000) P.times.shift();
+    if (P.times.length > 20) {
+      const d = []; for (let i = 1; i < P.times.length; i++) d.push(P.times[i] - P.times[i - 1]);
+      const span = P.times[P.times.length - 1] - P.times[0], avg = 1000 * d.length / span;
+      d.sort((a, b) => b - a); const k = Math.max(1, Math.floor(d.length / 100)); let worst = 0; for (let i = 0; i < k; i++) worst += d[i];
+      const low = 1000 * k / worst;
+      P.set('fps', avg.toFixed(0)); P.set('low', low.toFixed(0));
+      P.fps = avg; P.low = low;
+    }
+    try { const c = w.document.querySelector('canvas'); if (c) P.set('res', c.width + '×' + c.height); } catch (e) {}
+    P.best = { load: P.ready ? (P.ready - P.t0) / 1000 : null, size: P.bytes || null, fps: P.fps || null, low: P.low || null };
+    autoNotes();
+  }
+
+  // ---- layout
+  let mode = 'both';
+  $('#mode').addEventListener('click', e => {
+    const b = e.target.closest('[data-m]'); if (!b) return; mode = b.dataset.m;
+    for (const x of $('#mode').children) x.setAttribute('aria-pressed', String(x === b));
+    $('#p-web').hidden = mode === 'unity'; $('#p-unity').hidden = mode === 'web';
+    $('#panes').classList.toggle('one', mode !== 'both');
+    if (mode === 'web') stop('unity'); if (mode === 'unity') stop('web');
+  });
+  $('#go').addEventListener('click', () => { if (mode !== 'unity') start('web'); if (mode !== 'web') start('unity'); $('#go').textContent = 'Restart'; });
+  $('#stop').addEventListener('click', () => { stop('web'); stop('unity'); $('#go').textContent = 'Start'; });
+
+  // ---- checklist (kept in this browser)
+  const ROWS = [
+    ['visuals', 'Visuals', 'Lighting, shadows, edges, textures, effects'],
+    ['fps', 'Frame rate', 'Smoothness in a fight, worst moments'],
+    ['load', 'Load time', 'From opening the page to playing'],
+    ['size', 'Download size', 'First visit, nothing cached'],
+    ['controls', 'Controls feel', 'Aim, movement, jumping, touch on the phone'],
+  ];
+  const tb = $('#check tbody');
+  for (const [k, name, hint] of ROWS) {
+    const r = store[k] || (store[k] = { v: '', note: '' });
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="k">${name}<div class="note">${hint}</div></td>
+      <td><div class="seg">${['web', 'same', 'unity'].map(v => `<button data-v="${v}" aria-pressed="${r.v === v}">${{ web: 'Web', same: 'Same', unity: 'Unity' }[v]}</button>`).join('')}</div><div class="auto" data-auto="${k}"></div></td>
+      <td><textarea data-k="${k}" placeholder="Notes">${r.note.replace(/</g, '&lt;')}</textarea></td>`;
+    tr.querySelector('.seg').addEventListener('click', e => {
+      const b = e.target.closest('[data-v]'); if (!b) return;
+      r.v = r.v === b.dataset.v ? '' : b.dataset.v; save();
+      for (const x of b.parentNode.children) x.setAttribute('aria-pressed', String(x.dataset.v === r.v));
+    });
+    tr.querySelector('textarea').addEventListener('input', e => { r.note = e.target.value; save(); });
+    tb.appendChild(tr);
+  }
+  function autoNotes() {
+    const W = panes.web.best, U = panes.unity.best;
+    const line = (a, b, f) => (a != null || b != null) ? `Measured: web ${a != null ? f(a) : '–'}, Unity ${b != null ? f(b) : '–'}` : '';
+    $('[data-auto=fps]').textContent = line(W.fps, U.fps, v => v.toFixed(0) + ' fps') + (W.low || U.low ? ` (1% low ${W.low ? W.low.toFixed(0) : '–'} / ${U.low ? U.low.toFixed(0) : '–'})` : '');
+    $('[data-auto=load]').textContent = line(W.load, U.load, v => v.toFixed(1) + ' s');
+    $('[data-auto=size]').textContent = line(W.size, U.size, fmtMB);
+  }
+  const dev = navigator.userAgent.match(/\(([^)]+)\)/); $('#device').textContent = 'This device: ' + (dev ? dev[1] : navigator.userAgent) + ` · screen ${screen.width}×${screen.height} @${devicePixelRatio}x`;
+
+  $('#copy').addEventListener('click', async () => {
+    const W = panes.web.best, U = panes.unity.best;
+    const lines = ['Street Life: web vs Unity', $('#device').textContent, ''];
+    for (const [k, name] of ROWS) { const r = store[k]; lines.push(`${name}: ${r.v ? { web: 'web better', same: 'same', unity: 'Unity better' }[r.v] : 'not rated'}${r.note ? ' — ' + r.note : ''}`); const a = $(`[data-auto=${k}]`); if (a && a.textContent) lines.push('  ' + a.textContent); }
+    try { await navigator.clipboard.writeText(lines.join('\n')); $('#copied').textContent = 'Copied'; } catch (e) { $('#copied').textContent = 'Copy failed: select and copy by hand'; }
+  });
+})();
+</script>
+</body>
+</html>

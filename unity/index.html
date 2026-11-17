@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Street Life (Unity)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #16171c; overflow: hidden; touch-action: none; }
+  #unity-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #16171c; outline: none; }
+  #loading { position: fixed; inset: 0; display: grid; place-content: center; gap: 14px; color: #e9e9ee; font: 600 15px/1.3 system-ui, sans-serif; text-align: center; }
+  #bar { width: min(320px, 70vw); height: 8px; border-radius: 4px; background: #2b2d33; overflow: hidden; }
+  #bar i { display: block; height: 100%; width: 0; background: #f4c22b; transition: width .15s; }
+  #err { color: #ff8f8f; max-width: 80vw; }
+</style>
+</head>
+<body>
+<canvas id="unity-canvas" tabindex="-1"></canvas>
+<div id="loading"><div>Street Life, Unity build</div><div id="bar"><i></i></div><div id="pct">Downloading…</div><div id="err"></div></div>
+<script>
+  // Timings the comparison page reads (same origin): slStart, slLoadedAt (engine up), slReadyAt (first match frame, from the game)
+  window.slStart = performance.now();
+  var canvas = document.querySelector("#unity-canvas");
+  var config = {
+    arguments: [],
+    dataUrl: "Build/unity.data.unityweb",
+    frameworkUrl: "Build/unity.framework.js.unityweb",
+    codeUrl: "Build/unity.wasm.unityweb",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "PostWorkCulture",
+    productName: "Street Life",
+    productVersion: "0.1.0",
+  };
+  // phones: render at up to 2x (like the web game's pixel-ratio cap) so the S24 isn't drawing 3x the pixels
+  if (/Android|iPhone|iPad/i.test(navigator.userAgent)) config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  var bar = document.querySelector("#bar i"), pct = document.querySelector("#pct");
+  // GitHub won't take a file over 100 MB, so a bigger data file is published in parts (StreetLifeBuild.SplitData cuts it up
+  // and fills this list in): they are fetched here and handed to Unity's loader as one blob.
+  var dataParts = /*SL_DATA_PARTS*/["unity.data.unityweb.part0","unity.data.unityweb.part1","unity.data.unityweb.part2"], dataBytes = /*SL_DATA_BYTES*/106472632;
+  function showP(p) { bar.style.width = (100 * p) + "%"; pct.textContent = p < .9 ? "Downloading… " + Math.round(100 * p) + "%" : "Starting…"; }
+  function fail(e) { document.querySelector("#err").textContent = String(e); }
+  function part(url, onBytes) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error(url + ": " + r.status);
+      if (!r.body || !r.body.getReader) return r.blob().then(function (b) { onBytes(b.size); return b; });
+      var reader = r.body.getReader(), chunks = [];
+      return (function pump() {
+        return reader.read().then(function (x) {
+          if (x.done) return new Blob(chunks);
+          chunks.push(x.value); onBytes(x.value.length);
+          return pump();
+        });
+      })();
+    });
+  }
+  function boot(share) {   // share: how much of the bar the parts have filled already
+    var s = document.createElement("script");
+    s.src = "Build/unity.loader.js";
+    s.onload = function () {
+      createUnityInstance(canvas, config, function (p) { showP(share + (1 - share) * p); })
+        .then(function (inst) {
+          window.slInstance = inst; window.slLoadedAt = performance.now();
+          document.querySelector("#loading").remove(); canvas.focus();
+        })
+        .catch(fail);
+    };
+    document.body.appendChild(s);
+  }
+  if (dataParts.length) {
+    var got = 0;
+    Promise.all(dataParts.map(function (u) { return part("Build/" + u, function (n) { got += n; showP(.8 * Math.min(1, got / Math.max(1, dataBytes))); }); }))
+      .then(function (blobs) {
+        config.dataUrl = URL.createObjectURL(new Blob(blobs));
+        config.cacheControl = function (url) { return url.indexOf("blob:") === 0 ? "no-store" : "must-revalidate"; };   // the parts are the browser's to cache
+        boot(.8);
+      })
+      .catch(fail);
+  } else boot(0);
+  canvas.addEventListener("pointerdown", function () { canvas.focus(); });
+</script>
+</body>
+</html>
