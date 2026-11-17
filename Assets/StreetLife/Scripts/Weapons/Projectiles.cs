@@ -479,7 +479,7 @@ namespace StreetLife
                     t.shots++; t.fireT = t.shots % C.burst == 0 ? C.pause : C.rate;
                     int bi = t.shots % 2; var mp = t.pitchT ? t.pitchT.TransformPoint(t.muz[bi]) : t.pos + Vector3.up * 1.5f;
                     if (t.flashes[bi]) { t.flashes[bi].gameObject.SetActive(true); t.flashes[bi].localScale = Vector3.one * Random.Range(.8f, 1.3f); }
-                    Sfx.Gun("smg", mp, .7f, 24, Random.Range(1.3f, 1.45f));
+                    Sfx.Gun("smg", mp, .5f, 24, Random.Range(1.3f, 1.45f));
                     var c = T.pos + Vector3.up * (1.15f * Fighter.SC); var dir = (c - mp).normalized; float sp = C.spread * Mathf.Deg2Rad;
                     dir.x += Random.Range(-sp, sp); dir.y += Random.Range(-sp, sp) * .6f; dir.z += Random.Range(-sp, sp); dir.Normalize();
                     float dist = Vector3.Distance(mp, c) + 1; Vector3 end;

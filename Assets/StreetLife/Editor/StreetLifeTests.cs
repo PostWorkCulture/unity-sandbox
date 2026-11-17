@@ -148,7 +148,7 @@ namespace StreetLife.EditorTools
         }
 
         /// "old" / "new": the original gun sounds, or the four fuller ones on trial
-        public static string GunSounds(string a) { Weapons.TrialSounds = a.Trim() != "old"; return "gun sounds: " + (Weapons.TrialSounds ? "trial (sniper, shotgun, smg, revolver)" : "original"); }
+        public static string GunSounds(string a) { Weapons.TrialSounds = a.Trim() != "old"; return "gun sounds: " + (Weapons.TrialSounds ? "trial (every gun but the rocket and crossbow, and the explosion)" : "original"); }
         /// "0.3" sets the Guns volume, then plays one gun sound and one effect and says what volume each source got
         public static string Levels(string a)
         {

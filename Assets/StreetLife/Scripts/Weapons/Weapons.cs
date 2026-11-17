@@ -324,7 +324,9 @@ namespace StreetLife
         static readonly Dictionary<string, (string n, float r)> GSndTrial = new Dictionary<string, (string, float)>
         {
             {"sniper",("sniper",1)}, {"shotgun",("shotgun",1)}, {"autoshot",("shotgun",.94f)}, {"duals",("revolver",1.08f)},
-            {"smg",("smg",1)}, {"ump",("smg",.9f)}, {"sting",("smg",1.22f)}, {"hornet",("smg",.9f)}, {"vector",("smg",1.12f)}, {"p90",("smg",1.04f)}
+            {"smg",("smg",1)}, {"ump",("smg",.9f)}, {"sting",("smg",1.22f)}, {"hornet",("smg",.9f)}, {"vector",("smg",1.12f)}, {"p90",("smg",1.04f)},
+            // real recordings from The Free Firearm Sound Library (CC0), made louder by Tools/gunsounds.py: AR-15, AK-47, Springfield 1917, Tikka T3
+            {"gar",("gun_ar15",1)}, {"burst",("gun_ar15",1.12f)}, {"ar",("gun_ak47",1)}, {"mg",("gun_1917",1)}, {"m60",("gun_1917",.88f)}, {"scout",("gun_tikka",1)}
         };
         static bool GunSound(string id, out (string n, float r) s) => (TrialSounds && GSndTrial.TryGetValue(id, out s)) || GSnd.TryGetValue(id, out s);
 
