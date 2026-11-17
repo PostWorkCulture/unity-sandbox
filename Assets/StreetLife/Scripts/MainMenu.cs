@@ -679,6 +679,8 @@ namespace StreetLife
             var vol = new float[] { 0, .1f, .2f, .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f };
             c.Add(Stepper("Music", vol, () => Settings.Music, v => { Settings.Music = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
             c.Add(Stepper("Effects", vol, () => Settings.Effects, v => { Settings.Effects = v; Settings.Apply(); }, v => Mathf.RoundToInt(v * 100) + "%"));
+            // guns have their own level (17 Nov): each step fires one rifle shot at the new level so you can hear it from the menu
+            c.Add(Stepper("Guns", vol, () => Settings.Guns, v => { Settings.Guns = v; Settings.Apply(); Sfx.Ui("m4", 1, 1, true); }, v => Mathf.RoundToInt(v * 100) + "%"));
             c.Add(Caps("Graphics"));
             c.Add(Segmented(new[] { "Auto", "High", "Smooth" }, new[] { "auto", "high", "smooth" }, () => Settings.Graphics, v => { Settings.Graphics = v; Settings.Apply(); }));
             var gh = L("Auto picks from your hardware and drops to Smooth if the game can't keep up. High: 4K shadows, full ambient occlusion, 4x anti-aliasing. Smooth: the lighter settings phones use.", 12, Dim); gh.style.whiteSpace = WhiteSpace.Normal; gh.style.marginTop = 6; c.Add(gh);
@@ -1002,6 +1004,7 @@ namespace StreetLife
         public static bool AutoAds { get => PlayerPrefs.GetInt(P + "autoAds", 0) == 1; set => PlayerPrefs.SetInt(P + "autoAds", value ? 1 : 0); }
         public static float Music { get => PlayerPrefs.GetFloat(P + "music", .5f); set => PlayerPrefs.SetFloat(P + "music", value); }
         public static float Effects { get => PlayerPrefs.GetFloat(P + "sfx", 1f); set => PlayerPrefs.SetFloat(P + "sfx", value); }
+        public static float Guns { get => PlayerPrefs.GetFloat(P + "guns", 1f); set => PlayerPrefs.SetFloat(P + "guns", value); }
         public static string Difficulty { get => PlayerPrefs.GetString(P + "difficulty", "normal"); set => PlayerPrefs.SetString(P + "difficulty", value); }
         public static string Mode { get => PlayerPrefs.GetString(P + "mode", "duels"); set => PlayerPrefs.SetString(P + "mode", value); }
         public static string Primary { get => PlayerPrefs.GetString(P + "primary", "gar"); set => PlayerPrefs.SetString(P + "primary", value); }
@@ -1089,7 +1092,7 @@ namespace StreetLife
             TouchControls.Mode = Touch;
             if (TouchControls.I) { TouchControls.I.sensitivity = Sens; TouchControls.I.aimAssist = AimAssist; TouchControls.I.gyro = Gyro; TouchControls.I.autoAds = AutoAds; TouchControls.I.aimSens = AimSens; TouchControls.I.snipeSens = SnipeSens; }
             Haptics.On = Vibration; ApplyFps();
-            Sfx.MusicVolume = Music; Sfx.SfxVolume = Effects;
+            Sfx.MusicVolume = Music; Sfx.SfxVolume = Effects; Sfx.GunVolume = Guns;
             var names = QualitySettings.names; string want = Graphics == "auto" ? AutoQuality.Level : Graphics == "smooth" ? "Mobile" : "PC";
             for (int i = 0; i < names.Length; i++) if (names[i] == want && QualitySettings.GetQualityLevel() != i) { QualitySettings.SetQualityLevel(i, true); break; }
             ApplyDisplay();

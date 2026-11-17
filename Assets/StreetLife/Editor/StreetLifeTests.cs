@@ -147,6 +147,15 @@ namespace StreetLife.EditorTools
             return $"bot tagged {b.Tagged} (for {b.tagT - Time.time:F1} s)";
         }
 
+        /// "0.3" sets the Guns volume, then plays one gun sound and one effect and says what volume each source got
+        public static string Levels(string a)
+        {
+            if (float.TryParse(a, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var g)) Sfx.GunVolume = g;
+            var cam = Camera.main; var at = cam ? cam.transform.position : Vector3.zero;
+            string V(AudioSource s) => s ? s.volume.ToString("F3") : "null";
+            return $"Guns {Sfx.GunVolume:F2} Effects {Sfx.SfxVolume:F2}: m4 {V(Sfx.Gun("m4", at))}, shotboom {V(Sfx.Gun("shotboom", at))}, reload {V(Sfx.Gun("reload", at))}, " +
+                   $"hit {V(Sfx.Play2D("hit", .9f))}, explode {V(Sfx.Play("explode", at))}, horn {V(Sfx.Play("horn", at))}, step1 {V(Sfx.Play2D("step1"))}";
+        }
         /// is sound getting out? listeners, mute switches, volumes, clips, and the listener's actual output level
         public static string Audio(string a)
         {

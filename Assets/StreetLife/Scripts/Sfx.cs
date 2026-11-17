@@ -8,7 +8,18 @@ namespace StreetLife
 {
     public class Sfx : MonoBehaviour
     {
-        public static float SfxVolume = 1f, MusicVolume = .5f;
+        public static float SfxVolume = 1f, GunVolume = 1f, MusicVolume = .5f;   // Effects, Guns and Music in Settings
+        // Level trims (17 Nov): every file peaks at about the same level, but how loud each one sounds differs by 15 dB
+        // (measured with Tools/sfxlevels.py). These pull down the ones that were louder than their job calls for, so a hit
+        // tick, a weapon swap, a car horn or a breaking crate no longer sits above a rifle shot. Files not listed play as is.
+        static readonly Dictionary<string, float> Trim = new Dictionary<string, float>
+        {
+            {"hit", .5f}, {"kill", .8f}, {"swing", .55f}, {"swordswing", .75f}, {"swap", .5f}, {"dry", .5f}, {"throw", .7f}, {"sense", .7f},
+            {"crate", .6f}, {"frost", .75f}, {"horn", .5f},
+            {"shotboom", .5f}, {"rocket", .55f}, {"crossbow", .45f}, {"akm", .85f}, {"pistol", .8f},
+            {"step2", .88f}, {"step5", .85f},
+        };
+        static float Level(string name, bool gun) => (Trim.TryGetValue(name, out var t) ? t : 1) * (gun ? GunVolume : SfxVolume);
         static Sfx inst;
         readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
         readonly List<AudioSource> pool = new List<AudioSource>();
@@ -56,7 +67,8 @@ namespace StreetLife
         }
 
         /// A positional one-shot by the web game's sfx name (e.g. "m4", "step2", "explode").
-        public static AudioSource Play(string name, Vector3 at, float vol = 1, float range = 14, float pitch = 1)
+        /// gun: true puts it on the Guns volume (shots, reloads, dry fire, bullet impacts, near misses) instead of Effects.
+        public static AudioSource Play(string name, Vector3 at, float vol = 1, float range = 14, float pitch = 1, bool gun = false)
         {
             var cam = Camera.main;
             float pan = 0;
@@ -69,15 +81,16 @@ namespace StreetLife
                 if (flat.sqrMagnitude > 1e-4f) pan = Vector3.Dot(flat.normalized, cam.transform.right) * .7f;
             }
             if (vol < .01f) return null;
-            return I.Emit(name, vol, pan, pitch);
+            return I.Emit(name, vol, pan, pitch, gun);
         }
+        public static AudioSource Gun(string name, Vector3 at, float vol = 1, float range = 14, float pitch = 1) => Play(name, at, vol, range, pitch, true);
 
-        public static AudioSource Play2D(string name, float vol = 1, float pitch = 1) => I.Emit(name, vol, 0, pitch);
+        public static AudioSource Play2D(string name, float vol = 1, float pitch = 1) => I.Emit(name, vol, 0, pitch, false);
 
-        AudioSource Emit(string name, float vol, float pan, float pitch)
+        AudioSource Emit(string name, float vol, float pan, float pitch, bool gun)
         {
             var c = Clip("sfx", name); if (!c) return null;
-            var s = Free(); s.clip = c; s.volume = Mathf.Clamp01(vol * SfxVolume); s.panStereo = pan; s.pitch = pitch; s.loop = false; s.Play();
+            var s = Free(); s.clip = c; s.volume = Mathf.Clamp01(vol * Level(name, gun)); s.panStereo = pan; s.pitch = pitch; s.loop = false; s.Play();
             return s;
         }
 
@@ -109,11 +122,11 @@ namespace StreetLife
             foreach (var a in FindObjectsByType<AudioSource>(FindObjectsInactive.Include)) if (a && a != musicA && a != musicB && a != uiSrc) a.mute = m;
         }
         /// a menu or HUD click: heard in the menu too
-        public static void Ui(string name, float vol = 1, float pitch = 1)
+        public static void Ui(string name, float vol = 1, float pitch = 1, bool gun = false)
         {
             var c = I.Clip("sfx", name); if (!c) return;
             if (!I.uiSrc) { I.uiSrc = I.gameObject.AddComponent<AudioSource>(); I.uiSrc.playOnAwake = false; I.uiSrc.spatialBlend = 0; }
-            I.uiSrc.pitch = pitch; I.uiSrc.PlayOneShot(c, Mathf.Clamp01(vol * SfxVolume));
+            I.uiSrc.pitch = pitch; I.uiSrc.PlayOneShot(c, Mathf.Clamp01(vol * Level(name, gun)));
         }
 
         void Update()

@@ -89,7 +89,7 @@ namespace StreetLife
             reloadT = g.reload > 0 ? g.reload : 1; reloadMax = reloadT;
             // the reload sound is 3.4 s long: sped up a little and started part way in so it ends with the reload
             const float L = 3.4f; float r = Mathf.Clamp(L / reloadT, .95f, 1.2f);
-            relSnd = Sfx.Play("reload", F.pos, isPlayer ? 1 : .8f, 8, r);
+            relSnd = Sfx.Gun("reload", F.pos, isPlayer ? 1 : .8f, 8, r);
             if (relSnd && relSnd.clip) relSnd.time = Mathf.Clamp(L - reloadT * r, 0, relSnd.clip.length - .05f);
         }
 
@@ -138,7 +138,7 @@ namespace StreetLife
             if (!Busy && !F.Frozen && g != null)
             {
                 if (inFire && CanFire() && (g.auto || !triggerWas)) FireFromAim(false);
-                else if (inFire && Ammo(Gun) <= 0 && reloadT <= 0) { if (!triggerWas) Sfx.Play("dry", F.pos, 1, 8); StartReload(); }
+                else if (inFire && Ammo(Gun) <= 0 && reloadT <= 0) { if (!triggerWas) Sfx.Gun("dry", F.pos, 1, 8); StartReload(); }
             }
             triggerWas = inFire;
 
@@ -223,7 +223,7 @@ namespace StreetLife
                     swAim = origin + dir * t;
                     swLock = hf && fh.t <= t + .01f ? fh.who : (fromBurst && swLock && swLock.alive ? swLock : null);
                 }
-                if (GSnd.TryGetValue(id, out var gs)) Sfx.Play(gs.n, F.pos, 1, 16, gs.r); else Sfx.Play(id == "rocket" ? "rocket" : "throw", F.pos, 1, 16);
+                if (GSnd.TryGetValue(id, out var gs)) Sfx.Gun(gs.n, F.pos, 1, 16, gs.r); else if (id == "rocket") Sfx.Gun("rocket", F.pos, 1, 16); else Sfx.Play("throw", F.pos, 1, 16);
                 if (id == "rocket" || id == "swarm")
                 {
                     if (me && vmRaise > .5f) GunFx.Emit(mz + d2 * 1.2f, GunFx.E(5, 1.5f, .08f, .18f, 0, "#ffd23f", "#ffb347"));
@@ -239,7 +239,7 @@ namespace StreetLife
             // ---- hitscan
             if (!fromBurst) { fireT = g.rate; if (g.burst > 0) { burstN = g.burst - 1; burstT = g.burstGap; } }
             Use(id); flashT = .05f; kick = 1;
-            if (GSnd.TryGetValue(id, out var snd)) Sfx.Play(snd.n, F.pos, 1, g.Sniper ? 30 : g.Shotgun ? 24 : 16, snd.r);
+            if (GSnd.TryGetValue(id, out var snd)) Sfx.Gun(snd.n, F.pos, 1, g.Sniper ? 30 : g.Shotgun ? 24 : 16, snd.r);
             if (id == "duals") dualL = !dualL;
             Vector3 tr0 = pose ? pose.MuzzleWorld(dualL) : Hand;
             if (me && vmRaise > .5f) tr0 = origin + dir * .9f + new Vector3(0, -.09f, 0);
@@ -266,7 +266,7 @@ namespace StreetLife
                 else if (hb)
                 {
                     end = origin + d * bh.t;
-                    if (p == 0) Sfx.Play("impact", end, 1, 9);
+                    if (p == 0) Sfx.Gun("impact", end, 1, 9);
                     // breakables (glass, furniture, drums, cars, trees): the match chat's destruction takes the hit; the bullet still stops here
                     Destruction.Hit(bh.box, g.dmg, end, d, F);
                     GunFx.Emit(end + bh.n * .05f, new EmitOpts { n = 3, speed = 3, up = 1, size = .1f, life = .4f, vx = bh.n.x * 2, vz = bh.n.z * 2, colors = new[] { Web.Hex("#d8d4cc"), Web.Hex("#8a8f99"), Color.white } });
@@ -280,7 +280,7 @@ namespace StreetLife
                 if (p == 0 && !me && me0 && me0.alive && !hits.ContainsKey(me0) && Combat.Time - whizT > .6f)
                 {
                     var hp = me0.pos + Vector3.up * (2 * Fighter.SC); float tt = Mathf.Clamp(Vector3.Dot(hp - origin, d), 0, et); var q0 = origin + d * tt; float mm = Vector3.Distance(q0, hp);
-                    if (mm < .9f && tt > 4 && tt < et - .5f) { whizT = Combat.Time; Sfx.Play("nearmiss", q0, 1 - mm / .9f * .4f, 14); }
+                    if (mm < .9f && tt > 4 && tt < et - .5f) { whizT = Combat.Time; Sfx.Gun("nearmiss", q0, 1 - mm / .9f * .4f, 14); }
                 }
                 foreach (var w in woods)
                 {
@@ -368,7 +368,7 @@ namespace StreetLife
         void FireFlame(GunStat g, Vector3 origin, Vector3 dir)
         {
             const string id = "flamer";
-            if (!(flameT > 0)) Sfx.Play("fireball", F.pos, .5f, 14, .8f);
+            if (!(flameT > 0)) Sfx.Gun("fireball", F.pos, .5f, 14, .8f);
             fireT = g.rate; Use(id); kick = .25f; flameT = .12f;
             var mz = pose && pose.HeldVisible ? pose.MuzzleWorld(false) : F.Eye + F.Aim * .9f - Vector3.up * .32f;
             float R = g.range; bool hb = Combat.RayBoxes(origin, dir, R + 2, out var bh);
